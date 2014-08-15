@@ -9,27 +9,33 @@ var fs = require('fs'),
     cssmin = require('gulp-cssmin'),
     argv = require('yargs').argv,
     sass = require('gulp-sass'),
-    es = require('event-stream');
+    es = require('event-stream'),
+    conf;
 
+conf = require(p.join(process.cwd(), '/conf.json'));
+if(!conf) return;
 
+// converts plain string to array.
 function toArray(val) {
     if(!(val instanceof Array))
         return [val];
     return val;
 }
 
+// cleans target dir.
 function clear(sources) {
     sources = toArray(sources);
     gulp.src(sources, { read: false })
         .pipe(clean({force: true}));
 }
 
+// bundles AI.
 function bundle(sources, dest, name) {
 
     var minName;
 
-    minName = name.replace('{{suffix}}', '.min');
-    name = name.replace('{{suffix}}', '');
+    minName = name.replace('{{min}}', '.min');
+    name = name.replace('{{min}}', '');
 
     gulp.src(sources)
         .pipe(concat(name))
@@ -37,39 +43,34 @@ function bundle(sources, dest, name) {
         .pipe(concat(minName))
         .pipe(uglify())
         .pipe(gulp.dest(dest));
-
-
-
 }
 
+// copies AI to development dirs.
+// handy when editing source.
+function copy(sources, dests) {
+    if(!sources || !sources.length) return;
+    var tasks = sources.map(function (src, idx) {
+        var dest = dests[idx] || dests[0];
+        if(!dest) return;
+        return gulp.src(src)
+            .pipe(gulp.dest(dest));
+    });
+    return es.concat.apply(null, tasks);
+}
 
-gulp.task('clean', [], function () {
-    clear('./dist');
+gulp.task('clean', [], function (sources) {
+    clear(sources);
 });
 
-gulp.task('bundle', ['clean'], function () {
+gulp.task('bundle', [], function () {
     var sources, dest, name;
-    sources = [
-
-        // prefix
-        './src/prefix.js',
-
-        // module
-        './src/index.js',
-
-        // providers
-        './src/click2call.js',
-        './src/resolver.js',
-
-        // directives
-        './src/nicescroll.js',
-
-        './src/suffix.js'
-
-    ];
-    dest =  './dist';
-    name = 'ai{{suffix}}.js';
+    sources = conf.bundle.sources;
+    dest =  conf.bundle.dest;
+    name = conf.bundle.name;
     bundle(sources, dest, name);
 });
 
-gulp.task('build', ['clean', 'bundle']);
+gulp.task('copy', ['bundle'], function () {
+    copy(conf.copy.sources, conf.copy.dests);
+});
+gulp.task('build', ['bundle', 'copy']);

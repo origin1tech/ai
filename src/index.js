@@ -15,12 +15,6 @@ angular.module('ai', [
      */
     'ai.resolver',
 
-    /*
-     * Extend ngResource
-     * Extends ngResource with additional options including CRUD.
-     * reference: see: https://docs.angularjs.org/api/ngResource/service/$resource
-     */
-    'ai.resource',
 
     /* Directives
     *******************************************************************/

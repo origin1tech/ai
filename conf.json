@@ -1,0 +1,18 @@
+{
+    "bundle": {
+        "sources": [        
+            "./src/prefix.js",     
+            "./src/index.js",       
+            "./src/click2call.js",
+            "./src/resolver.js",      
+            "./src/nicescroll.js",
+            "./src/suffix.js"    
+        ],
+        "dest": "./dist",
+        "name": "ai{{min}}.js"
+    },
+    "copy": {
+        "sources": ["./dist/ai.js"],
+        "dests": ["D:\\Projects\\WebNode\\phavior\\web\\assets\\mixin"]
+    }    
+}
