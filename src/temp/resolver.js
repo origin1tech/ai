@@ -47,8 +47,7 @@ angular.module('ai.resolver', [])
 
         }(this.config));
 
-        this.$get = function ($routeProvider, $locationProvider, $controllerProvider, $compileProvider,
-                              $filterProvider, $provide) {
+        this.$get = function () {
             return this;
         };
 

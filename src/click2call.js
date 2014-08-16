@@ -118,7 +118,6 @@ angular.module('ai.click2call', [])
         function ModuleFactory(element, config) {
 
             var $module = {},
-                node = element[0].nodeName.toLowerCase(),
                 options = $module.$options = angular.extend({}, defaults, config),
                 scope = $module.$scope = (options.scope ? options.scope.$new() : $rootScope.$new());
 

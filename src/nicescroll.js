@@ -9,7 +9,7 @@ angular.module('ai.nicescroll', [])
             scope: {
                 options: '&aiNicescroll'
             },
-            link: function(scope, element, attrs) {
+            link: function(scope, element) {
                 var defaults, init, plugin;
                 defaults = {
                     horizrailenabled: false
