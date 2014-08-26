@@ -215,24 +215,29 @@ angular.module('ai.click2call', [])
 
 })
 .directive('aiClick2call', ['$click2call', function ($click2call) {
+
     return{
-        restrict: 'EA',
+        restrict: 'EAC',
         scope: {
             options: '&aiClick2call'
         },
         link: function (scope, element, attrs) {
-            var defaults, module, options;
+
+            var defaults, directive, init, options;
 
             defaults = {
                 scope: scope
             };
 
+            init = function () {
+                // create the directive.
+                directive = $click2call(element, options);
+            };
+
             // merge options.
-            options = angular.extend(defaults, scope.$eval(attrs.aiClick2call));
+            options = angular.extend(defaults, scope.$eval(scope.options));
 
-            // create the directive.
-            module = $click2call(element, options);
-
+            init();
 
         }
     };

@@ -17,6 +17,11 @@ angular.module('ai', [
      */
      'ai.storage',
 
+    /**
+     * Transition Navigator
+     * @description - Navigates between views using CSS3 transitions.
+     */
+    'ai.navigator',
 
     // DIRECTIVES //
 
@@ -245,41 +250,49 @@ angular.module('ai.click2call', [])
 
 })
 .directive('aiClick2call', ['$click2call', function ($click2call) {
+
     return{
-        restrict: 'EA',
+        restrict: 'EAC',
         scope: {
             options: '&aiClick2call'
         },
         link: function (scope, element, attrs) {
-            var defaults, module, options;
+
+            var defaults, directive, init, options;
 
             defaults = {
                 scope: scope
             };
 
+            init = function () {
+                // create the directive.
+                directive = $click2call(element, options);
+            };
+
             // merge options.
-            options = angular.extend(defaults, scope.$eval(attrs.aiClick2call));
+            options = angular.extend(defaults, scope.$eval(scope.options));
 
-            // create the directive.
-            module = $click2call(element, options);
-
+            init();
 
         }
     };
 }]);
 angular.module('ai.nicescroll', [])
-    .run([function () {
-        if(!window.NiceScroll)
-            throw new Error('ai-nicescroll requires the NiceScroll library see: http://areaaperta.com/nicescroll/');
-    }])
-    .directive('aiNicescroll', [function() {
+  
+    .directive('aiNicescroll', [function() {          
+
         return {
-            restrict: 'AC',
+            restrict: 'EAC',
             scope: {
                 options: '&aiNicescroll'
             },
             link: function(scope, element) {
+
                 var defaults, init, plugin;
+
+                console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
+                    'see: http://areaaperta.com/nicescroll/');
+
                 defaults = {
                     horizrailenabled: false
                 };

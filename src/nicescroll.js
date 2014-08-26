@@ -1,16 +1,19 @@
 angular.module('ai.nicescroll', [])
-    .run([function () {
-        if(!window.NiceScroll)
-            throw new Error('ai-nicescroll requires the NiceScroll library see: http://areaaperta.com/nicescroll/');
-    }])
-    .directive('aiNicescroll', [function() {
+  
+    .directive('aiNicescroll', [function() {          
+
         return {
-            restrict: 'AC',
+            restrict: 'EAC',
             scope: {
                 options: '&aiNicescroll'
             },
             link: function(scope, element) {
+
                 var defaults, init, plugin;
+
+                console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
+                    'see: http://areaaperta.com/nicescroll/');
+
                 defaults = {
                     horizrailenabled: false
                 };

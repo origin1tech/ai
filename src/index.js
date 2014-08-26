@@ -14,6 +14,11 @@ angular.module('ai', [
      */
      'ai.storage',
 
+    /**
+     * Transition Navigator
+     * @description - Navigates between views using CSS3 transitions.
+     */
+    'ai.navigator',
 
     // DIRECTIVES //
 

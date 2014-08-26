@@ -73,4 +73,6 @@ gulp.task('bundle', [], function () {
 gulp.task('copy', ['bundle'], function () {
     copy(conf.copy.sources, conf.copy.dests);
 });
-gulp.task('build', ['bundle', 'copy']);
+gulp.task('build', ['copy'], function () {
+
+});

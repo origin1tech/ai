@@ -34,6 +34,8 @@ angular.module('ai.status', [])
                         statusKeys = Object.keys(options.codes),
                         isView = resp.config.url.indexOf(options.extension) !== -1;
 
+                    console.log(resp);
+
                     if(options.codes[status] && statusKeys.indexOf(status.toString()) !== -1 && isView){
                         var defer = $q.defer();
                         resp.status = 200;

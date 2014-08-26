@@ -13,10 +13,14 @@
     },
     "copy": {
         "sources": [
+            "./dist/ai.js",
+             "./dist/ai.js",
             "./dist/ai.js"
         ],
         "dests": [
-            "D:\\Projects\\WebNode\\phavior\\web\\assets\\mixin"
+            "D:\\Projects\\WebNode\\phavior\\web\\assets\\mixin",
+            "D:\\Projects\\WebMobile\\hla\\src\\lib\\plugins",
+            "D:\\Projects\\WebNode\\recrent-node\\web\\assets\\mixin"
         ]
     }    
 }
