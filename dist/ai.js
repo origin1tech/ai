@@ -21,7 +21,7 @@ angular.module('ai', [
      * Transition Navigator
      * @description - Navigates between views using CSS3 transitions.
      */
-    'ai.navigator',
+    //'ai.navigator',
 
     // DIRECTIVES //
 
