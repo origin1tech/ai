@@ -1,78 +1,121 @@
-'use strict';
-
-var fs = require('fs'),
-    p = require('path'),
-    gulp = require('gulp'),
-    uglify = require('gulp-uglify'),
-    clean = require('gulp-rimraf'),
-    concat = require ('gulp-concat'),
-    cssmin = require('gulp-cssmin'),
-    argv = require('yargs').argv,
-    sass = require('gulp-sass'),
+var gulp = require('gulp'),
+    $ = require('gulp-load-plugins')(),
     es = require('event-stream'),
-    conf;
+    fs = require('fs'),
+    path = require('path');
 
-conf = require(p.join(process.cwd(), '/conf.json'));
-if(!conf) return;
-
-// converts plain string to array.
-function toArray(val) {
-    if(!(val instanceof Array))
-        return [val];
-    return val;
+// plumber util
+function plumber() {
+    return $.plumber({errorHandler: $.notify.onError()});
 }
 
-// cleans target dir.
-function clear(sources) {
-    sources = toArray(sources);
-    gulp.src(sources, { read: false })
-        .pipe(clean({force: true}));
-}
+// jshint notification
+function jshintNotify() {
+    return $.notify(function(file) {
 
-// bundles AI.
-function bundle(sources, dest, name) {
+        if (file.jshint.success)
+            return false;
 
-    var minName;
+        var errors = file.jshint.results.map(function (data) {
+            return data.error ? '(' + data.error.line + ':' + data.error.character + ') ' + data.error.reason : '';
+        }).join('\n');
 
-    minName = name.replace('{{min}}', '.min');
-    name = name.replace('{{min}}', '');
+        return file.relative + ' (' + file.jshint.results.length + ' errors)\n' + errors;
 
-    gulp.src(sources)
-        .pipe(concat(name))
-        .pipe(gulp.dest(dest))
-        .pipe(concat(minName))
-        .pipe(uglify())
-        .pipe(gulp.dest(dest));
-}
-
-// copies AI to development dirs.
-// handy when editing source.
-function copy(sources, dests) {
-    if(!sources || !sources.length) return;
-    var tasks = sources.map(function (src, idx) {
-        var dest = dests[idx] || dests[0];
-        if(!dest) return;
-        return gulp.src(src)
-            .pipe(gulp.dest(dest));
     });
-    return es.concat.apply(null, tasks);
 }
 
-gulp.task('clean', [], function (sources) {
-    clear(sources);
+// reload server util
+function reload () {
+    gulp.src(__dirname + '/examples/**/*.*')
+        .pipe($.connect.reload());
+}
+
+gulp.task('clean', function () {
+    return gulp.src([__dirname + '/dist/js/**/*.*', __dirname + '/dist/css/**/*.*'], {read: false})
+        .pipe($.rimraf({force: true}));
 });
 
-gulp.task('bundle', [], function () {
-    var sources, dest, name;
-    sources = conf.bundle.sources;
-    dest =  conf.bundle.dest;
-    name = conf.bundle.name;
-    bundle(sources, dest, name);
-});
-
-gulp.task('copy', ['bundle'], function () {
-    copy(conf.copy.sources, conf.copy.dests);
-});
-gulp.task('build', ['copy'], function () {
+// build sass
+gulp.task('build-sass', ['clean'], function () {
+    return gulp.src(__dirname + '/src/css/ai.scss')
+        .pipe($.sass())
+        .pipe(gulp.dest(__dirname + '/dist/css'))
+        .pipe($.cssmin())
+        .pipe($.rename({suffix: '.min'}))
+        .pipe(gulp.dest(__dirname + '/dist/css'));
 
 });
+
+// build lib
+gulp.task('build-lib', ['clean'], function () {
+    return gulp.src([__dirname + '/src/js/**/*.js'])
+        .pipe($.concat('ai.js'))
+        .pipe(gulp.dest(__dirname + '/dist/js'))
+        .pipe($.uglify())
+        .pipe($.rename({suffix: '.min'}))
+        .pipe(gulp.dest(__dirname + '/dist/js'))
+});
+
+// copy lib
+gulp.task('copy-lib', ['clean'], function () {
+    return gulp.src([__dirname + '/src/js/**/*.js'])
+        .pipe(gulp.dest(__dirname + '/dist/js/components'));
+});
+
+// copy lib
+gulp.task('copy-sass', ['clean'], function () {
+    return gulp.src([__dirname + '/src/css/**/*.scss'])
+        .pipe(gulp.dest(__dirname + '/dist/css/components'));
+});
+
+// run jshint
+gulp.task('jshint', ['clean'],  function() {
+  return gulp.src([__dirname + '/src/js/**/*.js'])
+    .pipe(plumber())
+    .pipe($.cached('jshint'))
+    .pipe($.jshint())
+    .pipe(jshintNotify())
+    .pipe($.jshint.reporter('jshint-stylish'));
+});
+
+// serve examples.
+gulp.task('serve', ['build'], function() {
+
+    gulp.watch([
+         __dirname + '/examples/**/*.{js,html,css,svg,png,gif,jpg,jpeg}'
+    ], {
+        debounceDelay: 400
+    }, function() {
+        reload();
+    });
+
+    // watch styles
+    gulp.watch(
+        [__dirname + '/src/css/**/*.scss'],
+        {debounceDelay: 400},
+        ['build-sass']
+    );
+
+    // watch app
+    gulp.watch(
+        [__dirname + '/src/js/**/*.js'],
+        {debounceDelay: 400},
+        ['build-lib']
+    );
+
+    setTimeout(function () {
+        $.connect.server({
+            root: './examples',
+            livereload: true,
+            fallback: 'examples/index.html'
+        });
+    },200);
+
+});
+
+// build the library.
+gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib', 'copy-sass']);
+
+// gulp default.
+gulp.task('default', $.taskListing.withFilters(null, 'default'));

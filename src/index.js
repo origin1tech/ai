@@ -1,6 +1,7 @@
 angular.module('ai', [
 
-    // PROVIDERS //
+    /* PROVIDERS
+    *****************************************/
 
     /**
      * Google Voice Click2Call
@@ -15,12 +16,13 @@ angular.module('ai', [
      'ai.storage',
 
     /**
-     * Transition Navigator
-     * @description - Navigates between views using CSS3 transitions.
-     */
-    //'ai.navigator',
+ * Transition Navigator
+ * @description - Navigates between ng-views using CSS3 transitions.
+ */
+    'ai.navigator',
 
-    // DIRECTIVES //
+    /* Directives
+    *****************************************/
 
     /**
      * Nicescroll Directive
@@ -29,4 +31,4 @@ angular.module('ai', [
      */
     'ai.nicescroll'
 
-]);
+]); 
