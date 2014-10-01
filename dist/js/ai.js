@@ -8,6 +8,11 @@ var $app = (function (app) {
     // set namespace for application.
     app.ns = 'app';
 
+    // prepends base namespace.
+    app.generateNs = function (suffix) {
+        return app.ns + '.' + suffix;
+    };
+
     // initialize areas object.
     app.areas = {};
 
@@ -36,6 +41,14 @@ var $app = (function (app) {
             console.log(msg);
     };
 
+    // shims
+
+    function isBoolean(value) {
+        return (value === true || value === false || value && typeof value == 'object' &&
+            toString.call(value) == '[object Boolean]') || false;
+    }
+    angular.isBoolean = angular.isBoolean || isBoolean;
+
     /**
      * Area class
      * @description - accessible only within the app namespace.
@@ -49,7 +62,7 @@ var $app = (function (app) {
 
         var self = this;
         this.name = name;
-        this.ns = app.ns + '.' + name;
+        this.routes = undefined;
         this.module = null;
         this.access = 0;
         this.components = [];
@@ -76,6 +89,10 @@ var $app = (function (app) {
             }
         };
 
+        // function was passed set it to init.
+        if(angular.isFunction(options))
+            options = { init: options };
+
         // extend the area.
         angular.extend(this, options);
 
@@ -88,10 +105,11 @@ var $app = (function (app) {
     Object.defineProperty(app.areas, 'register', {
         enumerable: false,
         value: function (name, options) {
-            if(!app.areas[name])
+            if(!app.areas[name]){
                 app.areas[name] = new Area(name, options);
-            else
+            } else {
                 app.areas[name] = angular.extend(app.areas[name], options);
+            }
             return app.areas[name];
         }
     });
@@ -107,14 +125,19 @@ var $app = (function (app) {
 
     /**
      * Register application Routes
-     * @rivate
-     * @param {Area} area - the Area to register routes for.
+     * @private
+     * @param {object} area - the module/area to register routes for.
+     * @param {object} config - the original area configuration.
      */
-    function registerRoutes(area) {
+    function registerRoutes(area, config) {
         area.config(['$routeProvider', function ($routeProvider) {
-            angular.forEach(area.routes, function (v,k) {
-                v.access = v.access !== undefined ? v.access : area.access;
-                $routeProvider.when(k, v);
+            angular.forEach(config.routes, function (v,k) {
+                if(k === 'otherwise'){
+                    $routeProvider.otherwise(v);
+                } else {
+                    v.area = config;
+                    $routeProvider.when(k, v);
+                }
             });
         }]);
     }
@@ -128,19 +151,18 @@ var $app = (function (app) {
         angular.forEach(app.areas, function (v) {
             var area;
             if(!v.name) return;
-            // check for manual init
+            // check for manual init or simple register
             if(v.init){
-                // set module to object
-                area = v.init(v.ns, v.dependencies);
-                area.module = area;
+                area = v.init(); // init must return module.
             } else {
+                v.ns = app.generateNs(v.name);
                 area = angular.module(v.ns, v.dependencies);
-                area.module = area;
             }
             // update ns, may have changed.
-            v.ns = area.module.name;
+            v.ns = area.name;
             modules.push(v.ns);
-            registerRoutes(area);
+            if(app.config && app.tryModule(app.config.routeModule))
+                registerRoutes(area, v);
         });
     }
 
@@ -165,32 +187,42 @@ var $app = (function (app) {
 
     /**
      * Initializes app.
-     * @description - registeres areas as dependencies of application.
+     * @description - registers areas as dependencies of application.
      * @param {array} modules - the base modules for primary module.
      * @param {object} config - application configuration settings.
+     * @param {object|string} pkg - additional value to expose to application.
      */
-    app.init = function init(modules, config) {
+    app.init = function init(modules, config, pkg) {
 
         var _app, defaults;
 
         defaults = {
-            ns: app.ns,
             modules: [],
-            routes: false,
-            refreshPath: false,
-            viewBase: ''
+            routeModule: 'ngRoute',
+            defaultRoute: '/',              // set to false to disable default route.
+            defaultRouteOptions: {},
+            otherwise: '/',
+            viewBase: '',
+            html5Mode: true
         };
 
-        config = angular.extend(defaults, config);
+        config = angular.extend(defaults, config, pkg);
         modules = modules || config.modules || [];
-        app.ns = config.ns;
+        app.ns = config.ns || 'app';
         app.viewBase = config.viewBase;
+
+        // property used for passing in additional package/application object.
+        app.pkg = pkg || config.pkg || '';
+
+        // store the configuration.
+        app.config = config;
 
         // register area modules.
         registerAreas(modules);
 
         // init the main module.
         _app = angular.module(app.ns, modules,
+
 
             ['$controllerProvider', '$compileProvider', '$filterProvider', '$provide',
                 function ($controllerProvider, $compileProvider, $filterProvider, $provide) {
@@ -205,7 +237,29 @@ var $app = (function (app) {
                     // register components for each area.
                     registerComponents();
 
-                }]);
+                }])
+
+            .config(['$locationProvider', '$injector', function ($locationProvider, $injector) {
+
+                var html5Mode = { enabled: true, requireBase: false };
+                if(angular.isBoolean(config.html5Mode))
+                    config.html5Mode = { enabled: config.html5Mode };
+                html5Mode = angular.extend(html5Mode, config.html5Mode);
+
+                $locationProvider.html5Mode(html5Mode);
+
+                // handle default route.
+                if(app.tryModule(config.routeModule) && config.defaultRoute){
+                    $injector.invoke(['$routeProvider', function ($routeProvider) {
+                        $routeProvider.when('/', config.routeOptions);
+                        if(config.otherwise)
+                            $routeProvider.otherwise({redirectTo: config.otherwise});
+                    }]);
+                }
+
+            }]);
+
+
 
         // merge in primary module.
         angular.extend(app, _app);
@@ -474,143 +528,47 @@ var $app = (function (app) {
 
 })();
 
+
 (function () {
     'use strict';
+    /**
+     * Ai Module
+     * @description - imports all Ai modules as dependencies.
+     */
+    angular.module('ai', [
 
-    angular.module('ai.navigator', [])
+        /* PROVIDERS
+         *****************************************/
 
-        .provider('$navigator', function $navigator() {
+    /**
+     * Google Voice Click2Call
+     * @description - Includes directive for connecting client to Google Voice number.
+     */
+        'ai.click2call',
 
-            var defaults = {
-                    breadcrumb: '<div />',
-                    view: '<div ng-view/>',
-                    animate: 'slide'
-                },
-                get, set;
+    /**
+     * Storage service.
+     * @description - saves values to local storage with cookie fallback.
+     */
+        'ai.storage',
 
-            set = function (options) {
-                defaults = angular.extend(defaults, options);
-            };
+    /**
+     * Transition Navigator
+     * @description - Navigates between ng-views using CSS3 transitions.
+     */
+        'ai.viewer',
 
-            get = ['$rootScope', '$compile', '$location', function ($rootScope, $compile, $location) {
+        /* Directives
+         *****************************************/
 
-                var prevRoutes = [],
-                    initialized = false,
-                    state;
+    /**
+     * Nicescroll Directive
+     * @description - Ports nicescroll to an Angular directive.
+     * @see http://areaaperta.com/nicescroll/
+     */
+        'ai.nicescroll'
 
-                // store previous route set in/out state.
-                $rootScope.$on('$routeChangeStart', function (event, next, current) {
-
-                    var prevRoute = prevRoutes.slice(0).pop(),
-                        route = next.$$route.originalPath;
-
-                    current = current || {
-                        $$route: '/'
-                    };
-
-                    if(initialized) {
-                        if(route === prevRoute) {
-                            state = 'back';
-                            prevRoutes.pop();
-                        } else {
-                            state = 'forward';
-                            prevRoutes.push(current.$$route.originalPath);
-                        }
-                    } else {
-                        initialized = true;
-                    }
-
-                });
-
-                function NavigatorFactory(element, options) {
-
-                    var $module = {},
-                        view,
-                        scope;
-
-                    scope = options.scope || $rootScope.$new();
-                    options = scope.options = angular.extend(defaults, options);
-
-                    view = angular.element(scope.options.view);
-                    view.addClass('ai-navigator-view');
-
-                    // only add ng-class state if animate is enabled.
-                    if(scope.options.animate)
-                        view.attr('ng-class', 'state');
-
-                    view = $compile(view)(scope);
-
-                    element.addClass('ai-navigator');
-                    element.append(view);
-
-                    // gets previous view.
-                    $module.getView = function () {
-                        return angular.element(document.querySelectorAll('.ai-navigator-view')[0]);
-                    };
-
-                    // gets current state.
-                    $module.getState = function () {
-                        return state;
-                    };
-
-                    return $module;
-                }
-                return NavigatorFactory;
-
-            }];
-
-            return {
-                $get: get,
-                $set: set
-            };
-
-        })
-
-        .directive('aiNavigator', ['$rootScope', '$navigator', function($rootScope, $navigator) {
-
-            return {
-                restrict: 'EA',
-                scope: {
-                    options: '&aiNavigator'
-                },
-                link: function(scope, element) {
-
-                    var defaults, init, options, $module;
-
-                    defaults = {
-                        scope: scope
-                    };
-
-                    init = function init() {
-
-                        $module = $navigator(element, options);
-
-                        // listen for route change and update state when animation is enabled.
-                        $rootScope.$on('$routeChangeSuccess', function () {
-
-                            var state = $module.getState(),
-                                prevView = $module.getView();
-
-                            if(state && scope.options.animate) {
-                                // check for previously rendered views.
-                                if(prevView)
-                                    prevView.removeClass(state === 'forward' ? 'back' : 'forward').addClass(state);
-                            }
-
-                            scope.state = state;
-
-                        });
-
-                    };
-
-                    options = angular.extend(defaults, scope.$eval(scope.options));
-
-                    init();
-                }
-            };
-
-        }]);
-
+    ]);
 })();
 
 
@@ -1000,4 +958,153 @@ var $app = (function (app) {
 
 
 
+
+
+(function () {
+    'use strict';
+
+    angular.module('ai.viewer', [])
+
+        .provider('$viewer', function $viewer() {
+
+            var defaults = {
+                    view: '<div ng-view />',
+                    animate: 'slide'
+                },
+                get, set;
+
+            set = function (options) {
+                defaults = angular.extend(defaults, options);
+            };
+
+            get = ['$rootScope', '$compile', '$location', function ($rootScope, $compile, $location) {
+
+                var prevRoutes = [],
+                    initialized = false,
+                    state;
+
+                // store previous route set in/out state.
+                $rootScope.$on('$routeChangeStart', function (event, next, current) {
+
+                    var prevRoute = prevRoutes.slice(0).pop(),
+                        route = next.$$route.originalPath;
+
+                    current = current || {
+                        $$route: '/'
+                    };
+
+                    if(initialized) {
+                        if(route === prevRoute) {
+                            state = 'back';
+                            prevRoutes.pop();
+                        } else {
+                            state = 'forward';
+                            prevRoutes.push(current.$$route.originalPath);
+                        }
+                    } else {
+                        initialized = true;
+                    }
+
+                });
+
+                function ViewFactory(element, options) {
+
+                    var $module = {},
+                        view,
+                        scope;
+
+                    scope = options.scope || $rootScope.$new();
+                    options = scope.options = angular.extend(defaults, options);
+
+                    view = angular.element(scope.options.view);
+                    view.addClass('ai-viewer-view');
+
+                    // only add ng-class state if animate is enabled.
+                    if(scope.options.animate)
+                        view.attr('ng-class', 'state');
+
+                    view = $compile(view)(scope);
+
+                    element.addClass('ai-viewer');
+                    element.append(view);
+
+                    // gets previous view.
+                    $module.getView = function () {
+                        return angular.element(document.querySelectorAll('.ai-viewer-view')[0]);
+                    };
+
+                    // gets current state.
+                    $module.getState = function () {
+                        return state;
+                    };
+
+                    $module.forward = function (path) {
+                        $location.path(path);
+                    };
+
+                    $module.backward = function (path) {
+                        // push route view will see as return path or backward.
+                        prevRoutes.push(path);
+                        $location.path(path);
+                    };
+
+                    return $module;
+                }
+                return ViewFactory;
+
+            }];
+
+            return {
+                $get: get,
+                $set: set
+            };
+
+        })
+
+        .directive('aiViewer', ['$rootScope', '$viewer', function($rootScope, $view) {
+
+            return {
+                restrict: 'EA',
+                scope: {
+                    options: '&aiViewer'
+                },
+                link: function(scope, element) {
+
+                    var defaults, init, options, $module;
+
+                    defaults = {
+                        scope: scope
+                    };
+
+                    init = function init() {
+
+                        $module = $viewer(element, options);
+
+                        // listen for route change and update state when animation is enabled.
+                        $rootScope.$on('$routeChangeSuccess', function () {
+
+                            var state = $module.getState(),
+                                prevView = $module.getView();
+
+                            if(state && scope.options.animate) {
+                                // check for previously rendered views.
+                                if(prevView)
+                                    prevView.removeClass(state === 'forward' ? 'back' : 'forward').addClass(state);
+                            }
+
+                            scope.state = state;
+
+                        });
+
+                    };
+
+                    options = angular.extend(defaults, scope.$eval(scope.options));
+
+                    init();
+                }
+            };
+
+        }]);
+
+})();
 

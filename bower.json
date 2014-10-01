@@ -1,0 +1,26 @@
+{
+  "name": "ai",
+  "version": "0.0.1",
+  "homepage": "https://github.com/origin1tech/ai",
+  "authors": [
+    "origin1tech <origin1tech@gmail.com>"
+  ],
+  "description": "Angular interface components.",
+  "main": "gulpfile.js",
+  "keywords": [
+    "Angular",
+    "User",
+    "Interface",
+    "Directives",
+    "Modules"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

@@ -116,6 +116,7 @@
         //"exampleVar",
         //"anotherCoolGlobal",
         //"iLoveDouglas"
+        "$app"
     ],
     "indent"        : 2         // Specify indentation spacing
 }

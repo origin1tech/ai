@@ -1,13 +1,12 @@
 (function () {
     'use strict';
 
-    angular.module('ai.navigator', [])
+    angular.module('ai.viewer', [])
 
-        .provider('$navigator', function $navigator() {
+        .provider('$viewer', function $viewer() {
 
             var defaults = {
-                    breadcrumb: '<div />',
-                    view: '<div ng-view/>',
+                    view: '<div ng-view />',
                     animate: 'slide'
                 },
                 get, set;
@@ -46,7 +45,7 @@
 
                 });
 
-                function NavigatorFactory(element, options) {
+                function ViewFactory(element, options) {
 
                     var $module = {},
                         view,
@@ -56,7 +55,7 @@
                     options = scope.options = angular.extend(defaults, options);
 
                     view = angular.element(scope.options.view);
-                    view.addClass('ai-navigator-view');
+                    view.addClass('ai-viewer-view');
 
                     // only add ng-class state if animate is enabled.
                     if(scope.options.animate)
@@ -64,12 +63,12 @@
 
                     view = $compile(view)(scope);
 
-                    element.addClass('ai-navigator');
+                    element.addClass('ai-viewer');
                     element.append(view);
 
                     // gets previous view.
                     $module.getView = function () {
-                        return angular.element(document.querySelectorAll('.ai-navigator-view')[0]);
+                        return angular.element(document.querySelectorAll('.ai-viewer-view')[0]);
                     };
 
                     // gets current state.
@@ -77,9 +76,19 @@
                         return state;
                     };
 
+                    $module.forward = function (path) {
+                        $location.path(path);
+                    };
+
+                    $module.backward = function (path) {
+                        // push route view will see as return path or backward.
+                        prevRoutes.push(path);
+                        $location.path(path);
+                    };
+
                     return $module;
                 }
-                return NavigatorFactory;
+                return ViewFactory;
 
             }];
 
@@ -90,12 +99,12 @@
 
         })
 
-        .directive('aiNavigator', ['$rootScope', '$navigator', function($rootScope, $navigator) {
+        .directive('aiViewer', ['$rootScope', '$viewer', function($rootScope, $view) {
 
             return {
                 restrict: 'EA',
                 scope: {
-                    options: '&aiNavigator'
+                    options: '&aiViewer'
                 },
                 link: function(scope, element) {
 
@@ -107,7 +116,7 @@
 
                     init = function init() {
 
-                        $module = $navigator(element, options);
+                        $module = $viewer(element, options);
 
                         // listen for route change and update state when animation is enabled.
                         $rootScope.$on('$routeChangeSuccess', function () {

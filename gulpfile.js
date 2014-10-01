@@ -115,7 +115,21 @@ gulp.task('serve', ['build'], function() {
 });
 
 // build the library.
-gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib', 'copy-sass']);
+gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib', 'copy-sass'], function() {
+    // watch styles
+    gulp.watch(
+        [__dirname + '/src/css/**/*.scss'],
+        {debounceDelay: 400},
+        ['build-sass']
+    );
+
+    // watch app
+    gulp.watch(
+        [__dirname + '/src/js/**/*.js'],
+        {debounceDelay: 400},
+        ['build-lib']
+    );
+});
 
 // gulp default.
 gulp.task('default', $.taskListing.withFilters(null, 'default'));
