@@ -99,7 +99,7 @@
 
         })
 
-        .directive('aiViewer', ['$rootScope', '$viewer', function($rootScope, $view) {
+        .directive('aiViewer', ['$rootScope', '$viewer', function($rootScope, $viewer) {
 
             return {
                 restrict: 'EA',

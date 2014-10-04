@@ -7,36 +7,42 @@
      */
     angular.module('ai', [
 
-        /* PROVIDERS
-         *****************************************/
+    /* PROVIDERS
+    *****************************************/
 
     /**
      * Google Voice Click2Call
      * @description - Includes directive for connecting client to Google Voice number.
      */
-        'ai.click2call',
+    'ai.click2call',
 
     /**
      * Storage service.
      * @description - saves values to local storage with cookie fallback.
      */
-        'ai.storage',
+    'ai.storage',
 
     /**
      * Transition Navigator
      * @description - Navigates between ng-views using CSS3 transitions.
      */
-        'ai.viewer',
+    'ai.viewer',
 
-        /* Directives
-         *****************************************/
+    /**
+     * Auto Form
+     * @description - Creates form using model and configuration.
+     */
+    'ai.autoform',
+
+    /* Directives
+    *****************************************/
 
     /**
      * Nicescroll Directive
      * @description - Ports nicescroll to an Angular directive.
      * @see http://areaaperta.com/nicescroll/
      */
-        'ai.nicescroll'
+    'ai.nicescroll'
 
     ]);
 })();

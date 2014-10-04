@@ -2,7 +2,7 @@
 
 /* Using html with default template requires ngSanitize */
 
-var autoform = angular.module('ai.module.autoform', []);
+var autoform = angular.module('ai.autoform', []);
 
 autoform.run([function () {
 
@@ -19,7 +19,7 @@ autoform.directive('aiAutoForm', [ '$compile', function ($compile) {
 		priority: -1,
 		link: function (scope, element, attrs) {
 
-			var defaults, init, html, buildAttributes;
+			var defaults, init,  buildAttributes;
 
 			defaults = {
 				ns: undefined,
