@@ -24,7 +24,9 @@
     "url": "https://github.com/origin1tech/ai/issues"
   },
   "homepage": "https://github.com/origin1tech/ai",
-  "dependencies": {},
+  "dependencies": {
+    "gulp-concat-util": "^0.5.1"
+  },
   "devDependencies": {
     "event-stream": "^3.1.7",
     "gulp": "^3.8.7",

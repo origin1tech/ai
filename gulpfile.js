@@ -1,5 +1,6 @@
 var gulp = require('gulp'),
     $ = require('gulp-load-plugins')(),
+    concat = require('gulp-concat-util'),
     es = require('event-stream'),
     fs = require('fs'),
     path = require('path');
@@ -49,8 +50,13 @@ gulp.task('build-sass', ['clean'], function () {
 
 // build lib
 gulp.task('build-lib', ['clean'], function () {
-    return gulp.src([__dirname + '/src/js/**/*.js'])
+    return gulp.src([
+            __dirname + '/src/js/index.js',
+            __dirname + '/src/js/directives/**/*.js',
+            __dirname + '/src/js/helpers/**/*.js'])
         .pipe($.concat('ai.js'))
+        .pipe(concat.header('(function(window, document, undefined) {\n\'use strict\';\n'))
+        .pipe(concat.footer('\n})(window, document);\n'))
         .pipe(gulp.dest(__dirname + '/dist/js'))
         .pipe($.uglify())
         .pipe($.rename({suffix: '.min'}))
@@ -58,9 +64,12 @@ gulp.task('build-lib', ['clean'], function () {
 });
 
 // copy lib
-gulp.task('copy-lib', ['clean'], function () {
-    return gulp.src([__dirname + '/src/js/**/*.js'])
-        .pipe(gulp.dest(__dirname + '/dist/js/components'));
+gulp.task('copy-lib', [], function () {
+    var components = gulp.src([
+            '!' + __dirname + '/src/js/index.js',
+            __dirname + '/src/js/**/*.js'
+    ])
+    .pipe(gulp.dest(__dirname + '/dist/js/components'));
 });
 
 // copy lib

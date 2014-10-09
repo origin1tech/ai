@@ -1,5 +1,5 @@
-
 var $app = (function (app) {
+
     'use strict';
 
     // initialize the app object.
@@ -239,7 +239,7 @@ var $app = (function (app) {
 
                 }])
 
-            .config(['$locationProvider', '$injector', function ($locationProvider, $injector) {
+            .config(['$locationProvider', '$injector',function ($locationProvider, $injector) {
 
                 var html5Mode = { enabled: true, requireBase: false };
                 if(angular.isBoolean(config.html5Mode))
