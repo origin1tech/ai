@@ -51,7 +51,7 @@ gulp.task('build-sass', ['clean'], function () {
 // build lib
 gulp.task('build-lib', ['clean'], function () {
     return gulp.src([
-            __dirname + '/src/js/index.js',
+            //__dirname + '/src/js/index.js',
             __dirname + '/src/js/directives/**/*.js',
             __dirname + '/src/js/helpers/**/*.js'])
         .pipe($.concat('ai.js'))
@@ -60,14 +60,15 @@ gulp.task('build-lib', ['clean'], function () {
         .pipe(gulp.dest(__dirname + '/dist/js'))
         .pipe($.uglify())
         .pipe($.rename({suffix: '.min'}))
-        .pipe(gulp.dest(__dirname + '/dist/js'))
+        .pipe(gulp.dest(__dirname + '/dist/js'));
 });
 
 // copy lib
-gulp.task('copy-lib', [], function () {
+gulp.task('copy-lib', ['clean'], function () {
     var components = gulp.src([
             '!' + __dirname + '/src/js/index.js',
-            __dirname + '/src/js/**/*.js'
+            __dirname + '/src/js/**/*.js',
+            __dirname + '/src/js/app.js'
     ])
     .pipe(gulp.dest(__dirname + '/dist/js/components'));
 });
@@ -103,14 +104,14 @@ gulp.task('serve', ['build'], function() {
     gulp.watch(
         [__dirname + '/src/css/**/*.scss'],
         {debounceDelay: 400},
-        ['build-sass']
+        ['clean', 'build-sass']
     );
 
     // watch app
     gulp.watch(
         [__dirname + '/src/js/**/*.js'],
         {debounceDelay: 400},
-        ['build-lib']
+        ['clean', 'build-lib']
     );
 
     setTimeout(function () {
@@ -129,14 +130,14 @@ gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib', 'copy-sass']
     gulp.watch(
         [__dirname + '/src/css/**/*.scss'],
         {debounceDelay: 400},
-        ['build-sass']
+        ['clean', 'build-sass', 'copy-sass']
     );
 
     // watch app
     gulp.watch(
         [__dirname + '/src/js/**/*.js'],
         {debounceDelay: 400},
-        ['build-lib']
+        ['clean', 'build-lib', 'copy-lib']
     );
 });
 

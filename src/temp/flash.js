@@ -36,7 +36,7 @@ fs.factory('FlashFact', ['$q', '$injector', 'FlashServ',  function ($q, $injecto
 
         }
 
-    }
+    };
 
 }]);
 
@@ -141,7 +141,7 @@ fs.directive('aiFlash', [ '$compile', 'FlashServ', '$timeout', '$rootScope', fun
 
             sanitizeLoaded = function () {
                 try {
-                    angular.module("ngSanitize")
+                    angular.module("ngSanitize");
                 } catch(err) {
                     throw new Error('ngSanitize is required by ai-flash when "allowHtml" is set to true. Please include ngSanitize in your app modules.');
                 }
