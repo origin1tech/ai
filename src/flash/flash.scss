@@ -1,0 +1,30 @@
+// outer flash wrapper/container.
+.ai-flash-wrapper {
+  z-index: 1060;
+  width: 100%;
+  position: absolute;
+  &.show {
+    height: 100%;
+    overflow:hidden;
+  }
+}
+
+// the actual flash element.
+.ai-flash {
+
+}
+
+// title of message if present.
+.ai-flash-title {
+
+}
+
+// the flash content message.
+.ai-flash-message {
+
+}
+
+// the close element for the message.
+.ai-flash-close {
+
+}
