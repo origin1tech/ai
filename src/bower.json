@@ -2,8 +2,9 @@
   "name": "ai",
   "version": "0.0.1",
   "main": [
+    "./ai.css",
     "./ai.js",
-    "./apputil/apputil.js"
+    "./app/register.js"
   ],
   "dependencies": {
   }

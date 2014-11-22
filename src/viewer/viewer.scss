@@ -1,38 +1,7 @@
-@-webkit-keyframes slideInFromLeft {
-  0% { -webkit-transform: translate3d(-100%,0,0); }
-  100% { -webkit-transform: translate3d(0, 0, 0); }
-}
-@-webkit-keyframes slideInFromRight {
-  0% { -webkit-transform: translate3d(100%, 0, 0);  }
-  100% { -webkit-transform: translate3d(0, 0, 0); }
-}
-@-webkit-keyframes slideOutToLeft {
-  0% { -webkit-transform: translate3d(0,0,0); }
-  100% { -webkit-transform: translate3d(-100%, 0, 0); }
-}
-@-webkit-keyframes slideOutToRight {
-  0% { -webkit-transform: translate3d(0, 0, 0); }
-  100% { -webkit-transform: translate3d(100%, 0, 0); }
-}
+@import '../variables';
+@import '../animations';
 
-@keyframes slideInFromLeft {
-  0% { -webkit-transform: translate3d(-100%,0,0); }
-  100% { -webkit-transform: translate3d(0, 0, 0); }
-}
-@keyframes slideInFromRight {
-  0% { -webkit-transform: translate3d(100%, 0, 0);  }
-  100% { -webkit-transform: translate3d(0, 0, 0); }
-}
-@keyframes slideOutToLeft {
-  0% { -webkit-transform: translate3d(0,0,0); }
-  100% { -webkit-transform: translate3d(-100%, 0, 0); }
-}
-@keyframes slideOutToRight {
-  0% { -webkit-transform: translate3d(0, 0, 0); }
-  100% { -webkit-transform: translate3d(100%, 0, 0); }
-}
-
-.ai-navigator {
+.viewer {
   position: relative;
   min-height: 100%;
   height: 100%;
@@ -40,7 +9,7 @@
   overflow-x: hidden;
 }
 
-.ai-navigator-view {
+.viewer-view {
   left: 0;
   top: 0;
   position: absolute;
@@ -50,26 +19,25 @@
   background-color: #fff;
 }
 
-// Slide Animation
-.ai-navigator-view.ng-enter {
+.viewer-view.ng-enter {
   &.forward {
-    -webkit-animation: slideInFromRight 600ms ease-in-out;
-    animation: slideInFromRight 600ms ease-in-out;
+    -webkit-animation: slideInFromRight $viewer-animation-speed ease-in-out;
+    animation: slideInFromRight $viewer-animation-speed ease-in-out;
   }
   &.back {
-    -webkit-animation: slideInFromLeft 600ms ease-in-out;
-    animation: slideInFromLeft 600ms ease-in-out;
+    -webkit-animation: slideInFromLeft $viewer-animation-speed ease-in-out;
+    animation: slideInFromLeft $viewer-animation-speed ease-in-out;
   }
 }
 
-.ai-navigator-view.ng-leave {
+.viewer-view.ng-leave {
   &.forward {
-    -webkit-animation: slideOutToLeft 600ms ease-in-out;
-    animation: slideOutToLeft 600ms ease-in-out;
+    -webkit-animation: slideOutToLeft $viewer-animation-speed ease-in-out;
+    animation: slideOutToLeft $viewer-animation-speed ease-in-out;
   }
   &.back {
-    -webkit-animation: slideOutToRight 600ms ease-in-out;
-    animation: slideOutToRight 600ms ease-in-out;
+    -webkit-animation: slideOutToRight $viewer-animation-speed ease-in-out;
+    animation: slideOutToRight $viewer-animation-speed ease-in-out;
   }
 }
 

@@ -1,6 +1,9 @@
-// outer flash wrapper/container.
-.ai-flash-wrapper {
-  z-index: 1060;
+@import '../variables';
+@import '../animations';
+
+// flash wrapper/container.
+.flash-wrapper {
+  z-index: $flash-element-zindex;
   width: 100%;
   position: absolute;
   &.show {
@@ -9,22 +12,25 @@
   }
 }
 
-// the actual flash element.
-.ai-flash {
-
-}
-
-// title of message if present.
-.ai-flash-title {
-
-}
-
-// the flash content message.
-.ai-flash-message {
-
+// the flash element.
+.flash {
+  position: relative;
+  top: $flash-element-top;
+  width: $flash-element-width;
+  margin: 0 auto;
+  overflow-x: $flash-overflowx;
+  overflow-y: $flash-overflowy;
 }
 
 // the close element for the message.
-.ai-flash-close {
-
+.flash-close {
+  position: absolute;
+  right: $flash-close-top;
+  top: $flash-close-right;
 }
+
+// title of message if present.
+.flash-title {}
+
+// the flash content message.
+.flash-message {}

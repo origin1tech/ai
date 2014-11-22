@@ -3,16 +3,17 @@ angular.module('ai.viewer', [])
     .provider('$viewer', function $viewer() {
 
         var defaults = {
-                view: '<div ng-view />',
+                template: '<div class="viewer" ng-view />',
+                viewCss: 'viewer-view',
                 animate: 'slide'
             },
             get, set;
 
-        set = function (options) {
+        set = function $set(options) {
             defaults = angular.extend(defaults, options);
         };
 
-        get = ['$rootScope', '$compile', '$location', function ($rootScope, $compile, $location) {
+        get = ['$rootScope', '$compile', '$location', function $get($rootScope, $compile, $location) {
 
             var prevRoutes = [],
                 initialized = false,
@@ -51,8 +52,8 @@ angular.module('ai.viewer', [])
                 scope = options.scope || $rootScope.$new();
                 options = scope.options = angular.extend(defaults, options);
 
-                view = angular.element(scope.options.view);
-                view.addClass('ai-viewer-view');
+                view = angular.element(options.template);
+                view.addClass(options.viewCss);
 
                 // only add ng-class state if animate is enabled.
                 if(scope.options.animate)
@@ -60,12 +61,11 @@ angular.module('ai.viewer', [])
 
                 view = $compile(view)(scope);
 
-                element.addClass('ai-viewer');
                 element.append(view);
 
                 // gets previous view.
                 $module.getView = function () {
-                    return angular.element(document.querySelectorAll('.ai-viewer-view')[0]);
+                    return angular.element(document.querySelectorAll('.' + options.viewCss)[0]);
                 };
 
                 // gets current state.
@@ -85,6 +85,7 @@ angular.module('ai.viewer', [])
 
                 return $module;
             }
+
             return ModuleFactory;
 
         }];
@@ -133,7 +134,7 @@ angular.module('ai.viewer', [])
 
                 };
 
-                options = angular.extend(defaults, scope.$eval(scope.options));
+                scope.options = options = angular.extend(defaults, scope.$eval(scope.options));
 
                 init();
             }

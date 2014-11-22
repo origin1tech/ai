@@ -6,7 +6,10 @@
     "origin1tech <origin1tech@gmail.com>"
   ],
   "description": "Angular interface components.",
-  "main": "gulpfile.js",
+  "main": [
+      "./ai.js",
+      "./app/register.js"
+  ],
   "keywords": [
     "Angular",
     "User",

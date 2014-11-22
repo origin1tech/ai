@@ -148,6 +148,6 @@ angular.module('ai.autoform', [])
 
             }
 
-        }
+        };
 
     }]);

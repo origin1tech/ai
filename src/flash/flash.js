@@ -1,5 +1,5 @@
 
-angular.module('ai.flash.factory', [])
+angular.module('ai.flash', [])
 
     .run(['$templateCache', function ($templateCache) {
         var template =  '<div class="flash alert" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ng-mouseleave="leave(flash)" ng-class="flash.type">' +
@@ -18,13 +18,22 @@ angular.module('ai.flash.factory', [])
         defaults = {
             template: 'flash.tpl.html',             // the template for flash message.
             html: true,                             // when true html flash messages can be used.(requires ngSanitize)
-            errors: true,                           // when true flash messages shown on errors.
+            errors: true,                           // when true flash is shown automatically on http status errors.
             excludeErrors: [401, 403, 404],         // exclude errors by status type.
+            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
+            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
+                          'has occurred, if the ' +
+                          'problem persists ' +
+                          'please contact the ' +
+                          'administrator.',
             multiple: false,                        // whether to allow multiple flash messages at same time.
-            type: 'flash-info',                     // the type of message to show also the css class name.
+            type: 'flash-info',                     // the default type of message to show also the css class name.
+            typeError: 'flash-danger',              // the error type or class name for error messages.
             animation: false,                       // provide class name for animation.
-            timeout: 3500                           // timeout for auto remove flashes.
+            timeout: 3500,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
+            onError: undefined                      // function called on error before flashed, return false to ignore.
+
         };
 
         // set global provider options.
@@ -91,7 +100,7 @@ angular.module('ai.flash.factory', [])
                         timeout = title;
                         title = undefined;
                     }
-                    if(timeout )
+
                     if(!options.multiple)
                         $module.flashes = [];
                     // if message is not object create Flash.
@@ -99,7 +108,8 @@ angular.module('ai.flash.factory', [])
                         flash = {
                             title: title,
                             message: message,
-                            type: type
+                            type: type,
+                            timeout: timeout
                         };
                     }
                     // extend object with defaults.
@@ -274,9 +284,39 @@ angular.module('ai.flash.interceptor', [])
                 // get passport here to prevent circ dependency.
                 var flash = $injector.get('$flash'),
                     excludeErrors = flash.options.excludeErrors || [];
+                function handleFlashError(errObj){
+                    var name, message, stack;
+                    name = errObj.name || flash.options.errorName;
+                    message = errObj.message || flash.options.errorMessage;
+                    stack = errObj.stack || '';
+                    if(stack){
+                        if(angular.isArray(stack))
+                            stack = stack.join('<br/>');
+                        if(angular.isString(stack) && /\\n/g.test(stack))
+                            stack = stack.split('\n').join('<br/>');
+                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
+                    }
+                    message = '<strong>Message:</strong> ' + message;
+                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
+                    flash.add(message, flash.options.typeError, name);
+                }
                 if(res.status && excludeErrors.indexOf(res.status) === -1){
-                    // handle error using flash.    
-                    console.log(res);
+                    // handle error using flash.
+                    if(!res.data){
+                        flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
+                    } else {
+                        var err = res.data,
+                            handle;
+                        if(flash.options.onError){
+                            handle = flash.options.onError.call(this, res);
+                            if(handle === true)
+                                handleFlashError(err);
+                            if(angular.isObject(handle))
+                                handleFlashError(handle);
+                        } else {
+                            handleFlashError(err);
+                        }
+                    }
                 }
                 return $q.reject(res);
             }

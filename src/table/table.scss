@@ -1,0 +1,133 @@
+@import '../variables';
+@import '../animations';
+
+
+.table { width: 100%;}
+
+.table-actions {
+  margin-bottom: $table-actions-margin-bottom;
+}
+
+.table-actions-filter {}
+
+.table-actions-options {
+  label { margin: 0 6px; font-weight: normal; padding-top: 5px; }
+  input.goto { max-width: 60px; margin-right: -3px; }
+  button { margin-left: 8px; margin-top: -1px; }
+  a { margin-top: -1px; }
+}
+
+.table-wrapper {
+  position: relative; /* required when using loader */
+}
+
+.table-selectable {
+  tr { cursor: default !important; } /* prevent text select cursor so we have just our pointer my preference personally */
+}
+
+.table-header {
+
+  cursor: default;
+
+  &.ascending {
+    background-image: $table-sort-img-asc;
+    background-repeat: no-repeat;
+    background-position: right center;
+  }
+
+  &.descending {
+    background-image: $table-sort-img-desc;
+    background-repeat: no-repeat;
+    background-position: right center;
+  }
+
+  &.unsorted {
+    background-image: $table-sort-img-none;
+    background-repeat: no-repeat;
+    background-position: right center;
+  }
+
+  &.dragover { background-color: $table-drag-background-color; }
+
+}
+
+.table-row {
+  &.dragover { background-color: $table-drag-background-color;  }
+}
+
+.table-row-selected, .table-row-selected td {
+  background-color: $table-selected-background-color !important;
+}
+
+.table-cell {
+  vertical-align: middle !important;
+}
+
+.table-cell-commands {}
+
+.table-pager {
+  ul{ margin-top: 0px; }
+  ul li {
+    cursor: pointer;
+    &.disabled { cursor: not-allowed; }
+  }
+}
+
+.table-pager-records span {
+  font-size: 85%;
+}
+
+.table-pager-pages {
+  .pagination { margin: 0 !important; text-align: right; }
+}
+
+.table-nodata { padding: $table-nodata-padding; }
+
+.table-loader {
+
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: $table-loader-background-color;
+  top: 0;
+  left: 0;
+  font-size: $table-loader-font-size;
+
+  -webkit-animation-duration: $table-loader-animation-speed;
+  animation-duration: $table-loader-animation-speed;
+  -webkit-animation-fill-mode: both;
+  animation-fill-mode: both;
+
+  &.ng-hide {
+    opacity: 0;
+  }
+
+  &.loading {
+    -webkit-animation-name: fadeIn;
+    animation-name: fadeIn;
+  }
+
+  /* not the best solution but all time allowed for now */
+  div {
+    text-align: center;
+    display: table;
+    width: 100%;
+    height: 100%;
+    div {
+      display: table-cell;
+      vertical-align: middle;
+      width: $table-loader-size;
+      height: $table-loader-size;
+      background-image: $table-loader-img;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+  }
+
+}
+
+
+
+
+
