@@ -1,11 +1,11 @@
 
-angular.module('ai.flash', [])
+angular.module('ai.flash.factory', [])
 
     .run(['$templateCache', function ($templateCache) {
-        var template =  '<div class="flash alert" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ng-mouseleave="leave(flash)" ng-class="flash.type">' +
-                            '<button class="flash-close" type="button" ng-click="remove(flash)">&times</button>' +
-                            '<div class="flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
-                            '<div class="flash-message" ng-bind-html="flash.message"></div>' +
+        var template =  '<div class="ai-flash alert" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ng-mouseleave="leave(flash)" ng-class="flash.type">' +
+                            '<button class="ai-flash-close" type="button" ng-click="remove(flash)">&times</button>' +
+                            '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
+                            '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
                         '</div>';
         $templateCache.put('flash.tpl.html', template);
     }])
@@ -27,8 +27,8 @@ angular.module('ai.flash', [])
                           'please contact the ' +
                           'administrator.',
             multiple: false,                        // whether to allow multiple flash messages at same time.
-            type: 'flash-info',                     // the default type of message to show also the css class name.
-            typeError: 'flash-danger',              // the error type or class name for error messages.
+            type: 'ai-flash-info',                  // the default type of message to show also the css class name.
+            typeError: 'ai-flash-danger',           // the error type or class name for error messages.
             animation: false,                       // provide class name for animation.
             timeout: 3500,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
@@ -176,17 +176,17 @@ angular.module('ai.flash', [])
 
     })
 
-    .directive('aiFlash', [ '$compile', '$timeout', '$flash', function ($compile, $timeout,$flash) {
+    .directive('aiFlash', [ '$compile', '$timeout', '$flash', function ($compile, $timeout, $flash) {
 
         return {
             restrict: 'EAC',
             scope: true,
             link: function (scope, element) {
 
-                var directive, init;
+                var directive;
 
                 // initialize the directive.
-                init = function () {
+                function init () {
 
                     var body, bodyOverflow, bodyOverflowY;
                     // for consistency define as directive.
@@ -268,7 +268,7 @@ angular.module('ai.flash', [])
                         element.append(template);
                     });
 
-                };
+                }
 
                 init();
 

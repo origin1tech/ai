@@ -1,31 +1,31 @@
-@import '../variables';
-@import '../animations';
+@import '../common/variables';
+@import '../common/animations';
 
 
-.table { width: 100%;}
+table { width: 100%; }
 
-.table-actions {
+.ai-table-actions {
   margin-bottom: $table-actions-margin-bottom;
 }
 
-.table-actions-filter {}
+.ai-table-actions-filter {}
 
-.table-actions-options {
+.ai-table-actions-options {
   label { margin: 0 6px; font-weight: normal; padding-top: 5px; }
   input.goto { max-width: 60px; margin-right: -3px; }
   button { margin-left: 8px; margin-top: -1px; }
   a { margin-top: -1px; }
 }
 
-.table-wrapper {
+.ai-table-wrapper {
   position: relative; /* required when using loader */
 }
 
-.table-selectable {
+.ai-table-selectable {
   tr { cursor: default !important; } /* prevent text select cursor so we have just our pointer my preference personally */
 }
 
-.table-header {
+.ai-table-header {
 
   cursor: default;
 
@@ -47,25 +47,19 @@
     background-position: right center;
   }
 
-  &.dragover { background-color: $table-drag-background-color; }
-
 }
 
-.table-row {
-  &.dragover { background-color: $table-drag-background-color;  }
-}
-
-.table-row-selected, .table-row-selected td {
+.ai-table-row-selected, .ai-table-row-selected td {
   background-color: $table-selected-background-color !important;
 }
 
-.table-cell {
+.ai-table-cell {
   vertical-align: middle !important;
 }
 
-.table-cell-commands {}
+.ai-table-cell-commands {}
 
-.table-pager {
+.ai-table-pager {
   ul{ margin-top: 0px; }
   ul li {
     cursor: pointer;
@@ -73,17 +67,17 @@
   }
 }
 
-.table-pager-records span {
+.ai-table-pager-records span {
   font-size: 85%;
 }
 
-.table-pager-pages {
+.ai-table-pager-pages {
   .pagination { margin: 0 !important; text-align: right; }
 }
 
-.table-nodata { padding: $table-nodata-padding; }
+.ai-table-nodata { padding: $table-nodata-padding; }
 
-.table-loader {
+.ai-table-loader {
 
   position: absolute;
   width: 100%;

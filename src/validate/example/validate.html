@@ -1,1 +1,28 @@
-<h2>{{title}}</h2>
+<h3>{{title}}</h3>
+<hr/>
+<p>
+    Validation auto generate validation messages for your form fields based on ng-model. The directive can automatically
+    name your form elements based on the ng-model name. It's intelligent enough to define error messages and properly
+    space model names even when dot notation is used.
+</p>
+<h4>Basic Form Example</h4>
+<hr/>
+<form name="validationForm" novalidate ai-validate-form ng-submit="submitValidate(validationForm, model)">
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" class="form-control" placeholder="Name" ng-model="model.name" required/>
+    </div>
+    <div class="form-group">
+        <label>Email</label>
+        <input type="text" class="form-control" placeholder="Name" ng-model="model.email" required/>
+    </div>
+    <p>
+        <button class="btn btn-primary" type="submit">Submit</button>
+    </p>
+</form>
+<h4>Source Code</h4>
+<hr/>
+<pre>
+   HTML markup cannot be show without being escaped. To see markup for this example right click on the form and choose
+   inspect element.
+</pre>

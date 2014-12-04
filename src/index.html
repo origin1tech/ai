@@ -7,6 +7,28 @@
     <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css"/>
     <link rel="stylesheet" href="/ai.css"/>
     <style type="text/css">
+        header {
+            background-color: #333;
+            color: #fff;
+            height: 45px;
+        }
+        header h2 {
+            margin-top: 8px;
+        }
+        h4 {
+            margin-top: 24px;
+        }
+        h5 {
+            font-weight: 600;
+        }
+        .btn-outline {
+            background-color: #fff;
+            border-width: 2px;
+            color: #333;
+        }
+        .btn-outline:hover {
+           color: #fff;
+        }
         .btn-close{
             text-align: center;
             width: 20px;
@@ -18,16 +40,36 @@
     </style>
 </head>
 <body>
+    <ai-flash></ai-flash>
+    <header>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h2>Ai<small> - Angular Interface</small></h2>
+                </div>
+                <div class="col-md-6 text-right">
+                    <a ng-show="showBack()" href="/" style="margin-top: 6px; line-height: 45px;">Return Home</a>
+                </div>
+            </div>
+        </div>
+    </header>
     <div class="container">
-        <a ng-show="showBack()" href="/" class="btn btn-primary pull-right" style="margin-top: 12px;">Return Home</a>
         <div ng-view></div>
     </div>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular.min.js"></script>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-route.min.js"></script>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-sanitize.min.js"></script>
-    <script type="text/javascript" src="ai.js"></script>
+    <footer>
+        <div class="container">
+            <p ng-show="msg" class="alert alert-info"><span class="close" ng-click="close()">&times</span>{{msg}}</p>
+        </div>
+    </footer>
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-route.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-sanitize.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-animate.min.js"></script>
+    <script src="common/jquery.inputmask.js"></script>
+    <script src="ai.js"></script>
     <script type="text/ng-template" id="/home.html">
-        <h2>Ai<small> - Angular Interface</small></h2>
+        <br/><br/>
         <p>
             The Ai library is a collection of tools to assist in building Angular applications quickly while maintaining
             good project structure with simplified syntax. Along with the "register.js" module among others with
@@ -64,7 +106,9 @@
             areas[k] = tmpAreas[k];
         });
 
-        app = angular.module('app', ['ngRoute', 'ai.table']);
+        app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.table',
+            'ai.validate', 'ai.widget', 'ai.modal', 'ai.flash']);
+
         app.config(['$routeProvider', '$locationProvider', function ($routeProvider, $locationProvider) {
             $routeProvider.when('/', { templateUrl: '/home.html', controller: 'Controller', title: 'Ai' });
             angular.forEach(areas, function (v, k) {
@@ -87,6 +131,7 @@
                 return $rootScope.title !== 'Ai';
             };
             $rootScope.$on('$routeChangeSuccess', function (event, current) {
+                $rootScope.msg = '';
                 $rootScope.title = current.$$route.title;
             });
         }]);
@@ -98,8 +143,8 @@
             }
         });
 
-        app.controller('Controller', ['$rootScope', '$scope', '$route', function ($rootScope, $scope, $route) {
-
+        app.controller('Controller', ['$rootScope', '$scope', '$route', '$flash', function ($rootScope, $scope,
+                                                                                            $route, $flash) {
             var current = $route.current,
                 route = current.$$route,
                 params = current.params,
@@ -117,18 +162,24 @@
             // table
             if(area === 'table'){
                 $scope.tbl = {
-                    colums: {
-                        name: { editType: 'text' },
-                        email: { editType: 'text' }
-                    },
                     source: [
                         { name: 'Jim Thomas', email: 'jthomas@gmail.com'},
                         { name: 'Bob Blair', email: 'bblair@aol.com'},
                         { name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
+                        { name: 'Bob Smith', email: 'bobsmith@msn.com'},
+                        { name: 'Susan Jones', email: 'susan.jones@hotmail.com'},
+                        { name: 'Larry Anderson', email: 'anderson.larry@mail.com'},
+                        { name: 'Harry Ellis', email: 'ellis@gmail.com'},
+                        { name: 'Rory Boscoe', email: 'rory@aol.com'},
+                        { name: 'Simon Green', email: 'sgreen@yahoo.com'},
+                        { name: 'Quentin Rose', email: 'qrose@msn.com'},
+                        { name: 'Micah Barry', email: 'barry4u@hotmail.com'},
+                        { name: 'Alex Angle', email: 'alex.angle@mail.com'}
                     ],
                     orderBy: [ '-name' ],
                     selectable: true,
                     exportable: true,
+                    display: 10,
                     hover: true,
                     goto: false,
                     onSelected: function (row, selected, e) {
@@ -141,6 +192,28 @@
                         $rootScope.msg = 'Table filtered using query: ' + q;
                     }
                 }
+            }
+
+            if(area === 'validate'){
+                $scope.submitValidate = function (form, model) {
+                    if(form.$invalid) return;
+                    // alert feedback.
+                    alert('Passed validation your data would submit here.');
+                }
+            }
+
+            if(area === 'widget'){
+                $scope.decimal = 25;
+                $scope.case = 'timothy';
+                $scope.mask = '7605551212';
+            }
+
+            if(area === 'flash'){
+                $scope.flash = '';
+                $scope.showFlash = function (msg) {
+                    $flash.add(msg);
+                }
+
             }
 
         }]);

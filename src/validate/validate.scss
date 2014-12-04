@@ -1,11 +1,17 @@
-/* validate styles
-**************************************************/
+// validate styles.
+
 .ai-validate-message {
-  color: red; font-size: 90%; display:block; margin-top: 4px; margin-left: 2px;
+  color: red;
+  font-size: 90%;
+  display:block;
+  margin-top: 4px;
+  margin-left: 2px;
   &.focus { display: none !important; }
   &.ai-summary { display: none !important; }
 }
-.ai-validate-summary  { margin: 12px 0px;
+
+.ai-validate-summary  {
+  margin: 12px 0px;
   list-style:none; padding-top: 12px;
   li { margin-top: 3px; }
 }
@@ -34,16 +40,16 @@ input.ng-invalid.ng-dirty, select.ng-invalid.ng-dirty, textarea.ng-invalid.ng-di
   }
 }
 
-input.ai-validate-tooltip.ng-invalid.ng-dirty,
-select.ai-validate-tooltip.ng-invalid.ng-dirty,
-textarea.ai-validate-tooltip.ng-invalid.ng-dirty
-{
-  &:not(:focus) {
-    border-color: $input-border;
-    -webkit-box-shadow: none;
-    -moz-box-shadow: none;
-    box-shadow: none;
-    -webkit-transition: none;
-    transition: none;
-  }
-}
+//input.ai-validate-tooltip.ng-invalid.ng-dirty,
+//select.ai-validate-tooltip.ng-invalid.ng-dirty,
+//textarea.ai-validate-tooltip.ng-invalid.ng-dirty
+//{
+//  &:not(:focus) {
+//    border-color: $input-border;
+//    -webkit-box-shadow: none;
+//    -moz-box-shadow: none;
+//    box-shadow: none;
+//    -webkit-transition: none;
+//    transition: none;
+//  }
+//}

@@ -24,13 +24,13 @@ function jshintNotify() {
 
 // reload server util
 function reload () {
-    gulp.src(__dirname + '/src/**/*.{js,html,css,svg,png,gif,jpg,jpeg}')
+    gulp.src('./src/**/*.{js,html,css,svg,png,gif,jpg,jpeg}')
         .pipe(plugins.connect.reload());
 }
 
 gulp.task('clean', function () {
 
-    return gulp.src([__dirname + '/dist/**/*.*'], {read: false})
+    return gulp.src(['./dist/**/*.*'], {read: false})
         .pipe(plugins.rimraf({force: true}));
 });
 
@@ -41,20 +41,20 @@ gulp.task('build-sass', ['clean'], function () {
         taskBundle,
         taskModules;
 
-    taskBundle = gulp.src(__dirname + '/src/ai.scss')
+    taskBundle = gulp.src('./src/ai.scss')
         .pipe(plugins.sass())
-        .pipe(gulp.dest(__dirname + '/dist'))
+        .pipe(gulp.dest('./dist'))
         .pipe(plugins.cssmin())
         .pipe(plugins.rename({suffix: '.min'}))
-        .pipe(gulp.dest(__dirname + '/dist'));
+        .pipe(gulp.dest('./dist'));
     tasks.push(taskBundle);
 
-    taskModules = gulp.src(__dirname + '/src/**/*.scss')
+    taskModules = gulp.src('./src/**/*.scss')
         .pipe(plugins.sass())
-        .pipe(gulp.dest(__dirname + '/dist'))
+        .pipe(gulp.dest('./dist'))
         .pipe(plugins.cssmin())
         .pipe(plugins.rename({suffix: '.min'}))
-        .pipe(gulp.dest(__dirname + '/dist'));
+        .pipe(gulp.dest('./dist'));
     tasks.push(taskModules);
 
     return es.concat.apply(null, tasks);
@@ -64,30 +64,31 @@ gulp.task('build-sass', ['clean'], function () {
 // build lib
 gulp.task('build-lib', ['clean'], function () {
     return gulp.src([
-            '!' + __dirname + '/src/register/register.js',
-            __dirname + '/src/**/*.js'
+            '!' + './src/register/register.js',
+            '!./src/common/**/*.js',
+            './src/**/*.js'
          ])
         .pipe(plugins.concat('ai.js'))
         .pipe(concat.header('(function(window, document, undefined) {\n\'use strict\';\n'))
         .pipe(concat.footer('\n})(window, document);\n'))
-        .pipe(gulp.dest(__dirname + '/dist'))
+        .pipe(gulp.dest('./dist'))
         .pipe(plugins.uglify())
         .pipe(plugins.rename({suffix: '.min'}))
-        .pipe(gulp.dest(__dirname + '/dist'));
+        .pipe(gulp.dest('./dist'));
 });
 
 // copy lib
 gulp.task('copy-lib', ['clean'], function () {
     gulp.src([
-        '!' + __dirname + '/src/**/_*.scss',
-            __dirname + '/src/**/*.*'
+        '!./src/**/_*.scss',
+        './src/**/*.*'
     ])
-    .pipe(gulp.dest(__dirname + '/dist'));
+    .pipe(gulp.dest('./dist'));
 });
 
 // run jshint
 gulp.task('jshint', ['clean'],  function() {
-  return gulp.src([__dirname + '/src/**/*.js'])
+  return gulp.src(['./src/**/*.js'])
     .pipe(plumber())
     .pipe(plugins.cached('jshint'))
     .pipe(plugins.jshint())
@@ -99,7 +100,7 @@ gulp.task('jshint', ['clean'],  function() {
 gulp.task('serve', ['build'], function() {
 
     gulp.watch([
-         __dirname + '/dist/**/*.*'
+         './dist/**/*.*'
     ], {
         debounceDelay: 400
     }, function() {
@@ -120,7 +121,7 @@ gulp.task('serve', ['build'], function() {
 gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() {
 
     gulp.watch(
-        [__dirname + '/src/**/*.*'],
+        ['./src/**/*.*'],
         {debounceDelay: 400},
         ['clean', 'build-sass', 'build-lib', 'copy-lib']
     );

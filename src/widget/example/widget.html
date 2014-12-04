@@ -1,1 +1,38 @@
-<h2>{{title}}</h2>
+<h3>{{title}}</h3>
+<hr/>
+<p>
+    Widgets are a group of helper directives that make working with forms and elements effortless. Widgets have a global
+    provider which allows configuring site wide parameters. This makes it much easier to configure defaults.
+</p>
+<pre>
+    To configure the widget provider:
+    $widgetProvider.set({ // your object of options });
+
+    Or set options for a specific widget.
+    $widgetProvider.set('decimal', { // your decimal options });
+</pre>
+<h4>Decimal</h4>
+<hr/>
+<div class="form-group">
+    <label>Currency</label>
+    <input class="form-control" type="text" ai-decimal ng-model="decimal"/>
+    <span style="display:block;">Any numeric value is forced to two decimal places.</span>
+</div>
+<h4>Case</h4>
+<hr/>
+<div class="form-group">
+    <label>Force Capitalize</label>
+    <input class="form-control" type="text" ai-case="first" value="timothy"/>
+    <span style="display:block;">Case supports: first, title, upper, lower, pascal, camel.</span>
+</div>
+<h4>Mask</h4>
+<hr/>
+<div class="form-group">
+    <p class="alert alert-danger">Use this widget with caution</p>
+    <label>Mask a Phone Number</label>
+    <input class="form-control" type="text" ai-mask="{ mask: '(999) 999-9999' }" ng-model="mask"/>
+    <span style="display:block;">for options see https://github.com/RobinHerbots/jquery.inputmask</span>
+</div>
+
+
+

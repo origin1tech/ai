@@ -1,8 +1,8 @@
-@import '../variables';
-@import '../animations';
+@import '../common/variables';
+@import '../common/animations';
 
 // flash wrapper/container.
-.flash-wrapper {
+.ai-flash-wrapper {
   z-index: $flash-element-zindex;
   width: 100%;
   position: absolute;
@@ -13,7 +13,7 @@
 }
 
 // the flash element.
-.flash {
+.ai-flash {
   position: relative;
   top: $flash-element-top;
   width: $flash-element-width;
@@ -23,14 +23,14 @@
 }
 
 // the close element for the message.
-.flash-close {
+.ai-flash-close {
   position: absolute;
   right: $flash-close-top;
   top: $flash-close-right;
 }
 
 // title of message if present.
-.flash-title {}
+.ai-flash-title {}
 
 // the flash content message.
-.flash-message {}
+.ai-flash-message {}

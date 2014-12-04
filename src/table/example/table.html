@@ -1,3 +1,35 @@
-<h2>{{title}}</h2>
-<table ai-table="tbl"></table>
-<p ng-show="msg" class="alert alert-info"><span class="close" ng-click="close()">&times</span>{{msg}}</p>
+<h3>{{title}}</h3>
+<hr/>
+<p class="alert alert-warning">
+    Ai table is designed to take an object or RESTful url to populate data automatically. Columns can be visible, hidden
+    sortable, editable and contain custom html templates. Template features can be enabled/disabled.
+</p>
+<h4>Static Data Example</h4>
+<hr/>
+<div ai-table="tbl"></div>
+<h4>Source Code</h4>
+<hr/>
+<pre>
+tbl = {
+    source: [
+        { name: 'Jim Thomas', email: 'jthomas@gmail.com'},
+        { name: 'Bob Blair', email: 'bblair@aol.com'},
+        { name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
+        ...
+    ],
+    orderBy: [ '-name' ],
+    selectable: true,
+    exportable: true,
+    hover: true,
+    goto: false,
+    onSelected: function (row, selected, e) {
+        $rootScope.msg = JSON.stringify(selected[0]);
+    },
+    onReset: function () {
+        $rootScope.msg = 'Table was reset.';
+    },
+    beforeFilter: function (source, q){
+        $rootScope.msg = 'Table filtered using query: ' + q;
+    }
+}
+</pre>

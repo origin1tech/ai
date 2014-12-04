@@ -39,10 +39,10 @@ angular.module('ai.table', ['ngSanitize'])
 
         /* BOOTSTRAP OPTIONS
          *  enabled: whether or not to use bootstrap styling. default: true.
-         *  bordered: boolean uses table-bordered class when true on <table> element default: true.
-         *  striped: boolean uses table-striped class when true on <table> element default: true.
-         *  hover: boolean uses table-hover class when true on <table> element default: false.
-         *  condensed: boolean uses table-condensed when true on <table> element default: false.
+         *  bordered: boolean uses ai-table-bordered class when true on <table> element default: true.
+         *  striped: boolean uses ai-table-striped class when true on <table> element default: true.
+         *  hover: boolean uses ai-table-hover class when true on <table> element default: false.
+         *  condensed: boolean uses ai-table-condensed when true on <table> element default: false.
          */
 
         var defaults, get, set;
@@ -86,8 +86,7 @@ angular.module('ai.table', ['ngSanitize'])
             editable: false,                            // indicates whether rows are editable, columns must also be specified with editType.
             exportable: false,                          // when true exportable options are displayed for export of current filtered results.
             orderable: false,                           // if true columns and rows can be re-ordered.
-            
-            // FUTURE FEATURE, NOT IMPLEMENTED
+
             options: true,                              // indicates if display, goto & select/clear options should be visible
             orderBy: undefined,                         // initial order to display ex: 'name' or '-name' for descending datatype: string
                                                         // NOTE: with order by you can also use true or false ex: 'name true' where true means
@@ -104,11 +103,11 @@ angular.module('ai.table', ['ngSanitize'])
 
             // TEMPLATING
 
-            actionsTemplate: 'table-actions.html',      // template where search input is located datatype: string
-            tableTemplate: 'table.html',          // the template for the table datatype: string
-            pagerTemplate: 'table-pager.html',          // the template for paging datatype: string
-            nodataTemplate: 'table-nodata.html',        // presented when no data rows are present datatype: string.
-            loaderTemplate: 'table-loader.html',        // loading spinner template. datatype: string
+            actionsTemplate: 'ai-table-actions.html',      // template where search input is located datatype: string
+            tableTemplate: 'table.html',                    // the template for the table datatype: string
+            pagerTemplate: 'ai-table-pager.html',          // the template for paging datatype: string
+            nodataTemplate: 'ai-table-nodata.html',        // presented when no data rows are present datatype: string.
+            loaderTemplate: 'ai-table-loader.html',        // loading spinner template. datatype: string
 
             // BOOTSTRAP TEMPLATING
 
@@ -151,8 +150,7 @@ angular.module('ai.table', ['ngSanitize'])
              * "click". or onMouseOut which is normalized to
              * "mouseout".
              */
-
-            /* onTouchStart: function(ctx, row, column, event) { // do something } */
+             // onTouchStart: function(ctx, row, column, event) { // do something }
 
         };
 
@@ -166,89 +164,89 @@ angular.module('ai.table', ['ngSanitize'])
             var tableTemplate, actionsTemplate, loaderTemplate,
                 pagerTemplate, nodataTemplate;
 
-            actionsTemplate =
-                '<div class="table-actions" ng-show="actions">' +
-                '<div class="table-actions-row row row-fluid">' +
-                '<div class="table-actions-filter col-sm-6 span-6">' +
-                '<div class="row row-fluid" ng-show="searchable">' +
-                '<div class="col-sm-8 span-8">' +
-                '<input class="form-control" type="text" placeholder="Search" ng-model="q" ng-change="filter()" ng-disabled="editing"/>' +
-                '</div>' +
-                '<div class="col-sm-4 span-4">' +
-                '<button class="btn btn-warning" type="button"  ng-click="reset()" ng-disabled="editing">Reset</button>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '<div class="table-actions-options col-sm-6 span-6">' +
-                '<div class="row row-fluid form-inline" ng-show="options">' +
-                '<div class="col-sm-3 span-3">' +
-                '<div ng-show="exportable">' +
-                '<button ng-click="exportURI()" class="btn btn-warning">Export to CSV</button>' +
-                '</div>' +
-                '</div>' +
-                '<div class="col-sm-3 span-3">' +
-                '<div ng-show="goto">' +
-                '<input type="text" ng-model="gotoPage" class="form-control goto" placeholder="Goto" ng-keyup="pageToKeyUp($event, gotoPage)" ng-disabled="editing"/>  <button ng-click="pageTo(gotoPage)" class="btn btn-primary" ng-disabled="editing || (gotoPage > indices.max)">Go</button>' +
-                '</div>' +
-                '</div>' +
-                '<div class="col-sm-6 span-6 text-right">' +
-                '<label ng-show="changeable">Displayed</label>' +
-                '<select ng-show="changeable" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing">' +
-                '<option ng-repeat="d in displayed">{{d}}</option>' +
-                '</select>' +
-                '<button ng-click="selectAllRows(true)" ng-show="!selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Select All</button>' +
-                '<button style="min-width: 80px;" ng-click="selectAllRows(false)" ng-show="selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Clear All</button>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
+                actionsTemplate =
+                    '<div class="ai-table-actions" ng-show="actions">' +
+                    '<div class="ai-table-actions-row row row-fluid">' +
+                    '<div class="ai-table-actions-filter col-sm-6 span-6">' +
+                    '<div class="row row-fluid" ng-show="searchable">' +
+                    '<div class="col-sm-8 span-8">' +
+                    '<input class="form-control" type="text" placeholder="Search" ng-model="q" ng-change="filter()" ng-disabled="editing"/>' +
+                    '</div>' +
+                    '<div class="col-sm-4 span-4">' +
+                    '<button class="btn btn-warning" type="button"  ng-click="reset()" ng-disabled="editing">Reset</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="ai-table-actions-options col-sm-6 span-6">' +
+                    '<div class="row row-fluid form-inline" ng-show="options">' +
+                    '<div class="col-sm-3 span-3">' +
+                    '<div ng-show="exportable">' +
+                    '<button ng-click="exportURI()" class="btn btn-warning">Export to CSV</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-sm-3 span-3">' +
+                    '<div ng-show="goto">' +
+                    '<input type="text" ng-model="gotoPage" class="form-control goto" placeholder="Goto" ng-keyup="pageToKeyUp($event, gotoPage)" ng-disabled="editing"/>  <button ng-click="pageTo(gotoPage)" class="btn btn-primary" ng-disabled="editing || (gotoPage > indices.max)">Go</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-sm-6 span-6 text-right">' +
+                    '<label ng-show="changeable">Displayed</label>' +
+                    '<select ng-show="changeable" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing">' +
+                    '<option ng-repeat="d in displayed">{{d}}</option>' +
+                    '</select>' +
+                    '<button ng-click="selectAllRows(true)" ng-show="!selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Select All</button>' +
+                    '<button style="min-width: 80px;" ng-click="selectAllRows(false)" ng-show="selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Clear All</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
 
 
-            tableTemplate =
-                '<table class="table table table-bordered table-striped table-hover table-condensed" ng-class="{ \'table-selectable\': selectable }">' +
-                '<thead>' +
-                '<tr>' +
-                '<th class="table-header" ng-class="sortClass(column)" ng-repeat="column in columns" ng-click="sort(column)" ng-if="!column.excluded"></th>' +
-                '</tr>' +
-                '</thead>' +
-                '<tbody>' +
-                '<tr class="table-row" ng-repeat="row in filtered" ng-click="selectTableRow(row, $event)" ng-if="$index >= filteredRows.start && $index < filteredRows.end" ng-class="{ \'table-row-selected\': row.selected,  \'table-row-editing\': row.edits }">' +
-                '<td class="table-cell" ng-if="!column.excluded" ng-repeat="column in columns"></td>' +
-                '</tr>' +
-                '</tbody>' +
-                '</table>';
+                tableTemplate =
+                    '<table class="ai-table-table table table-bordered table-striped table-hover table-condensed" ng-class="{ \'ai-table-selectable\': selectable }">' +
+                    '<thead>' +
+                    '<tr>' +
+                    '<th class="ai-table-header" ng-class="sortClass(column)" ng-repeat="column in columns" ng-click="sort(column)" ng-if="!column.excluded"></th>' +
+                    '</tr>' +
+                    '</thead>' +
+                    '<tbody>' +
+                    '<tr class="ai-table-row" ng-repeat="row in filtered" ng-click="selectTableRow($event, row, $index)" ng-if="$index >= filteredRows.start && $index < filteredRows.end" ng-class="{ \'ai-table-row-selected\': row.selected,  \'ai-table-row-editing\': row.edits }">' +
+                    '<td class="ai-table-cell" ng-if="!column.excluded" ng-repeat="column in columns"></td>' +
+                    '</tr>' +
+                    '</tbody>' +
+                    '</table>';
 
-            pagerTemplate =
-                '<div class="table-pager" ng-show="pager">' +
-                '<div class="table-pager-row row">' +
-                '<div class="table-pager-records col-sm-6">' +
-                '<div ng-show="counts">' +
-                '<span>Page <strong>{{page}}</strong> of <strong>{{indices.filtered}}</strong></span>  -  ' +
-                ' <span>Filtered (<strong>{{filtered.length}}</strong>)</span>  -  ' +
-                ' <span>Total (<strong>{{total}}</strong>)</span>' +
-                '</div>' +
-                '</div>' +
-                '<div class="table-pager-pages col-sm-6">' +
-                '<ul class="pagination" ng-show="pagination && indices.filtered > 0">' +
-                '<li ng-class="{ disabled: !hasPrev(page) || editing }"><a ng-click="pagePrev(page)">&laquo;</a></li>' +
-                '<li ng-class="{ disabled: page == 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(1)">First</a></li>' +
-                '<li ng-class="{ active: pg == page, disabled: editing }" ng-repeat="pg in pages">' +
-                '<a ng-click="pageTo(pg)" ng-bind="pg"></a>' +
-                '                           </li>' +
-                '<li ng-class="{ disabled: page == indices.filtered || indices.filtered === 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(indices.filtered)">Last</a></li>' +
-                '<li ng-class="{ disabled: !hasNext(page) || indices.filtered ===1 || editing }"><a ng-click="pageNext(page)">&raquo;</a></li>' +
-                '</ul>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
+                pagerTemplate =
+                    '<div class="ai-table-pager" ng-show="pager">' +
+                    '<div class="ai-table-pager-row row">' +
+                    '<div class="ai-table-pager-records col-sm-6">' +
+                    '<div ng-show="counts">' +
+                    '<span>Page <strong>{{page}}</strong> of <strong>{{indices.filtered}}</strong></span>  -  ' +
+                    ' <span>Filtered (<strong>{{filtered.length}}</strong>)</span>  -  ' +
+                    ' <span>Total (<strong>{{total}}</strong>)</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="ai-table-pager-pages col-sm-6">' +
+                    '<ul class="pagination" ng-show="pagination && indices.filtered > 0">' +
+                    '<li ng-class="{ disabled: !hasPrev(page) || editing }"><a ng-click="pagePrev(page)">&laquo;</a></li>' +
+                    '<li ng-class="{ disabled: page == 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(1)">First</a></li>' +
+                    '<li ng-class="{ active: pg == page, disabled: editing }" ng-repeat="pg in pages">' +
+                    '<a ng-click="pageTo(pg)" ng-bind="pg"></a>' +
+                    '                           </li>' +
+                    '<li ng-class="{ disabled: page == indices.filtered || indices.filtered === 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(indices.filtered)">Last</a></li>' +
+                    '<li ng-class="{ disabled: !hasNext(page) || indices.filtered ===1 || editing }"><a ng-click="pageNext(page)">&raquo;</a></li>' +
+                    '</ul>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
 
-            nodataTemplate =
-                '<div class="table table table-bordered table-striped table-hover table-condensed">' +
-                '<div class="table-nodata">0 records found in collection or columns not specified.</div>' +
-                '</div>';
+                nodataTemplate =
+                    '<div class="ai-table-table table table-bordered table-striped table-hover table-condensed">' +
+                    '<div class="ai-table-nodata">0 records found in collection or columns not specified.</div>' +
+                    '</div>';
 
-            loaderTemplate = '<div class="table-loader" ng-show="loading"><div><div>&nbsp;</div></div></div>';
+                loaderTemplate = '<div class="ai-table-loader" ng-show="loading"><div><div>&nbsp;</div></div></div>';
 
             /* makes sure we have the default templates loaded */
             $templateCache.get(defaults.actionsTemplate) || $templateCache.put(defaults.actionsTemplate, actionsTemplate);
@@ -272,8 +270,9 @@ angular.module('ai.table', ['ngSanitize'])
 
             function range(start, end, step) {
 
-                start = +start || 0;
-                step = step === null ? 1 : (+step || 0);
+                start = +start || 1;
+                step = step || 1;
+                //step = step === undefined  ? 1 : (+step || 0);
 
                 if (end === null) {
                     end = start;
@@ -281,6 +280,7 @@ angular.module('ai.table', ['ngSanitize'])
                 } else {
                     end = +end || 0;
                 }
+
                 var index = -1,
                     length = Math.max(Math.ceil((end - start) / (step || 1)), 0),
                     result = new Array(length);
@@ -289,7 +289,6 @@ angular.module('ai.table', ['ngSanitize'])
                     result[index] = start;
                     start += step;
                 }
-
                 return result;
 
             }
@@ -763,7 +762,7 @@ angular.module('ai.table', ['ngSanitize'])
                 // applies sort order 
                 function sort(column) {
 
-                    var stripped = scope.orderBy ? scope.orderBy.replace('-', '') : undefined,
+                    var stripped = scope.orderBy && angular.isString(scope.orderBy) ? scope.orderBy.replace('-', '') : undefined,
                         orderBy = scope.orderBy;
 
                     // do not sort if column or sorting is disabled 
@@ -965,9 +964,7 @@ angular.module('ai.table', ['ngSanitize'])
                 }
 
                 // EVENTS
-                function selectRow(row, e) {
-
-                    var rowIdx;
+                function selectRow(e, row, idx) {
 
                     if(scope.editing) return;
 
@@ -975,15 +972,13 @@ angular.module('ai.table', ['ngSanitize'])
                     if(angular.isNumber(row))
                         row = scope.source.rows[row] || undefined;
 
-                    if(row) {
-                        scope.selected = [];
-                        rowIdx = scope.source.rows.indexOf(row);
+                    if(row) {scope.selected = [];
 
-                        /* multi select is enabled */
+                        // multi select enabled.
                         if (scope.selectable !== 'multi') {
 
-                            angular.forEach(scope.filtered, function (r, idx) {
-                                if(idx !== rowIdx)
+                            angular.forEach(scope.filtered, function (r, i) {
+                                if(i !== idx)
                                     r.selected = false;
                             });
                             row.selected =! row.selected;
@@ -993,8 +988,8 @@ angular.module('ai.table', ['ngSanitize'])
                         } else {
 
                             row.selected =! row.selected;
-                            angular.forEach(scope.filtered, function (r, idx) {
-                                if(idx !== rowIdx)
+                            angular.forEach(scope.filtered, function (r, i) {
+                                if(i !== idx)
                                     row.active = false;
                                 if (r.selected)
                                     scope.selected.push(r);
@@ -1005,12 +1000,15 @@ angular.module('ai.table', ['ngSanitize'])
                     }
 
                     if(options.onSelected && angular.isFunction(options.onSelected)){
+                        var selectedResult = scope.selected;
+                        if(!options.multiple)
+                            selectedResult = scope.selected[0];
                         options.onSelected(row || undefined, scope.selected, e);
                     }
 
                 }
 
-                function selectTableRow(row, e) {
+                function selectTableRow(e, row, idx) {
 
                     if (scope.editing || !scope.selectable) return;
 
@@ -1020,12 +1018,12 @@ angular.module('ai.table', ['ngSanitize'])
                     var target = angular.element(e.target);
 
                     // make sure target is cell.
-                    if(!target.hasClass('table-cell') &&
-                        !target.hasClass('table-cell-view')){
+                    if(!target.hasClass('ai-table-cell') &&
+                        !target.hasClass('ai-table-cell-view')){
                         return false;
                     }
 
-                    selectRow(row, e);
+                    selectRow(e, row, idx);
 
                 }
 
@@ -1389,10 +1387,10 @@ angular.module('ai.table', ['ngSanitize'])
                         scope.display = limit = scope.filtered.length;
                     }
 
-                    start = pg < options.pages ? 1 : Math.ceil(pg - options.pages / 2);
+                    start = pg < options.pages ? 1 : Math.ceil(pg - (options.pages / 2));
                     end = start + options.pages;
 
-                    /* make sure last page displayed full display of page options */
+                    // make sure last page displayed full display of page options
                     if(end > filteredTotal){
                         end = filteredTotal +1;
                         start = end - options.pages;
@@ -1409,7 +1407,7 @@ angular.module('ai.table', ['ngSanitize'])
                      * end: ex: 5 last page in active pages where options.pages size is 5
                      * filtered: ex: 10 the last possible for records may or may not be active.
                      * max: ex: 25 typically max = filtered however if batch/server enabled this could be higher number
-                     *      to allow going backt to the server but maintaining page numbers.
+                     *      to allow going back to the server but maintaining page numbers.
                      */
                     scope.indices = {
                         start: start,
@@ -1418,10 +1416,10 @@ angular.module('ai.table', ['ngSanitize'])
                         max: serverTotal
                     };
 
-                    /* build the array of pages */
+                    // build the array of pages
                     scope.pages = range(start, end);
 
-                    /* set the index range of rows to display */
+                    // set index range to display.
                     setFilteredRows(pg);
 
                 }
@@ -1500,7 +1498,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                             // if no rows supply nodata template 
                             tableTemplate = nodata ? loadedTemplates.nodata.template :
-                                '<div class="table-wrapper table-responsive">' + loadedTemplates.loader.template + loadedTemplates.table.template + '</div>';
+                                '<div class="ai-table-wrapper ai-table-responsive">' + loadedTemplates.loader.template + loadedTemplates.table.template + '</div>';
 
                             // build the entire template 
                             template = loadedTemplates.actions.template + tableTemplate + loadedTemplates.pager.template;
@@ -1508,14 +1506,13 @@ angular.module('ai.table', ['ngSanitize'])
                             // set bootstrap classes 
                             template = bootstrapTemplate(template);
 
-                            // replace our oritinal element 
+                            // replace our original element
                             //element.replaceWith(table);
                             element.html(template);
-                            element.addClass('table');
                             $compile(element.contents())(scope);
 
                             // find loader element 
-                            loader = find('.table-loader', document);
+                            loader = find('.ai-table-loader', document);
 
                             isReady = true;
 
@@ -1604,131 +1601,50 @@ angular.module('ai.table', ['ngSanitize'])
      */
     .directive('aiTableHeader', ['$compile', function aiTableHeader ($compile) {
 
+
+        function addRemoveListener(elem, arr, remove){
+
+            angular.forEach(arr, function (listener) {
+                if(remove) {
+                    elem.removeEventListener(listener.name, listener.event, false);
+                } else {
+                    elem.addEventListener(listener.name, listener.event, false);
+                }
+            });
+        }
+
+        function findParent(el) {
+            var p = el.parentNode,
+                parent;
+            while (p !== null && !parent) {
+                var o = p;
+                angular.forEach(o.classList, function (c) {
+                    if(!parent)
+                        if(c === 'table')
+                            parent = o;
+                });
+                p = o.parentNode;
+            }
+            return parent;
+        }
+
         return {
             restrict: 'AEC',
             link: function link(scope, element) {
 
                 var init, isAccessible;
 
-                function addRemoveListener(elem, arr, remove){
-
-                    angular.forEach(arr, function (listener) {
-                        if(remove) {
-                            elem.removeEventListener(listener.name, listener.event, false);
-                        } else {
-                            elem.addEventListener(listener.name, listener.event, false);
-                        }
-                    });
-
-                }
-
-                function reorder (arr, from, to) {
-                    arr.splice(to, 0, arr.splice(from, 1)[0]);
-                    return arr;
-                }
-
-                function clearDragStyle(tbl) {
-                    tbl = angular.element(tbl);
-                    angular.forEach(tbl.find('th'), function(header) {
-                        if(header && header.classList){
-                            header.classList.remove('dragover');
-                        }
-                    });
-                }
-
-                function findParent(el) {
-                    var p = el.parentNode,
-                        parent;
-                    while (p !== null && !parent) {
-                        var o = p;
-                        angular.forEach(o.classList, function (c) {
-                            if(!parent)
-                                if(c === 'table')
-                                    parent = o;
-                        });
-                        p = o.parentNode;
-                    }
-                    return parent;
-                }
-
-                function dragStart(e) {
-                    e.dataTransfer.setData('text/plain', scope.column.map);
-                    e.dataTransfer.effectAllowed = 'move';
-                }
-
-                function drag(e) {
-                }
-
-                function dragEnter(e) {
-                    this.classList.add('dragover');
-                }
-
-                function dragOver(e) {
-                    if(e.preventDefault) e.preventDefault();
-                }
-
-                function dragLeave(e) {
-                    this.classList.remove('dragover');
-                }
-
-                function dragDrop(e) {
-
-                    var target, src, parent, cols, tarIdx, srcIdx;
-
-                    if (e.stopPropagation)
-                        e.stopPropagation(); // Stops redirect in some browsers;
-
-                    parent = scope.$parent.$parent;
-                    cols = parent.source.columns;
-                    src = e.dataTransfer.getData('text/plain');
-                    target = scope.column.map;
-
-                    src = cols.filter(function(c) {
-                        return c.map === src;
-                    })[0] || undefined;
-
-                    target = cols.filter(function(c) {
-                        return c.map === target;
-                    })[0] || undefined;
-
-                    srcIdx = cols.indexOf(src);
-                    tarIdx = cols.indexOf(target);
-
-                    /* only perform drop is not starting index */
-                    if(srcIdx === tarIdx) return;
-
-                    /* apply the reorder */
-                    scope.$apply(function () {
-                        reorder(cols, srcIdx, tarIdx);
-                    });
-
-                    return false;
-                }
-
-                function dragEnd(e) {
-                    clearDragStyle(findParent(this));
-                }
-
-
                 init = function init() {
 
                     var value = scope.column.label,
                         headerClass = scope.column.headerClass || null,
-                        listeners = [
-                            { name: 'dragstart', event: dragStart },
-                            { name: 'dragover', event: dragOver },
-                            { name: 'drag', event: drag },
-                            { name: 'drop', event: dragDrop },
-                            { name: 'dragend', event: dragEnd },
-                            { name: 'dragenter', event: dragEnter },
-                            { name: 'dragleave', event: dragLeave }
-                        ];
+                        listeners = [];
 
                     if(scope.column.excluded || scope.column.map === '$$hashKey') return;
 
                     element.html('');
 
-                    /* add css class if any */
+                    // add css if any.
                     if(headerClass)
                         element.addClass(headerClass);
 
@@ -1740,16 +1656,7 @@ angular.module('ai.table', ['ngSanitize'])
                         };
 
 
-                    if(scope.draggable && scope.column.orderable){
-
-                        element.attr('draggable', true);
-
-                        addRemoveListener(element[0], listeners, true);
-                        addRemoveListener(element[0], listeners);
-
-                    }
-
-                    /* check column permissions if any */
+                   // check column permissions if any.
                     if(!isAccessible()){
                         scope.column.excluded = true;
                         return;
@@ -1774,134 +1681,6 @@ angular.module('ai.table', ['ngSanitize'])
         };
 
     }])
-
-    /*
-     * TABLE ROW DIRECTIVE
-     * Used for reordering rows if enabled.
-     */
-//    .directive('aiTableRow', [function aiTable () {
-//
-//        return {
-//            restrict: 'EAC',
-//            link: function link(scope, element, attrs) {
-//
-//                function addRemoveListener(elem, arr, remove){
-//
-//                    angular.forEach(arr, function (listener) {
-//                        if(remove) {
-//                            elem.removeEventListener(listener.name, listener.event, false);
-//                        } else {
-//                            elem.addEventListener(listener.name, listener.event, false);
-//                        }
-//                    });
-//
-//                }
-//
-//                function reorder (arr, from, to) {
-//                    arr.splice(to, 0, arr.splice(from, 1)[0]);
-//                    return arr;
-//                }
-//
-//                function clearDragStyle(tbl) {
-//                    tbl = angular.element(tbl);
-//                    angular.forEach(tbl.find('tr'), function(row) {
-//                        if(row && row.classList){
-//                            row.classList.remove('dragover');
-//                        }
-//                    });
-//                }
-//
-//                function findParent(el) {
-//                    var p = el.parentNode,
-//                        parent;
-//                    while (p !== null && !parent) {
-//                        var o = p;
-//                        angular.forEach(o.classList, function (c) {
-//                            if(!parent)
-//                                if(c === 'table')
-//                                    parent = o;
-//                        });
-//                        p = o.parentNode;
-//                    }
-//                    return parent;
-//                }
-//
-//                function dragStart(e) {
-//                    e.dataTransfer.setData('text/plain', scope.source.rows.indexOf(scope.row));
-//                    e.dataTransfer.effectAllowed = 'move';
-//                }
-//
-//                function drag(e) {
-//                }
-//
-//                function dragEnter(e) {
-//                    this.classList.add('dragover');
-//                }
-//
-//                function dragOver(e) {
-//                    if(e.preventDefault) e.preventDefault();
-//                }
-//
-//                function dragLeave(e) {
-//                    this.classList.remove('dragover');
-//                }
-//
-//                function dragDrop(e) {
-//
-//                    var rows, tarIdx, srcIdx;
-//
-//                    if (e.stopPropagation)
-//                        e.stopPropagation(); // Stops redirect in some browsers;
-//
-//                    rows = scope.source.rows;
-//                    srcIdx = parseInt(e.dataTransfer.getData('text/plain'));
-//                    tarIdx = scope.source.rows.indexOf(scope.row);
-//
-//                    /* only perform drop is not starting index */
-//                    if(srcIdx === tarIdx) return;
-//
-//                    /* apply the reorder */
-//                    scope.$apply(function () {
-//                        reorder(rows, srcIdx, tarIdx);
-//                    });
-//
-//                    return false;
-//                }
-//
-//                function dragEnd(e) {
-//                    clearDragStyle(findParent(this));
-//                }
-//
-//
-//                function init() {
-//
-//                    /* TODO future feature to reorder rows */
-////					if(scope.orderable) {
-////
-////						var listeners = [
-////							{ name: 'dragstart', event: dragStart },
-////							{ name: 'dragover', event: dragOver },
-////							{ name: 'drag', event: drag },
-////							{ name: 'drop', event: dragDrop },
-////							{ name: 'dragend', event: dragEnd },
-////							{ name: 'dragenter', event: dragEnter },
-////							{ name: 'dragleave', event: dragLeave }
-////						];
-////
-////						element.attr('draggable', true);
-////						addRemoveListener(element[0], listeners, true);
-////						addRemoveListener(element[0], listeners);
-////
-////					}
-//
-//                }
-//
-//                init();
-//
-//            }
-//        };
-//
-//    }])
 
     /*
      * TABLE CELL
@@ -1935,11 +1714,11 @@ angular.module('ai.table', ['ngSanitize'])
                     events = Object.keys(scope.eventMap),
                     filter = column.filter,
                     cellTemplate = column.cellTemplate || undefined,
-                    viewTemplate = '<div class="table-cell-view" ng-show="!row.edits || !column.editType" ng-bind="viewValue"></div>',
+                    viewTemplate = '<div class="ai-table-cell-view" ng-show="!row.edits || !column.editType" ng-bind="viewValue"></div>',
                     editTemplate = column.editTemplate || undefined,
-                    editInputTemplate = '<div class="table-cell-edit" ng-show="row.edits"><input ng-model="modelValue" type="{{type}}" class="form-control" /></div>',
-                    editSelectTemplate = '<div class="table-cell-edit" ng-show="row.edits"><select class="form-control" ng-model="modelValue" ng-options="{{options}}" ></select></div>',
-                    editTextareaTemplate = '<div class="table-cell-edit" ng-show="row.edits"><textarea ng-model="modelValue" class="form-control" /></textarea>',
+                    editInputTemplate = '<div class="ai-table-cell-edit" ng-show="row.edits"><input ng-model="modelValue" type="{{type}}" class="form-control" /></div>',
+                    editSelectTemplate = '<div class="ai-table-cell-edit" ng-show="row.edits"><select class="form-control" ng-model="modelValue" ng-options="{{options}}" ></select></div>',
+                    editTextareaTemplate = '<div class="ai-table-cell-edit" ng-show="row.edits"><textarea ng-model="modelValue" class="form-control" /></textarea>',
                     getter = $parse(column.map),
                     isAccessible;
 
@@ -1991,10 +1770,10 @@ angular.module('ai.table', ['ngSanitize'])
 
                     // define the default or cell template
                     if(cellTemplate)
-                        viewTemplate = '<div class="table-cell-view" ng-show="!row.edits || !column.editType">' + cellTemplate + '</div>';
+                        viewTemplate = '<div class="ai-table-cell-view" ng-show="!row.edits || !column.editType">' + cellTemplate + '</div>';
 
                     if(editTemplate){
-                        editTemplate = '<div class="table-cell-edit" ng-show="row.edits">' + editTemplate + '</div>';
+                        editTemplate = '<div class="ai-table-cell-edit" ng-show="row.edits">' + editTemplate + '</div>';
                         viewTemplate += editTemplate;
                     }
 

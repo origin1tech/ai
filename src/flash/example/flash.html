@@ -1,1 +1,13 @@
-<h2>{{title}}</h2>
+<h3>{{title}}</h3>
+<hr/>
+<p>
+    Flash messages are simple pop up messages similar to a modal dialog but with much simpler features. They are
+    designed to display a few sentence or even just a few words.
+</p>
+<h4>Basic Flash Message</h4>
+<hr/>
+<div class="form-group">
+    <label>Enter message</label>
+    <input type="text" class="form-control" ng-model="flash"/>
+</div>
+<button class="btn btn-primary" ng-click="showFlash(flash)">Show Flash</button>

@@ -33,7 +33,7 @@ angular.module('ai.widget', [])
             get, set;
 
         set = function (key, options) {
-            if(typeof key === 'object'){
+            if(angular.isObject(key)){
                 options = key;
                 key = undefined;
                 defaults = angular.extend(defaults, options);
@@ -108,7 +108,7 @@ angular.module('ai.widget', [])
     .directive('aiDecimal', [ '$widget', function($widget) {
         return {
             restrict: 'AC',
-            require: '^ngModel',
+            require: '?ngModel',
             link: function(scope, element, attrs, ngModel) {
                 var defaults, options, format, formatted, regex;
 
@@ -178,19 +178,25 @@ angular.module('ai.widget', [])
 
                 console.assert(window.jQuery && (typeof ($.fn.inputmask) !== 'undefined'), 'ai-mask requires the jQuery inputmask plugin. ' +
                     'see https://github.com/RobinHerbots/jquery.inputmask.');
+
                 defaults = $widget('mask', { oncomplete: setValue, onincomplete: setValue });
+
                 function setValue(e) {
 
                     var val = element.inputmask('unmaskedvalue'),
                         complete = element.inputmask('isComplete');
 
-                    scope.$apply(function () {
-                        if (!complete) val = '';
-                        if(ngModel)
-                            ngModel.$setViewValue(val);
-                        else
-                            element.val(val);
-                    });
+                        if(!scope.$$phase) {
+
+                            scope.$apply(function () {
+                                if (!complete) val = '';
+                                if (ngModel)
+                                    ngModel.$setViewValue(val);
+                                else
+                                    element.val(val);
+                            });
+                        }
+
                 }
 
                 function rebindValue(newVal) {
@@ -200,6 +206,7 @@ angular.module('ai.widget', [])
                 }
 
                 scope.$watch(attrs.ngModel, function (newVal, oldVal) {
+                    if(newVal === oldVal) return;
                     if (directive) {
                         rebind = true;
                         rebindValue(newVal);
@@ -209,26 +216,31 @@ angular.module('ai.widget', [])
                 function init() {
                     $timeout(function () {
                         directive = element.inputmask(options);
-                    });
+                    },0);
                 }
 
                 scope.options = options = angular.extend(defaults, scope.$eval(attrs.aiMask));
+
                 init();
             }
         };
     }])
 
-    .directive('aiCase', [ '$widget', function ($widget) {
+    .directive('aiCase', [ '$timeout', '$widget', function ($timeout, $widget) {
 
         return {
             restrict: 'AC',
             require: '?ngModel',
             link: function (scope, element, attrs, ngModel) {
 
-                var defaults, options;
+                var defaults, options, casing;
+
                 defaults = $widget('case');
+                options = { casing: 'first'};
+
                 function getCase(val) {
                     if (!val) return;
+
                     if (casing === 'title')
                         return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
                     else if (casing === 'first')
@@ -248,18 +260,22 @@ angular.module('ai.widget', [])
                 }
 
                function applyCase(e){
-                    scope.$apply(function () {
-                        var val = element.val(),
-                            cased = getCase(val);
-                        if (ngModel) {
-                            ngModel.$setViewValue(cased);
-                        } else {
-                            element.val(getCase(val));
-                        }
-                    });
+
+                   scope.$apply(function () {
+                       var val = element.val(),
+                           cased = getCase(val);
+                       if (ngModel) {
+                           ngModel.$modelValue = cased;
+                       } else {
+                           element.val(getCase(val));
+                       }
+                   });
+
                 }
 
                 function init() {
+
+                    casing = options.casing;
 
                     element.on(options.event, function (e) {
                         applyCase(e);
@@ -275,12 +291,21 @@ angular.module('ai.widget', [])
                         }
                     });
 
-                    angular.element(document).ready(function (e) {
-                       applyCase(e);
-                    });
+                    //angular.element(document).ready(function (e) {
+                    $timeout(function () {
+                        applyCase();
+                    },100);
+
+                   // });
                 }
 
-                options = angular.extend(defaults, scope.$eval(attrs.aiCase));
+                if(angular.isString(attrs.aiCase))
+                    options.casing = attrs.aiCase;
+                else
+                    options = scope.$eval(attrs.aiCase);
+
+                options = angular.extend(defaults, options);
+
                 init();
 
             }
