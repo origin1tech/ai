@@ -106,13 +106,13 @@ angular.module('ai.viewer', [])
             },
             link: function(scope, element) {
 
-                var defaults, init, options, $module;
+                var defaults, options, $module;
 
                 defaults = {
                     scope: scope
                 };
 
-                init = function init() {
+                function init() {
 
                     $module = $viewer(element, options);
 
@@ -132,7 +132,7 @@ angular.module('ai.viewer', [])
 
                     });
 
-                };
+                }
 
                 scope.options = options = angular.extend(defaults, scope.$eval(scope.options));
 

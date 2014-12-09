@@ -1,5 +1,10 @@
-@import '../common/variables';
-@import '../common/animations';
+$flash-element-zindex:                        1060;
+$flash-element-top:                           30px;
+$flash-element-width:                         65%;
+$flash-close-top:                             10px;
+$flash-close-right:                           8px;
+$flash-overflowx:                             hidden;
+$flash-overflowy:                             hidden;
 
 // flash wrapper/container.
 .ai-flash-wrapper {
@@ -22,6 +27,8 @@
   overflow-y: $flash-overflowy;
 }
 
+
+
 // the close element for the message.
 .ai-flash-close {
   position: absolute;
@@ -34,3 +41,20 @@
 
 // the flash content message.
 .ai-flash-message {}
+
+// styling.
+.ai-flash-info {
+
+}
+
+.ai-flash-warning {
+
+}
+
+.ai-flash-danger {
+
+}
+
+.ai-flash-success {
+
+}

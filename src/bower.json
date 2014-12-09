@@ -4,7 +4,7 @@
   "main": [
     "./ai.css",
     "./ai.js",
-    "./app/register.js"
+    "./register/register.js"
   ],
   "dependencies": {
   }

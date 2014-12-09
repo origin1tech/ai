@@ -393,7 +393,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                     if(!options.bootstrap) {
                         classes = [	'btn', 'btn-default', 'row', 'row-fluid', 'col-sm-8', 'col-sm-6',
-                            'col-sm-4',	'span-8', 'span-6',	'span-4', 'pagination',	'form-control',
+                            'col-sm-4',	'span-8', 'span-6',	'span-4', 'span-12', 'pagination',	'form-control',
                             'table-striped', 'table-bordered',	'table-hover', 'table-condensed', 'table-responsive', 'table'
                         ];
                     } else {
@@ -866,7 +866,7 @@ angular.module('ai.table', ['ngSanitize'])
                     return pg - 1 > 0;
                 }
 
-                // checks if has next page 
+                // checks if has next page
                 function hasNext(pg) {
                     var pageCount = Math.ceil(scope.filtered.length / options.display);
                     pg = pg || scope.page;

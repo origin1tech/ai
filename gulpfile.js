@@ -64,7 +64,8 @@ gulp.task('build-sass', ['clean'], function () {
 // build lib
 gulp.task('build-lib', ['clean'], function () {
     return gulp.src([
-            '!' + './src/register/register.js',
+            '!./src/register/register.js',
+            '!./src/register/register-amd.js',
             '!./src/common/**/*.js',
             './src/**/*.js'
          ])

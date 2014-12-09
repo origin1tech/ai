@@ -1,0 +1,208 @@
+
+// the size of the arrow
+// at the end of the step.
+// NOTE: is also size of
+// spacer for tail.
+$step-size-arrow:                             45px;
+
+// calc min-width of step
+// element to ensure spacing.
+$step-min-width-multiple:                     2.25;
+
+// the three default color
+// states of the step wizard.
+$step-color-active:                           #428bca;
+$step-color-normal:                           lighten($step-color-active, 20%);
+$step-color-disabled:                         #777;
+
+$step-color-text:                             #fff;
+$step-color-spacer:                           #fff;
+$step-color-number:                           $step-color-spacer;
+$step-color-number-text:                      #888;
+
+// the size of space
+// between step elements.
+$step-spacer-offset:                          5px;
+
+// when "round" is set the
+// border radius size.
+$step-round-radius:                           4px;
+
+$step-section-margin:                         20px;
+
+// mixin for step header.
+@mixin ai-step-header-mixin($size, $color-text, $color-spacer, $color-normal, $color-active, $color-disabled) {
+
+  $size-arrow:                             ($size *  1.4142135623730951) / 2;
+  $size-offset:                            ($size - $size-arrow) / 2;
+  $size-number:                            ceil($size / 2.75);
+
+  li, .ai-step-header-item {
+
+    background-color: $color-normal;
+    height: $size;
+    line-height: $size;
+    min-width: $size * $step-min-width-multiple;
+    color: $color-text;
+
+    &:not(:first-child){
+
+      margin-left: $step-spacer-offset;
+
+      &:before {
+
+        width:  $size-arrow;
+        height: $size-arrow;
+        margin-left: -$size-arrow / 2;
+        top: $size-offset;
+        background: $color-spacer;
+      }
+
+    }
+
+    &:after{
+
+      width:  $size-arrow;
+      height: $size-arrow;
+      margin-left: -$size-arrow / 2;
+      top: $size-offset;
+
+    }
+
+    &.active {
+      background-color: $color-active;
+    }
+
+    &.disabled {
+      background-color: $color-disabled;
+    }
+
+    .number {
+
+      height: $size-number;
+      width: $size-number;
+      background-color: $step-color-number;
+      color: $step-color-number-text;
+      top: ($size - $size-number) / 2;
+      line-height: $size-number;
+      right: $size-number / 3;
+
+    }
+
+    .title {
+      padding-right: $size-arrow;
+      padding-left: $size-arrow;
+    }
+
+    &.nonum {
+      padding-left: $size-arrow / 2;
+    }
+
+  }
+
+  &.tail {
+
+    li:before, .ai-step-header-item:before {
+
+      width:  $size-arrow;
+      height: $size-arrow;
+      margin-left: -$size-arrow / 2;
+      top: $size-offset;
+      background: $color-spacer;
+
+    }
+
+  }
+
+}
+
+// default style for step header
+// uses above mixin.
+.ai-step-header {
+
+  @include ai-step-header-mixin($step-size-arrow, $step-color-text, $step-color-spacer, $step-color-normal, $step-color-active, $step-color-disabled);
+
+  overflow: hidden;
+  margin-bottom: $step-section-margin;
+
+  ul, .ai-step-header-wrapper {
+    list-style: none; margin: 0; padding: 0;
+  }
+
+  li, .ai-step-header-item {
+
+    float: left;
+    position: relative;
+    text-align: center;
+
+    &.clickable { cursor: pointer; }
+
+    &:not(:first-child){
+
+      &:before {
+        content: '';
+        position: absolute;
+        left: 0;
+        transform: rotate(45deg);
+      }
+
+    }
+
+    &:after{
+
+      content: '';
+      position: absolute;
+      left: 100%;
+      transform: rotate(45deg);
+      z-index: 1 !important;
+      background: inherit;
+
+    }
+
+    .title {
+      display: inline-block;
+      z-index: 2;
+    }
+
+    .number {
+
+      display: block;
+      -webkit-border-radius: 100%;
+      border-radius: 100%;
+      z-index: 2;
+      position: absolute;
+      font-weight: 600;
+
+    }
+
+    &.nonum {
+      .number { display: none; }
+    }
+
+  }
+
+  &.tail {
+
+    li:before, .ai-step-header-item:before {
+      content: ' ';
+      transform: rotate(45deg);
+    }
+
+  }
+
+}
+
+.ai-step-content {
+  margin-bottom: $step-section-margin;
+}
+
+.ai-step-actions {
+  margin-bottom: $step-section-margin;
+  .submit { margin-left: 75px; }
+}
+
+
+
+
+
+

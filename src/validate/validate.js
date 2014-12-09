@@ -698,7 +698,6 @@ var form = angular.module('ai.validate', [])
         if(trigger === true)
             $scope.formElement.submitForm();
         $scope.set.dirty();
-
     };
 
     // destroy all validation objects.

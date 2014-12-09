@@ -33,6 +33,21 @@
     <input class="form-control" type="text" ai-mask="{ mask: '(999) 999-9999' }" ng-model="mask"/>
     <span style="display:block;">for options see https://github.com/RobinHerbots/jquery.inputmask</span>
 </div>
+<h4>Compare</h4>
+<hr/>
+<form name="compareForm">
+
+    <div class="form-group">
+        <label>Password</label>
+        <input name="password" type="password" class="form-control" ng-model="password"/>
+    </div>
+
+    <div class="form-group">
+        <label>Confirm</label>
+        <input name="confirm" type="password" class="form-control" ai-compare="password" ng-model="confirm"/>
+    </div>
+
+</form>
 
 
 

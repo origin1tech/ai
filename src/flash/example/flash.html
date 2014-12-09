@@ -8,6 +8,71 @@
 <hr/>
 <div class="form-group">
     <label>Enter message</label>
-    <input type="text" class="form-control" ng-model="flash"/>
+    <input type="text" class="form-control" ng-model="flashMessage" value="Show Me!"/>
 </div>
-<button class="btn btn-primary" ng-click="showFlash(flash)">Show Flash</button>
+<button class="btn btn-primary" ng-click="showFlash(flashMessage)">Show Flash</button>
+<hr/>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabs.markup.active }"><a ng-click="showTab('markup')">Markup</a></li>
+        <li ng-class="{ active: tabs.script.active }"><a ng-click="showTab('script')">Script</a></li>
+        <li ng-class="{ active: tabs.options.active }"><a ng-click="showTab('options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabs.markup.active }" ng-show="tabs.markup.active">
+            <h4>Markup</h4>
+            <pre>
+ &lt;ai-flash&gt;&lt;/ai-flash&gt;
+            </pre>
+        </div>
+
+        <div ng-class="{ active: tabs.script.active }" ng-show="tabs.script.active">
+            <h4>Code</h4>
+            <pre>
+angular.module('myModule', [])
+.controller('MyController', ['$scope', '$flash', function ($scope, $flash) {
+
+    // params are
+    // message, type(style), title, timeout.
+    // setting timeout to 0 sets flash to sticky mode (must be close by user).
+    var _flash = $flash.add('My flash message', 'flash-success');
+
+    // remove the flash instance.
+    $flash.remove(_flash);
+
+}]);
+            </pre>
+        </div>
+
+        <div ng-class="{ active: tabs.options.active }" ng-show="tabs.options.active">
+            <h4>Options</h4>
+            <pre>
+var defaults = {
+        template: 'flash.tpl.html',             // the template for flash message.
+        html: true,                             // when true html flash messages can be used.(requires ngSanitize)
+        errors: true,                           // when true flash is shown automatically on http status errors.
+        excludeErrors: [401, 403, 404],         // exclude errors by status type.
+        errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
+        errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
+                      'has occurred, if the ' +
+                      'problem persists ' +
+                      'please contact the ' +
+                      'administrator.',
+        multiple: false,                        // whether to allow multiple flash messages at same time.
+        type: 'ai-flash-info',                  // the default type of message to show also the css class name.
+        typeError: 'ai-flash-danger',           // the error type or class name for error messages.
+        animation: false,                       // provide class name for animation.
+        timeout: 3500,                          // timeout to auto remove flashes after period of time..
+                                                // instead of by timeout.
+        onError: undefined                      // function called on error before flashed, return false to ignore.
+
+    };
+            </pre>
+        </div>
+
+    </div>
+
+</div>

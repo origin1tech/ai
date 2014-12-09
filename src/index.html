@@ -29,6 +29,9 @@
         .btn-outline:hover {
            color: #fff;
         }
+        .main {
+            padding-bottom: 32px;
+        }
         .btn-close{
             text-align: center;
             width: 20px;
@@ -37,10 +40,13 @@
             top: 8px;
             right: 8px;
         }
+        a[ng-click] { cursor: pointer; }
     </style>
 </head>
 <body>
+
     <ai-flash></ai-flash>
+
     <header>
         <div class="container">
             <div class="row">
@@ -53,21 +59,24 @@
             </div>
         </div>
     </header>
-    <div class="container">
+
+    <div class="container main">
         <div ng-view></div>
     </div>
+
     <footer>
         <div class="container">
-            <p ng-show="msg" class="alert alert-info"><span class="close" ng-click="close()">&times</span>{{msg}}</p>
+            <!--<p ng-hide="!msg" class="alert alert-info"><span class="close" ng-click="close()">&times</span>{{msg}}</p>-->
         </div>
     </footer>
+
     <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-route.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-sanitize.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.3/angular-animate.min.js"></script>
-    <script src="common/jquery.inputmask.js"></script>
     <script src="ai.js"></script>
+
     <script type="text/ng-template" id="/home.html">
         <br/><br/>
         <p>
@@ -82,9 +91,11 @@
             <dt><a href="{{key}}">{{key | areaName}}</a></dt><dd>{{value}}</dd>
         </dl>
     </script>
+
     <script type="text/javascript">
 
-        var app, tmpAreas, keys, areas;
+        var app, tmpAreas, keys, areas, controller;
+        
         tmpAreas = {
             '/register': 'Angular application registration helper',
             '/passport': 'Simplifies handling authentication within Angular app.',
@@ -96,7 +107,8 @@
             '/table': 'Bind local or remote data to table/grid.',
             '/validate': 'Form validation with auto model binding.',
             '/viewer': 'Animated slide transitions for views.',
-            '/widget': 'Various widgets - case, nicescroll, redactor, decimal, input mask & compare.'
+            '/widget': 'Various widgets - case, nicescroll, redactor, decimal, input mask & compare.',
+            '/step': 'Creates form step wizard.'
         };
 
         // sort areas.
@@ -107,7 +119,7 @@
         });
 
         app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.table',
-            'ai.validate', 'ai.widget', 'ai.modal', 'ai.flash']);
+            'ai.validate', 'ai.widget', 'ai.modal', 'ai.flash', 'ai.step']);
 
         app.config(['$routeProvider', '$locationProvider', function ($routeProvider, $locationProvider) {
             $routeProvider.when('/', { templateUrl: '/home.html', controller: 'Controller', title: 'Ai' });
@@ -134,7 +146,117 @@
                 $rootScope.msg = '';
                 $rootScope.title = current.$$route.title;
             });
-        }]);
+        }]);        
+        
+        controller = [
+            '$rootScope', '$scope', '$route', '$flash', '$step',
+            function ($rootScope, $scope, $route, $flash, $step) {
+                var current = $route.current,
+                        route = current.$$route,
+                        params = current.params,
+                        path = route.originalPath,
+                        area = path && path !== '/' ? path.replace('/', '') : 'home',
+                        msg, close;
+
+                $scope.tabs = {
+                    markup: { title: 'Markup', active: true },
+                    script: { title: 'Script', active: false },
+                    options: { title: 'Options', active: false }
+                };
+
+                $scope.showTab = function(tab) {
+                    angular.forEach($scope.tabs, function (v,k) {
+                        v.active = k === tab;
+                    });
+                };
+
+                close = $rootScope.close;
+
+                if(area === 'home'){
+                    $scope.items = areas;
+                }
+
+                if(area === 'table'){
+                    $scope.tbl = {
+                        source: [
+                            { name: 'Jim Thomas', email: 'jthomas@gmail.com'},
+                            { name: 'Bob Blair', email: 'bblair@aol.com'},
+                            { name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
+                            { name: 'Bob Smith', email: 'bobsmith@msn.com'},
+                            { name: 'Susan Jones', email: 'susan.jones@hotmail.com'},
+                            { name: 'Larry Anderson', email: 'anderson.larry@mail.com'},
+                            { name: 'Harry Ellis', email: 'ellis@gmail.com'},
+                            { name: 'Rory Boscoe', email: 'rory@aol.com'},
+                            { name: 'Simon Green', email: 'sgreen@yahoo.com'},
+                            { name: 'Quentin Rose', email: 'qrose@msn.com'},
+                            { name: 'Micah Barry', email: 'barry4u@hotmail.com'},
+                            { name: 'Alex Angle', email: 'alex.angle@mail.com'}
+                        ],
+                        orderBy: [ '-name' ],
+                        selectable: true,
+                        exportable: true,
+                        display: 10,
+                        hover: true,
+                        goto: false,
+                        onSelected: function (row, selected, e) {
+                            //$rootScope.msg = JSON.stringify(selected);
+                        },
+                        onReset: function () {
+                            //$rootScope.msg = 'Table was reset.';
+                        },
+                        beforeFilter: function (source, q){
+                            //$rootScope.msg = 'Table filtered using query: ' + q;
+                        }
+                    }
+                }
+
+                if(area === 'validate'){
+                    $scope.submitValidate = function (form, model) {
+                        if(form.$invalid) return;
+                        // alert feedback.
+                        alert('Passed validation your data would submit here.');
+                    }
+                }
+
+                if(area === 'widget'){
+                    $scope.decimal = 25;
+                    $scope.case = 'timothy';
+                    $scope.mask = '7605551212';
+                }
+
+                if(area === 'flash'){
+                    var flash = $flash();
+                    $scope.flashMessage = 'Show Me!';
+                    $scope.showFlash = function (msg) {
+                        flash.add(msg);
+                    }
+                }
+
+                if(area === 'step'){
+
+                    $scope.user = {
+                        username: 'bob@test.com',
+                        password: 'temptemp',
+                        first: 'Bob',
+                        last: 'Jones'
+                    };
+                    $scope.stepOptions = {
+                        steps: {
+                            credentials: { content: '/step/example/step-cred.html' },
+                            name: { content: '/step/example/step-name.html' },
+                            finish: { content: '/step/example/step-finish.html' }
+                        },
+                        onLoad: function ($module){
+                            $module.steps[1].enabled = false;
+                        }
+                    }
+
+                    var _step = $step()
+                }
+            }
+        ];
+
+        app.controller('Controller', controller);
 
         app.filter('areaName', function () {
             return function (val){
@@ -143,81 +265,7 @@
             }
         });
 
-        app.controller('Controller', ['$rootScope', '$scope', '$route', '$flash', function ($rootScope, $scope,
-                                                                                            $route, $flash) {
-            var current = $route.current,
-                route = current.$$route,
-                params = current.params,
-                path = route.originalPath,
-                area = path && path !== '/' ? path.replace('/', '') : 'home',
-                msg, close;
-
-            close = $rootScope.close;
-
-            // home
-            if(area === 'home'){
-                $scope.items = areas;
-            }
-
-            // table
-            if(area === 'table'){
-                $scope.tbl = {
-                    source: [
-                        { name: 'Jim Thomas', email: 'jthomas@gmail.com'},
-                        { name: 'Bob Blair', email: 'bblair@aol.com'},
-                        { name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
-                        { name: 'Bob Smith', email: 'bobsmith@msn.com'},
-                        { name: 'Susan Jones', email: 'susan.jones@hotmail.com'},
-                        { name: 'Larry Anderson', email: 'anderson.larry@mail.com'},
-                        { name: 'Harry Ellis', email: 'ellis@gmail.com'},
-                        { name: 'Rory Boscoe', email: 'rory@aol.com'},
-                        { name: 'Simon Green', email: 'sgreen@yahoo.com'},
-                        { name: 'Quentin Rose', email: 'qrose@msn.com'},
-                        { name: 'Micah Barry', email: 'barry4u@hotmail.com'},
-                        { name: 'Alex Angle', email: 'alex.angle@mail.com'}
-                    ],
-                    orderBy: [ '-name' ],
-                    selectable: true,
-                    exportable: true,
-                    display: 10,
-                    hover: true,
-                    goto: false,
-                    onSelected: function (row, selected, e) {
-                        $rootScope.msg = JSON.stringify(selected);
-                    },
-                    onReset: function () {
-                        $rootScope.msg = 'Table was reset.';
-                    },
-                    beforeFilter: function (source, q){
-                        $rootScope.msg = 'Table filtered using query: ' + q;
-                    }
-                }
-            }
-
-            if(area === 'validate'){
-                $scope.submitValidate = function (form, model) {
-                    if(form.$invalid) return;
-                    // alert feedback.
-                    alert('Passed validation your data would submit here.');
-                }
-            }
-
-            if(area === 'widget'){
-                $scope.decimal = 25;
-                $scope.case = 'timothy';
-                $scope.mask = '7605551212';
-            }
-
-            if(area === 'flash'){
-                $scope.flash = '';
-                $scope.showFlash = function (msg) {
-                    $flash.add(msg);
-                }
-
-            }
-
-        }]);
-
     </script>
+
 </body>
 </html>

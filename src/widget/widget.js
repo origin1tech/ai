@@ -25,7 +25,7 @@ angular.module('ai.widget', [])
                     compareTo: 'compare',           // the html name attribute of the element or form scope property to compare to.
                     requireValue: true,             // should always be true, rare cases where you may need it to be false.
                                                     // throws false when values are empty/undefined.
-                    dataType: 'integer',            // options are string, date, time, datetime, integer
+                    dataType: 'string',             // options are string, date, time, datetime, integer
                     precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
                                                     // valid options 'minutes', 'seconds', 'milliseconds'
                 }
@@ -163,69 +163,6 @@ angular.module('ai.widget', [])
         };
     }])
 
-    // used for masking html input controls.
-    .directive('aiMask', [ '$timeout', '$widget', function ($timeout, $widget) {
-
-        return {
-            restrict: 'AC',
-            require: '?ngModel',
-            link: function (scope, element, attrs, ngModel) {
-
-                var rebind = false,
-                    directive,
-                    defaults,
-                    options;
-
-                console.assert(window.jQuery && (typeof ($.fn.inputmask) !== 'undefined'), 'ai-mask requires the jQuery inputmask plugin. ' +
-                    'see https://github.com/RobinHerbots/jquery.inputmask.');
-
-                defaults = $widget('mask', { oncomplete: setValue, onincomplete: setValue });
-
-                function setValue(e) {
-
-                    var val = element.inputmask('unmaskedvalue'),
-                        complete = element.inputmask('isComplete');
-
-                        if(!scope.$$phase) {
-
-                            scope.$apply(function () {
-                                if (!complete) val = '';
-                                if (ngModel)
-                                    ngModel.$setViewValue(val);
-                                else
-                                    element.val(val);
-                            });
-                        }
-
-                }
-
-                function rebindValue(newVal) {
-                    directive.unbind(".inputmask");
-                    directive.inputmask(options);
-                    rebind = false;
-                }
-
-                scope.$watch(attrs.ngModel, function (newVal, oldVal) {
-                    if(newVal === oldVal) return;
-                    if (directive) {
-                        rebind = true;
-                        rebindValue(newVal);
-                    }
-                });
-
-                function init() {
-                    $timeout(function () {
-                        directive = element.inputmask(options);
-                    },0);
-                }
-
-                scope.options = options = angular.extend(defaults, scope.$eval(attrs.aiMask));
-
-                init();
-            }
-        };
-    }])
-
     .directive('aiCase', [ '$timeout', '$widget', function ($timeout, $widget) {
 
         return {
@@ -324,12 +261,13 @@ angular.module('ai.widget', [])
                 return false;
             }
         }
+
         function isInteger(val) {
             return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
         }
 
         return {
-            restrict: 'A',
+            restrict: 'AC',
             require: '^ngModel',
             link: function (scope, element, attrs, ngModel) {
 
@@ -339,6 +277,7 @@ angular.module('ai.widget', [])
                 // check moment is loaded for datetime compares.
                 momentLoaded = checkMoment();
                 defaults = $widget('compare');
+
                 function validate(value) {
 
                     var valid;
@@ -412,7 +351,7 @@ angular.module('ai.widget', [])
 
                 function init() {
 
-                    formElem = formElem = element[0].form;
+                    formElem = element[0].form;
 
                     /* can't continue without the form */
                     if(!formElem) return;

@@ -7,7 +7,7 @@ angular.module('ai.flash.factory', [])
                             '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
                             '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
                         '</div>';
-        $templateCache.put('flash.tpl.html', template);
+        $templateCache.put('flash.html', template);
     }])
 
     .provider('$flash', function $flash() {
@@ -16,7 +16,7 @@ angular.module('ai.flash.factory', [])
 
         // default settings.
         defaults = {
-            template: 'flash.tpl.html',             // the template for flash message.
+            template: 'flash.html',                 // the template for flash message.
             html: true,                             // when true html flash messages can be used.(requires ngSanitize)
             errors: true,                           // when true flash is shown automatically on http status errors.
             excludeErrors: [401, 403, 404],         // exclude errors by status type.
@@ -42,59 +42,104 @@ angular.module('ai.flash.factory', [])
         };
 
         // get provider
-        get = ['$rootScope', '$q', '$templateCache', function ($rootScope, $q, $templateCache) {
+        get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
+            function ($rootScope, $q, $templateCache, $http, $timeout, $compile) {
 
-            // helper methods used internally.
-            var helpers = {
+            var instance;
 
-                find: function find(query, element) {
-                    return angular.element((element || document).querySelectorAll(query));
-                },
+            function isHtml(str) {
+                return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
+            }
 
-                // helper function to load template
-                fetch: function fetch(template) {
-                    return $q.when($templateCache.get(template) || $http.get(template))
+            function isPath(str) {
+                if(!str || !angular.isString(str)) return false;
+                var ext = str.split('.').pop();
+                return ext === 'html' || ext === 'tpl';
+            }
+            
+            function isElement(elem) {
+                return !!(elem && elem[0] && (elem[0] instanceof HTMLElement));                
+            }
+
+            function findElement(q, element) {
+                return angular.element((element || document).querySelectorAll(q));
+            }
+
+            function loadTemplate(t) {
+                // handle html an strings.
+                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
+                    var defer = $q.defer();
+                    defer.resolve(t);
+                    return defer.promise;
+                } else {
+                    // handle paths.
+                    return $q.when($templateCache.get(t) || $http.get(t))
                         .then(function (res) {
-                            if (angular.isObject(res)) {
-                                $templateCache.put(template, res.data);
+                            if (res.data) {
+                                $templateCache.put(t, res.data);
                                 return res.data;
                             }
                             return res;
                         });
-                },
+                }
+            }
+            
+            function overflow(body) {
+                var x, y;
+                x = body[0].style.overflow || undefined;
+                y = body[0].style.overflowY || undefined;
+                return {x:x,y:y};
+            }
+
+            // The flash factory
+            function ModuleFactory(element, options) {
+
+                var $module = {},
+                    flashes = [],
+                    body,
+                    overflows,
+                    scope;
                 
-                canSanitize: function canSanitize() {
-                    try {
-                        angular.module("ngSanitize");
-                    } catch(err) {
-                        throw new Error('ngSanitize is required by ai-flash.');
+                body = findElement('body');
+                overflows = overflow(body);
+
+                if(!isElement(element)){
+                    if(angular.isObject(element)){
+                        options = element;
+                        element = undefined;
                     }
                 }
 
-            }, instance;
+                // extend options
+                options = options || {};
+                $module.scope = scope = options.scope || $rootScope.$new();
+                $module.options = scope.options = options = angular.extend(defaults, options);
 
-            // The flash factory
-            function ModuleFactory(options) {
 
-                var $module = {};
+                // uses timeout to auto remove flash message.
+                function autoRemove(flash) {
+                    clearTimeout(flash.timeoutId);
+                    flash.timeoutId = $timeout(function () {
+                        if(flash.focus) {
+                            clearTimeout(flash.timeoutId);
+                            autoRemove(flash);
+                        } else {
+                            clearTimeout(flash.timeoutId);
+                            remove(flash);
+                        }
 
-                options = $module.options = angular.extend(defaults, options);
-
-                // collection of flashes.
-                $module.flashes = [];
-
-                // expose helper methods.
-                $module.helpers = helpers;
+                    }, flash.timeout);
+                }
                 
                 // add a new flash message.
-                $module.add = function (message, type, title, timeout) {
-                    var flash = message,
-                        flashDefaults = {
+                function add(message, type, title, timeout) {
+                    var flashDefaults = {
+                            title: undefined,
                             type: options.type,
                             focus: false,
                             show: false,
                             timeout: false
-                        };
+                        }, flash;
                     // if title is number assume timeout
                     if(angular.isNumber(title)){
                         timeout = title;
@@ -102,70 +147,119 @@ angular.module('ai.flash.factory', [])
                     }
 
                     if(!options.multiple)
-                        $module.flashes = [];
+                        flashes = [];
                     // if message is not object create Flash.
                     if(!angular.isObject(message)){
                         flash = {
-                            title: title,
-                            message: message,
-                            type: type,
-                            timeout: timeout
+                            message: message
                         };
                     }
                     // extend object with defaults.
-                    flash = angular.extend(flashDefaults, flash);
+                    flash = angular.extend({}, flashDefaults, flash);
                     // set the default timeout if true was passed.
                     if(flash.timeout === true)
                         flash.timeout = options.timeout;
                     if(flash.message) {
-                        $module.flashes.push(flash);
-                        $rootScope.$broadcast('flash:add', { flash: flash, flashes: $module.flashes });
+                        flashes.push(flash);                                          
+                        body.css({ overflow: 'hidden'});
+                        element.addClass('show');
+                        if(flash.timeout)
+                            autoRemove(flash);
                     }
-                };
+                }
                 
                 // remove a specific flash message.
-                $module.remove = function (flash) {
-                    if(flash && $module.flashes.length) {
-                        $module.flashes.splice($module.flashes.indexOf(flash), 1);
-                        $rootScope.$broadcast('flash:remove', { flash: flash, flashes: $module.flashes});
+                function remove(flash) {
+                    if(flash && flashes.length) {
+                        flashes.splice(flashes.indexOf(flash), 1);
+                        if(!flashes.length){
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                            if(element)
+                                element.removeClass('show');
+                        }
                     }
-                };
+                    
+                }
                 
                 // remove all flash messages in collection.
-                $module.removeAll = function () {
-                    if($module.flashes.length) {
-                        angular.forEach($module.flashes, function (flash) {
+                function removeAll() {
+                    if(flashes.length) {
+                        angular.forEach(flashes, function (flash) {
                             if(flash.shown === true)
-                                $module.remove(flash);
+                                remove(flash);
                             else
                                 flash.shown = true;
                         });
                     }
-                };
+                }
 
-                // reinit the module.
-                $module.init = function (options) {
-                    instance = new ModuleFactory(options);
-                };
+                // on flash enter set its focus to true
+                // so it is not removed while being read.
+                function enter(flash) {
+                    flash.focus = true;
+                }
+
+                // on leave set the focus to false
+                // can now be removed.
+                function leave(flash) {
+                    flash.focus = false;
+                }
 
                 // when route changes be sure
                 // to remove all flashes.
                 $rootScope.$on('$routeChangeStart', function () {
-                    $module.removeAll();
-                    $rootScope.$broadcast('flash:routing', { flashes: []});
+                    removeAll();
+                    if(element){
+                        element.removeClass('show');
+                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    }                    
+                    flashes = [];
                 });
 
+                
+                function init(callback) {
 
-                return $module;
+                    $module.add = scope.add = add;
+                    $module.remove = scope.remove = remove;
+                    $module.removeAll = scope.removeAll = removeAll;
+                    $module.flashes = scope.flashes = flashes;
+                    scope.leave = leave;
+                    scope.enter = enter;
+
+                    if(!element && instance){
+
+                        // set element to default instance.
+                        element = instance;
+
+                    } else {
+
+                        if(!element){
+                            element = angular.element('<div ai-flash class="ai-flash-wrapper"></div>');
+                            body.prepend(element);
+                        } else {
+                            element.addClass('ai-flash-wrapper');
+                            instance = element;
+                        }
+
+                        // load the template.
+                        loadTemplate(options.template).then(function (res) {
+                            if(res) {
+                                element.html(res);
+                                $compile(element.contents())(scope);
+                            }
+                        });
+
+                    }
+
+                    // don't wait for template just return.
+                    return $module;
+                }    
+                
+                return init();
             }
 
-            function getInstance() {
-                if(!instance)
-                    return new ModuleFactory();
-                return instance;
-            }
+            return ModuleFactory;
 
-            return getInstance();
         }];
 
         // return getter/setter.
@@ -176,99 +270,28 @@ angular.module('ai.flash.factory', [])
 
     })
 
-    .directive('aiFlash', [ '$compile', '$timeout', '$flash', function ($compile, $timeout, $flash) {
+    .directive('aiFlash', [ '$flash', function ($flash) {
 
         return {
             restrict: 'EAC',
             scope: true,
-            link: function (scope, element) {
+            link: function (scope, element, attrs) {
 
-                var directive;
+                var $module, defaults, options;
+
+                defaults = {
+                    scope: scope
+                };
 
                 // initialize the directive.
                 function init () {
 
-                    var body, bodyOverflow, bodyOverflowY;
-                    // for consistency define as directive.
-                    directive = $flash;
-
-                    // reference body element for overflow.
-                    body = directive.helpers.find('body');
-
-                    function getOverflow() {
-                        // reference original body overflow style.
-                        bodyOverflow = body[0].style.overflow || undefined;
-                        bodyOverflowY = body[0].style.overflowY || undefined;
-                    }
-
-                    // auto removes flash after
-                    // timeout when enabled.
-                    function autoRemove(flash) {
-                        clearTimeout(flash.timeoutId);
-                        flash.timeoutId = $timeout(function () {
-                            if(flash.focus) {
-                                clearTimeout(flash.timeoutId);
-                                autoRemove(flash);
-                            } else {
-                                clearTimeout(flash.timeoutId);
-                                directive.remove(flash);
-                            }
-
-                        }, flash.timeout);
-                    }
-
-                    // on flash enter set its focus to true
-                    // so it is not removed while being read.
-                    scope.enter = function (flash) {
-                        flash.focus = true;
-                    };
-
-                    // on leave set the focus to false
-                    // can now be removed.
-                    scope.leave = function (flash) {
-                        flash.focus = false;
-                    };
-
-                    // remove flash from collection.
-                    scope.remove = function (flash) {
-                        directive.remove(flash);
-                    };
-
-                    // listener when flash messages are added.
-                    scope.$on('flash:add', function (e, obj) {
-                        var flash = obj.flash;
-                        getOverflow();
-                        scope.flashes = directive.flashes;
-                        body.css({ overflow: 'hidden'});
-                        element.addClass('show');
-                        if(flash.timeout)
-                            autoRemove(flash);
-                    });
-
-                    scope.$on('flash:remove', function (e, obj) {
-                        var removed = obj.flash;
-                        if(!scope.flashes.length){
-                            body.css({ overflow: bodyOverflow, 'overflow-y': bodyOverflowY });
-                            element.removeClass('show');
-                        }
-                    });
-
-                    scope.$on('flash:routing', function (e, obj) {
-                        element.removeClass('show');
-                        body.css({ overflow: bodyOverflow, 'overflow-y': bodyOverflowY });
-                        scope.flashes = [];
-                    });
-
-                    // add template to element.
-                    element.addClass('flash-wrapper');
-
-                    // compile the element
-                    directive.helpers.fetch(directive.options.template).then(function (template) {
-                        template = $compile(template)(scope);
-                        element.append(template);
-                    });
+                    $module = $flash(element, options);                 
 
                 }
+
+                options = scope.$eval(attrs.options) || scope.$eval(attrs.aiFlash);
+                options = angular.extend(defaults, options);
 
                 init();
 

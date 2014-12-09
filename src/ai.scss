@@ -1,11 +1,9 @@
-
-// support styles
-@import 'common/variables';
-@import 'common/animations';
-@import 'common/mixins';
+// misc styles
+@import 'common/arrows';
 
 // module styles
 @import 'flash/flash';
 @import 'viewer/viewer';
 @import 'table/table';
 @import 'validate/validate';
+@import 'step/step';
