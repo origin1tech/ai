@@ -16,7 +16,7 @@ angular.module('ai.passport.factory', [])
 
             401: true,                                          // set to false to not handle 401 status codes.
             403: true,                                          // set to false to not handle 403 status codes.
-            paranoid: true,                                     // when true, fails if access level is missing.
+            paranoid: false,                                     // when true, fails if access level is missing.
             delimiter: ',',                                     // char to use to separate roles when passing string.
 
             // passport paths.

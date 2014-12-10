@@ -13,16 +13,12 @@ angular.module('ai.widget', [])
                     focus: true,
                     plugins: ['fullscreen']
                 },
-                mask: {
-                    oncomplete: undefined,
-                    onincomplete: undefined,
-                    clearIncomplete: true
-                },
                 case: {
+                    casing: 'first',
                     event: 'blur'
                 },
                 compare: {
-                    compareTo: 'compare',           // the html name attribute of the element or form scope property to compare to.
+                    compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
                     requireValue: true,             // should always be true, rare cases where you may need it to be false.
                                                     // throws false when values are empty/undefined.
                     dataType: 'string',             // options are string, date, time, datetime, integer
@@ -79,12 +75,13 @@ angular.module('ai.widget', [])
         };
     }])
 
-    .directive('aiNicescroll', ['$widget', function($widget) {
+    .directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
 
         return {
             restrict: 'AC',
             link: function(scope, element, attrs) {
-                var defaults, options, directive;
+
+                var defaults, options, $directive;
 
                 console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
                     'see: http://areaaperta.com/nicescroll');
@@ -92,13 +89,13 @@ angular.module('ai.widget', [])
                 defaults = $widget('nicescroll');
 
                 function init() {
-                    if(window.NiceScroll){
-                        angular.element(document).ready(function () {
-                            directive = element.niceScroll(options);
-                        });
-                    }
+                    $timeout(function () {
+                        $directive = element.niceScroll(options);
+                    },0);
                 }
-                options = angular.extend(defaults, scope.$eval(attrs.aiNicescroll));
+
+                options = attrs.aiNicescroll || attrs.options;
+                options = angular.extend(defaults, scope.$eval(options));
                 init();
             }
         };
@@ -110,6 +107,7 @@ angular.module('ai.widget', [])
             restrict: 'AC',
             require: '?ngModel',
             link: function(scope, element, attrs, ngModel) {
+
                 var defaults, options, format, formatted, regex;
 
                 defaults = $widget('decimal');
@@ -138,7 +136,8 @@ angular.module('ai.widget', [])
                     });
                     format();
                 }
-                options = angular.extend(defaults, scope.$eval(attrs.aiDecimal));
+                options = attrs.aiDecimal || attrs.options;
+                options = angular.extend(defaults, scope.$eval(options));
                 init();
             }
         };
@@ -148,16 +147,20 @@ angular.module('ai.widget', [])
     .directive('aiRedactor', [ '$widget', function ($widget) {
         return {
             restrict: 'AC',
+            scope: true,
             require: '?ngModel',
-            link: function (scope, element, attrs, ngModel) {
-                var defaults, options, directive;
+            link: function (scope, element, attrs) {
+                var defaults, options, $directive;
 
                 console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
                     'jQuery redactor plugin. see: http://imperavi.com/redactor.');
+
                 function init() {
-                    directive = element.redactor(options);
+                    $directive = element.redactor(options);
                 }
-                options =  angular.extend({}, defaults, attrs.aiRedactor);
+                options = attrs.aiRedactor || attrs.options;
+                options =  angular.extend(defaults, scope.$eval(options));
+
                 init();
             }
         };
@@ -173,7 +176,7 @@ angular.module('ai.widget', [])
                 var defaults, options, casing;
 
                 defaults = $widget('case');
-                options = { casing: 'first'};
+                options = {};
 
                 function getCase(val) {
                     if (!val) return;
@@ -236,11 +239,11 @@ angular.module('ai.widget', [])
                    // });
                 }
 
-                if(angular.isString(attrs.aiCase))
-                    options.casing = attrs.aiCase;
-                else
-                    options = scope.$eval(attrs.aiCase);
-
+                var tmpOpt = attrs.aiCase || attrs.options;
+                if(angular.isString(tmpOpt))
+                    options.casing = tmpOpt;
+                if(angular.isObject(tmpOpt))
+                    options = scope.$eval(tmpOpt);
                 options = angular.extend(defaults, options);
 
                 init();
@@ -346,7 +349,7 @@ angular.module('ai.widget', [])
                     }
 
                     ngModel.$setValidity('compare', valid);
-
+                    return valid;
                 }
 
                 function init() {
@@ -356,8 +359,8 @@ angular.module('ai.widget', [])
                     /* can't continue without the form */
                     if(!formElem) return;
 
-                    form = scope[formElem.name] || undefined;
-                    ngModelCompare = form[options.compareTo] || options.compareTo || undefined;
+                    form = scope[formElem.name];
+                    ngModelCompare = form[options.compareTo] || options.compareTo;
 
                     /* must have valid form in scope */
                     if(!form || !options.compareTo || !ngModelCompare) return;
@@ -370,13 +373,13 @@ angular.module('ai.widget', [])
 
                 }
 
-                scope.$watch(attrs.aiCompare, function (newValue, oldValue) {
-                    if(newValue === oldValue) return;
-                    options = angular.extend(options, scope.$eval(newValue));
-                    init();
-                }, true);
+                var tmpOpt = attrs.aiCompare || attrs.options;
+                if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
+                    tmpOpt = { compareTo: tmpOpt };
+                else
+                    tmpOpt = scope.$eval(tmpOpt);
 
-                scope.options = options = angular.extend(defaults, scope.$eval(attrs.aiCompare));
+                options = angular.extend({}, defaults, tmpOpt);
 
                 init();
 

@@ -3,7 +3,25 @@ var gulp = require('gulp'),
     concat = require('gulp-concat-util'),
     es = require('event-stream'),
     fs = require('fs'),
-    path = require('path');
+    path = require('path'),
+    argv = process.argv,
+    pkg,
+    lic,
+    watch;
+
+// check if should live reload and watch.
+watch = (argv.indexOf('--nowatch') === -1 && argv.indexOf('-n') === -1);
+
+pkg = require('./package.json');
+
+lic ='\n/**\n' +
+'* @license\n' +
+'* Ai: <http://github.com/origin1tech/ai>\n' +
+'* Version: ' + pkg.version.replace('*', '') +
+'* Author: Origin1 Technologies <origin1tech@gmail.com>\n' +
+'* Copyright: 2014 Origin1 Technologies\n' +
+'* Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>\n' +
+'*/\n\n';
 
 // plumber util
 function plumber() {
@@ -44,9 +62,9 @@ gulp.task('build-sass', ['clean'], function () {
     taskBundle = gulp.src('./src/ai.scss')
         .pipe(plugins.sass())
         .pipe(gulp.dest('./dist'))
-        .pipe(plugins.cssmin())
-        .pipe(plugins.rename({suffix: '.min'}))
-        .pipe(gulp.dest('./dist'));
+        //.pipe(plugins.cssmin())
+        //.pipe(plugins.rename({suffix: '.min'}))
+        //.pipe(gulp.dest('./dist'));
     tasks.push(taskBundle);
 
     taskModules = gulp.src('./src/**/*.scss')
@@ -70,12 +88,19 @@ gulp.task('build-lib', ['clean'], function () {
             './src/**/*.js'
          ])
         .pipe(plugins.concat('ai.js'))
-        .pipe(concat.header('(function(window, document, undefined) {\n\'use strict\';\n'))
+        .pipe(concat.header(lic + '(function(window, document, undefined) {\n\'use strict\';\n'))
         .pipe(concat.footer('\n})(window, document);\n'))
         .pipe(gulp.dest('./dist'))
         .pipe(plugins.uglify())
         .pipe(plugins.rename({suffix: '.min'}))
         .pipe(gulp.dest('./dist'));
+});
+
+gulp.task('require-lib', ['clean'], function () {
+    plugins.requirejs({
+        baseUrl: './src/common.js',
+        out: 'ai-require.js'
+    }).pipe(gulp.dest('./require'));
 });
 
 // copy lib
@@ -108,12 +133,13 @@ gulp.task('serve', ['build'], function() {
         reload();
     });
 
+    var conf = {
+        root: './dist',
+        livereload: watch,
+        fallback: 'dist/index.html'
+    };
     setTimeout(function () {
-        plugins.connect.server({
-            root: './dist',
-            livereload: true,
-            fallback: 'dist/index.html'
-        });
+        plugins.connect.server(conf);
     },200);
 
 });
@@ -121,11 +147,13 @@ gulp.task('serve', ['build'], function() {
 // build the library.
 gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() {
 
-    gulp.watch(
-        ['./src/**/*.*'],
-        {debounceDelay: 400},
-        ['clean', 'build-sass', 'build-lib', 'copy-lib']
-    );
+    if(watch) {
+        gulp.watch(
+            ['./src/**/*.*'],
+            {debounceDelay: 400},
+            ['clean', 'build-sass', 'build-lib', 'copy-lib']
+        );
+    }
 
 });
 

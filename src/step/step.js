@@ -1,6 +1,6 @@
 angular.module('ai.step', [])
 
-.provider('$step', function $wizard() {
+.provider('$step', function $step() {
 
     var defaults = {
 
@@ -108,30 +108,19 @@ angular.module('ai.step', [])
             }
         }
 
-        function ModuleFactory(element, _steps, options) {
+        function ModuleFactory(element, options) {
 
             var $module = {},
                 steps = [],
                 templates =[],
                 contentTemplates = [],
+                _steps,
                 scope;
 
             // shift args if needed.
-            if(!isElement(element)){
-                if(!angular.isString(element) && !angular.isArray(element) && angular.isObject(options)){
-                    options = element;
-                    _steps = undefined;
-                    element = undefined;
-                } else {
-                    options = _steps;
-                    _steps = element;
-                    element = undefined;
-                }
-            }
-
-            if(angular.isObject(_steps) && !angular.isArray(_steps)){
-                options = _steps;
-                _steps = undefined;
+            if(!isElement(element) && angular.isObject(element)){
+                options = element;
+                element = undefined;
             }
 
             // extend options
@@ -296,7 +285,7 @@ angular.module('ai.step', [])
             function prev(e) {
                 var cur = active();
                 if(cur)
-                    to(cur.$index - 1, null, e);
+                    to(cur.$index - 1, true, e);
             }
 
             // on header click.

@@ -2,6 +2,7 @@ var form = angular.module('ai.validate', [])
 .provider('$validate', function $validate() {
 
     var defaults = {
+            elements: ['input','textarea','select'],
             exclude: [],                                                        // array of name attributes to exclude from mapping.
             template: '<span class="ai-validate-message">{{message}}</span>',   // the template to use for ai-validation-message. can be html string,
                                                                                 // 'tooltip top' where "top" is the bootstrap position
@@ -11,9 +12,7 @@ var form = angular.module('ai.validate', [])
             tooltipFallback: 'top',                                             // when tooltip gets pushed off screen fallback to this position. if that doesn't work sorry - bout - ur - luck!
                                                                                 // default leverages animate.css see http://daneden.github.io/animate.css/
 
-
-            validatorMessages: {},                                              // custom validation messages
-            validatorPrefixes: ['ai'],                                          // validation expressions for angular by default strip "ng" from the expression,
+            prefixes: ['ai'],                                                   // validation expressions for angular by default strip "ng" from the expression,
                                                                                 // hence if you have custom validators you may need this to be stripped as well.
                                                                                 // for example if you have a directive "myValidator" which in markup would be my-validator
 
@@ -41,7 +40,7 @@ var form = angular.module('ai.validate', [])
                 'date': '{{name}} must be a valid date.',
                 'time': '{{name}} must be a valid time.',
                 'datetime': '{{name}} must be a valid date/time value.',
-                'ai-compare': '{{name}} must be equal to compare field.'
+                'ai-compare': '{{name}} must be equal to {{value}} field.'
             }
         },
         get, set;
@@ -52,15 +51,28 @@ var form = angular.module('ai.validate', [])
 
     get = [function () {
 
-        function ModuleFactory(options) {
-            var $module = {};
 
-            options = $module.options = angular.extend(defaults, options);
+        function ModuleFactory(options) {
+
+            var $module = {};
+            options = options || {};
+            // set user validators to alt property.
+            if(options && options.validators){
+                options._validators = options.validators;
+                delete options.validators;
+            }
+            options._validators = options._validators || {};
+            $module.options = angular.extend(defaults, options);
 
             return $module;
         }
 
-        return ModuleFactory;
+        //return ModuleFactory;
+
+        return {
+            elements: defaults.elements,
+            factory: ModuleFactory
+        };
 
     }];
 
@@ -291,17 +303,18 @@ var form = angular.module('ai.validate', [])
 
     function getValidator(name, attr, value) {
 
-        var valMsg, cust, def, origName;
-
-        origName = name;
+        var valMsg, cust, def;
 
         // lookup the validation message expression
-        cust = $scope.options.validatorMessages[name];
+        // for custom validators lookup by name
+        cust = $scope.options._validators[name];
+
+        // for internal lookup by attr.
         def = $scope.options.validators[attr];
 
         // if custom we need to check for the attr
         if(cust)
-            cust = cust[attr] || undefined;
+            cust = cust[attr];
 
         // default to the custom validator expression if present
         valMsg = cust || def;
@@ -336,8 +349,8 @@ var form = angular.module('ai.validate', [])
 
         msgTemplate = $scope.options.template || defaultTemplate;
 
-        $scope.options.validatorPrefixes.push('ng');
-        prefixes = $scope.options.validatorPrefixes.join('|');
+        $scope.options.prefixes.push('ng');
+        prefixes = $scope.options.prefixes.join('|');
         prefixRegex = new RegExp('(' + prefixes + ')\-', 'gi');
 
         // check if tooltips are enabled
@@ -450,8 +463,8 @@ var form = angular.module('ai.validate', [])
         form.inputElements = [];
         form.validationElements = [];
 
-        // get the form inputs and any existing generated validation messages
-        var inputElements = findElement('input,select,textarea', $scope.formElement);
+        // get the form inputs and any existing generated validation messages.
+        var inputElements = findElement($scope.options.elements, $scope.formElement);
         form.inputElements = inputElements = inputElements && inputElements.length > 0 ? inputElements : [];
 
         // check if tooltip is used
@@ -550,7 +563,7 @@ var form = angular.module('ai.validate', [])
 
     };
 
-    $scope.watchExpression = function validateSummary(exp, msg) {
+    $scope.watchExpression = function watchExpression(exp, msg) {
 
         $scope.$watch(
             function () {
@@ -734,12 +747,19 @@ var form = angular.module('ai.validate', [])
 
 .directive("aiValidateForm", ['$validate', function ($validate) {
 
+    var elements, factory;
+        elements = $validate.elements;
+        factory = $validate.factory;
+
+        if(angular.isArray(elements))
+            elements = elements.join(',');
+
     return {
         restrict: 'AC',
         controller: 'AiValidateFormController',
         compile: function (tElement, tAttrs) {
 
-            var inputs = tElement[0].querySelectorAll('input,textarea,select');
+            var inputs = tElement[0].querySelectorAll(elements);
 
             if (inputs && inputs.length) {
                 angular.forEach(inputs, function (input) {
@@ -747,7 +767,7 @@ var form = angular.module('ai.validate', [])
                     var attrs = input[0].attributes,
                         name,
                         model;
-                    if(!attrs['name']){
+                    if(!attrs.name){
                         model = attrs['ng-model'] || attrs['data-ng-model'] || undefined;
                         name = model ? model.value.split('.').pop() : null;
                         if(name){
@@ -757,10 +777,9 @@ var form = angular.module('ai.validate', [])
                 });
             }
 
-
             return function (scope, element, attrs) {
 
-                var form, formName, $module;
+                var form, formName, options, $module;
 
                 formName = element.attr('name') || null;
 
@@ -780,17 +799,24 @@ var form = angular.module('ai.validate', [])
                 scope.parentScope = scope.$parent;
 
                 // extend options.
-                $module = $validate(scope.$eval(attrs.aiValidateForm));
+                options = attrs.aiValidateForm || attrs.options;
+                $module = factory(scope.$eval(options));
                 scope.options = $module.options;
-                //scope.options = angular.extend(defaults, scope.$eval(attrs.aiValidateForm));
+
+                // add the validation element types to scope options.
+                scope.options.elements = elements;
 
                 if(scope.options.novalidate)
                     element.attr('novalidate', '');
 
                 // watch for option changes.
-                scope.$watch('options', function (newVal, oldVal) {
-                    if(newVal === oldVal) return;
-                    scope.options = angular.extend(scope.options, newVal);
+                scope.$watch(
+                    function () {
+                        return attrs.aiValidateForm || attrs.options;
+                    },
+                    function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = angular.extend(scope.options, newVal);
                 }, true);
 
                 // init the form.

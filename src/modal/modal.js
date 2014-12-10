@@ -57,7 +57,7 @@ angular.module('ai.modal', [])
                 instances = [],
                 sce;
 
-            sce = $injector.get('$sce') || undefined;
+            sce = $injector.get('$sce');
 
             function isHtml(str) {
                 return /<([A-Za-z][A-Za-z0-9]*)\b[^>]*>(.*?)<\/\1>/.test(str);
@@ -661,7 +661,8 @@ angular.module('ai.modal', [])
 
             function init() {
 
-                scope.options = angular.extend(options, scope.$eval(attrs.aiModal));
+                var tmpOpt = attrs.aiModal || attrs.options;
+                scope.options = options = scope.$eval(tmpOpt);
 
                 if (!$module)
                     $module = new $modal(scope.options);

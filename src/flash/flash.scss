@@ -1,14 +1,39 @@
-$flash-element-zindex:                        1060;
-$flash-element-top:                           30px;
-$flash-element-width:                         65%;
-$flash-close-top:                             10px;
-$flash-close-right:                           8px;
-$flash-overflowx:                             hidden;
-$flash-overflowy:                             hidden;
+$flash-zindex:                                1060;
+
+$flash-item-top:                              30px;
+$flash-item-width:                            65%;
+$flash-item-overflowx:                        hidden;
+$flash-item-overflowy:                        hidden;
+$flash-item-border-radius:                    4px;
+$flash-item-padding:                          18px;
+$flash-item-close-font-size:                  150%;
+
+$flash-info-bg-color:                         lighten(#31708f, 50%);
+$flash-info-text-color:                       darken($flash-info-bg-color, 50%);
+$flash-info-border-color:                     darken(adjust-hue($flash-info-bg-color, -10), 5%);
+
+$flash-success-bg-color:                      lighten(#3c763d, 50%);
+$flash-success-text-color:                    darken($flash-success-bg-color, 50%);
+$flash-success-border-color:                  darken(adjust-hue($flash-success-bg-color, -10), 5%);
+
+$flash-warning-bg-color:                      lighten(#8a7d35, 50%);
+$flash-warning-text-color:                    darken($flash-warning-bg-color, 50%);
+$flash-warning-border-color:                  darken(adjust-hue($flash-warning-bg-color, -10), 5%);
+
+$flash-danger-bg-color:                       lighten(#a94442, 45%);
+$flash-danger-text-color:                     darken($flash-danger-bg-color, 50%);
+$flash-danger-border-color:                   darken(adjust-hue($flash-danger-bg-color, -10), 5%);
+
+
+@mixin ai-flash-mixin($flash-text-color, $flash-bg-color, $flash-border-color){
+    color: $flash-text-color;
+    background-color: $flash-bg-color;
+    border-color: $flash-border-color;
+}
 
 // flash wrapper/container.
-.ai-flash-wrapper {
-  z-index: $flash-element-zindex;
+.ai-flash, ai-flash, [ai-flash] {
+  z-index: $flash-zindex;
   width: 100%;
   position: absolute;
   &.show {
@@ -17,44 +42,61 @@ $flash-overflowy:                             hidden;
   }
 }
 
-// the flash element.
-.ai-flash {
+// the flash item.
+.ai-flash-item {
+  
   position: relative;
-  top: $flash-element-top;
-  width: $flash-element-width;
+  top: $flash-item-top;
+  width: $flash-item-width;
   margin: 0 auto;
-  overflow-x: $flash-overflowx;
-  overflow-y: $flash-overflowy;
+  overflow-x: $flash-item-overflowx;
+  overflow-y: $flash-item-overflowy;
+  padding: $flash-item-padding;
+  background-color: #eeeeee;
+
+  border: 1px solid darken(#eeeeee, 5%);
+  border-radius: $flash-item-border-radius;
+  
+  &.info {
+    @include ai-flash-mixin($flash-info-text-color, $flash-info-bg-color, $flash-info-border-color);
+  }
+  
+  &.success {
+    @include ai-flash-mixin($flash-success-text-color, $flash-success-bg-color, $flash-success-border-color);
+  }
+  
+  &.warning {
+    @include ai-flash-mixin($flash-warning-text-color, $flash-warning-bg-color, $flash-warning-border-color);
+  }
+  
+  &.danger {
+    @include ai-flash-mixin($flash-danger-text-color, $flash-danger-bg-color, $flash-danger-border-color);
+  }
+  
 }
-
-
 
 // the close element for the message.
 .ai-flash-close {
   position: absolute;
-  right: $flash-close-top;
-  top: $flash-close-right;
+  top:$flash-item-padding / 3;
+  right: $flash-item-padding;
+  font-size: 200%;
+  cursor: pointer;
+  text-decoration: none !important;
+  color: rgba(0, 0, 0, 0.6);
+  text-shadow: rgba(255, 255, 255, 0.2) 3px 2px 3px;
+  opacity: 0.6;
+  &:hover {
+    -moz-opacity: 1;
+    opacity: 1;
+    color: rgba(0, 0, 0, 0.6);
+    text-shadow: rgba(255, 255, 255, 0.2) 3px 2px 3px;
+  }
 }
 
 // title of message if present.
-.ai-flash-title {}
+.ai-flash-title { font-size: 130%; }
 
 // the flash content message.
 .ai-flash-message {}
 
-// styling.
-.ai-flash-info {
-
-}
-
-.ai-flash-warning {
-
-}
-
-.ai-flash-danger {
-
-}
-
-.ai-flash-success {
-
-}

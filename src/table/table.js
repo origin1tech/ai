@@ -170,7 +170,7 @@ angular.module('ai.table', ['ngSanitize'])
                     '<div class="ai-table-actions-filter col-sm-6 span-6">' +
                     '<div class="row row-fluid" ng-show="searchable">' +
                     '<div class="col-sm-8 span-8">' +
-                    '<input class="form-control" type="text" placeholder="Search" ng-model="q" ng-change="filter()" ng-disabled="editing"/>' +
+                    '<input class="form-control" type="text" placeholder="Search" ng-model="q" ng-change="filter(q)" ng-disabled="editing"/>' +
                     '</div>' +
                     '<div class="col-sm-4 span-4">' +
                     '<button class="btn btn-warning" type="button"  ng-click="reset()" ng-disabled="editing">Reset</button>' +
@@ -1550,11 +1550,8 @@ angular.module('ai.table', ['ngSanitize'])
     .directive('aiTable', ['$table', function aiTable ($table) {
 
         return {
-            restrict: 'EA',
-            scope: {
-                options: '&aiTable'
-            },
-            link: function link(scope, element) {
+            restrict: 'EAC',
+            link: function link(scope, element, attrs) {
 
                 var defaults, options, $module;
 
@@ -1563,8 +1560,6 @@ angular.module('ai.table', ['ngSanitize'])
                 };
 
                 function init() {
-
-                    options.scope = scope;
 
                     /* initialize the new table */
                     $module = $table(element, options);
@@ -1586,7 +1581,8 @@ angular.module('ai.table', ['ngSanitize'])
                     options = null;
                 });
 
-                scope.options = options = angular.extend(defaults, scope.$eval(scope.options));
+                options = attrs.aiTable || attrs.options;
+                scope.options = options = angular.extend(defaults, scope.$eval(options));
 
                 init();
 

@@ -3,22 +3,22 @@
 // at the end of the step.
 // NOTE: is also size of
 // spacer for tail.
-$step-size-arrow:                             45px;
+$step-arrow-size:                             45px;
 
 // calc min-width of step
 // element to ensure spacing.
-$step-min-width-multiple:                     2.25;
+$step-width-multiplier:                       2.25;
 
 // the three default color
 // states of the step wizard.
-$step-color-active:                           #428bca;
-$step-color-normal:                           lighten($step-color-active, 20%);
-$step-color-disabled:                         #777;
+$step-active-bg-color:                        #428bca;
+$step-normal-bg-color:                        #777;
+$step-disabled-bg-color:                      lighten($step-normal-bg-color, 20%);
 
-$step-color-text:                             #fff;
-$step-color-spacer:                           #fff;
-$step-color-number:                           $step-color-spacer;
-$step-color-number-text:                      #888;
+$step-text-color:                             #fff;
+$step-spacer-bg-color:                        #fff;
+$step-number-bg-color:                        $step-spacer-bg-color;
+$step-number-bg-color-text:                   #888;
 
 // the size of space
 // between step elements.
@@ -26,24 +26,24 @@ $step-spacer-offset:                          5px;
 
 // when "round" is set the
 // border radius size.
-$step-round-radius:                           4px;
+$step-round-border-radius:                    4px;
 
-$step-section-margin:                         20px;
+$step-group-margin-bottom:                    20px;
 
 // mixin for step header.
-@mixin ai-step-header-mixin($size, $color-text, $color-spacer, $color-normal, $color-active, $color-disabled) {
+@mixin ai-step-header-mixin($size, $text-color, $spacer-color, $normal-color, $active-color, $disabled-color) {
 
-  $size-arrow:                             ($size *  1.4142135623730951) / 2;
-  $size-offset:                            ($size - $size-arrow) / 2;
-  $size-number:                            ceil($size / 2.75);
+  $arrow-size:                                ($size *  1.4142135623730951) / 2;
+  $offset-size:                               ($size - $arrow-size) / 2;
+  $number-size:                               ceil($size / 2.75);
 
   li, .ai-step-header-item {
 
-    background-color: $color-normal;
+    background-color: $normal-color;
     height: $size;
     line-height: $size;
-    min-width: $size * $step-min-width-multiple;
-    color: $color-text;
+    min-width: $size * $step-width-multiplier;
+    color: $text-color;
 
     &:not(:first-child){
 
@@ -51,51 +51,51 @@ $step-section-margin:                         20px;
 
       &:before {
 
-        width:  $size-arrow;
-        height: $size-arrow;
-        margin-left: -$size-arrow / 2;
-        top: $size-offset;
-        background: $color-spacer;
+        width:  $arrow-size;
+        height: $arrow-size;
+        margin-left: -$arrow-size / 2;
+        top: $offset-size;
+        background: $spacer-color;
       }
 
     }
 
     &:after{
 
-      width:  $size-arrow;
-      height: $size-arrow;
-      margin-left: -$size-arrow / 2;
-      top: $size-offset;
+      width:  $arrow-size;
+      height: $arrow-size;
+      margin-left: -$arrow-size / 2;
+      top: $offset-size;
 
     }
 
     &.active {
-      background-color: $color-active;
+      background-color: $active-color;
     }
 
     &.disabled {
-      background-color: $color-disabled;
+      background-color: $disabled-color;
     }
 
     .number {
 
-      height: $size-number;
-      width: $size-number;
-      background-color: $step-color-number;
-      color: $step-color-number-text;
-      top: ($size - $size-number) / 2;
-      line-height: $size-number;
-      right: $size-number / 3;
+      height: $number-size;
+      width: $number-size;
+      background-color: $step-number-bg-color;
+      color: $step-number-bg-color-text;
+      top: ($size - $number-size) / 2;
+      line-height: $number-size;
+      right: $number-size / 3;
 
     }
 
     .title {
-      padding-right: $size-arrow;
-      padding-left: $size-arrow;
+      padding-right: $arrow-size;
+      padding-left: $arrow-size;
     }
 
     &.nonum {
-      padding-left: $size-arrow / 2;
+      padding-left: $arrow-size / 2;
     }
 
   }
@@ -104,11 +104,11 @@ $step-section-margin:                         20px;
 
     li:before, .ai-step-header-item:before {
 
-      width:  $size-arrow;
-      height: $size-arrow;
-      margin-left: -$size-arrow / 2;
-      top: $size-offset;
-      background: $color-spacer;
+      width:  $arrow-size;
+      height: $arrow-size;
+      margin-left: -$arrow-size / 2;
+      top: $offset-size;
+      background: $spacer-color;
 
     }
 
@@ -116,14 +116,14 @@ $step-section-margin:                         20px;
 
 }
 
-// default style for step header
-// uses above mixin.
+// header
 .ai-step-header {
 
-  @include ai-step-header-mixin($step-size-arrow, $step-color-text, $step-color-spacer, $step-color-normal, $step-color-active, $step-color-disabled);
+  @include ai-step-header-mixin($step-arrow-size, $step-text-color, $step-spacer-bg-color, $step-normal-bg-color,
+          $step-active-bg-color, $step-disabled-bg-color);
 
   overflow: hidden;
-  margin-bottom: $step-section-margin;
+  margin-bottom: $step-group-margin-bottom;
 
   ul, .ai-step-header-wrapper {
     list-style: none; margin: 0; padding: 0;
@@ -192,12 +192,14 @@ $step-section-margin:                         20px;
 
 }
 
+// content
 .ai-step-content {
-  margin-bottom: $step-section-margin;
+  margin-bottom: $step-group-margin-bottom;
 }
 
+// actions
 .ai-step-actions {
-  margin-bottom: $step-section-margin;
+  margin-bottom: $step-group-margin-bottom;
   .submit { margin-left: 75px; }
 }
 
