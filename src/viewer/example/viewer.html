@@ -1,2 +1,49 @@
 <h3>{{title}}</h3>
 <hr/>
+<p class="alert alert-warning">
+    The viewer module adds a view slider for views. It works well in mobile environments where simulating a
+    native feel is desired.
+</p>
+<p>
+    There is no example for $viewer as it works with ng-view ONLY!. However the example and options documentation 
+    is located below.
+</p>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('viewer:markup') }"><a ng-click="showTab('viewer:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('viewer:code') }"><a ng-click="showTab('viewer:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('viewer:options') }"><a ng-click="showTab('viewer:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('viewer:markup') }" ng-show="tabActive('viewer:markup')">
+<pre>
+&lt;ai-viewer options=&quot;viewerConf&quot;&gt;&lt;/ai-viewer&gt;
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('viewer:code') }" ng-show="tabActive('viewer:code')">
+<pre>
+No code is required to use $viewer other than passing your options into the element directive.
+
+// instantiating manually.
+$module = $viewer(element, options);
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('viewer:options') }" ng-show="tabActive('viewer:options')">
+<pre>
+var defaults = {
+    template: '&lt;div class=&quot;ai-viewer&quot; ng-view /&gt;',
+    viewCss: 'ai-viewer-view',
+    animate: 'slide'
+}
+</pre>
+        </div>
+
+    </div>
+
+</div>
+

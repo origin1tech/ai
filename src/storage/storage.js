@@ -67,7 +67,7 @@ angular.module('ai.storage', [])
          */
         get = [ function () {
 
-            function StorageFactory(options) {
+            function ModuleFactory(options) {
 
                 var $module = {},
                     ns, cookie, nsLen,
@@ -332,7 +332,7 @@ angular.module('ai.storage', [])
 
             }
 
-            return StorageFactory;
+            return ModuleFactory;
 
         }];
 

@@ -113,8 +113,7 @@
  
     "maxerr"        : 100,      // Maximum errors before stopping.
     "predef"        : [         // Extra globals.
-        "angular",
-        "$app"
+        "angular"
     ],
     "indent"        : 2         // Specify indentation spacing
 }

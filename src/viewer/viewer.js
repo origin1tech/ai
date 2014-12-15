@@ -3,8 +3,8 @@ angular.module('ai.viewer', [])
     .provider('$viewer', function $viewer() {
 
         var defaults = {
-                template: '<div class="viewer" ng-view />',
-                viewCss: 'viewer-view',
+                template: '<div class="ai-viewer" ng-view />',
+                viewCss: 'ai-viewer-view',
                 animate: 'slide'
             },
             get, set;
@@ -101,9 +101,6 @@ angular.module('ai.viewer', [])
 
         return {
             restrict: 'EA',
-            scope: {
-                options: '&aiViewer'
-            },
             link: function(scope, element) {
 
                 var defaults, options, $module;
@@ -134,7 +131,8 @@ angular.module('ai.viewer', [])
 
                 }
 
-                scope.options = options = angular.extend(defaults, scope.$eval(scope.options));
+                options = attrs.aiViewer || attrs.options;
+                options = angular.extend(defaults, scope.$eval(options));
 
                 init();
             }

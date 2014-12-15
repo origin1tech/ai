@@ -15,6 +15,7 @@ define(function (require) {
     require('viewer/viewer.js');
     require('storage/storage.js');
     require('passport/passport.js');
+    require('dropdown/dropdown.js');
 
 
     var app, tmpAreas, keys, areas, controller;
@@ -42,7 +43,7 @@ define(function (require) {
         areas[k] = tmpAreas[k];
     });
 
-    app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
+    app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table', 'ai.storage', 'ai.dropdown',
         'ai.widget', 'ai.modal', 'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider',
@@ -77,14 +78,13 @@ define(function (require) {
     }]);
 
     controller = [
-        '$rootScope', '$scope', '$route', '$flash', '$step', '$modal',
-        function ($rootScope, $scope, $route, $flash, $step, $modal) {
+        '$rootScope', '$scope', '$route', '$flash', '$step', '$modal', '$storage',
+        function ($rootScope, $scope, $route, $flash, $step, $modal, $storage) {
             var current = $route.current,
                 route = current.$$route,
                 params = current.params,
                 path = route.originalPath,
-                area = path && path !== '/' ? path.replace('/', '') : 'home',
-                msg, close;
+                area = path && path !== '/' ? path.replace('/', '') : 'home';
 
             $scope.tabs = {
                 table:      { active: 'markup' },
@@ -93,7 +93,10 @@ define(function (require) {
                 decimal:    { active: 'markup' },
                 casing:     { active: 'markup' },
                 compare:    { active: 'markup' },
-                modal:      { active: 'markup' }
+                modal:      { active: 'markup' },
+                storage:    { active: 'markup' },
+                viewer:     { active: 'markup' },
+                dropdown:   { active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -208,6 +211,82 @@ define(function (require) {
                     modal.show();
                 };
             }
+
+            if (area === 'storage'){
+                var storage = $storage();
+                storage.set('storage', '');
+                $scope.setStorage = function (v) {
+                    storage.set('storage', v);
+                };
+                $scope.getStorage = function () {
+                    $scope.viewStorage = storage.get('storage');
+                };
+            }
+
+            if (area === 'dropdown'){
+
+                // basic dropdown example.
+                $scope.ddSimple = {
+                    text: 'name',
+                    value: 'email',
+                    block: true,
+                    source: [
+                        {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
+                        {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'},
+                        {name: 'Scott Sandres', email: 'sanders.scott@aol.com', category: 'customer'},
+                        {name: 'Rob Reiner', email: 'rr@dc.rr.com', category: 'customer'},
+                        {name: 'Jim Thomas', email: 'jthomas@gmail.com', category: 'customer'},
+                        {name: 'Bob Blair', email: 'bblair@aol.com', category: 'employee'},
+                        {name: 'Randy Quick', email: 'randy.quick@yahoo.com', category: 'employee'},
+                        {name: 'Bob Smith', email: 'bobsmith@msn.com', category: 'employee'},
+                        {name: 'Susan Jones', email: 'susan.jones@hotmail.com', category: 'employee'},
+                        {name: 'Larry Anderson', email: 'anderson.larry@mail.com', category: 'employee'},
+                        {name: 'Harry Ellis', email: 'ellis@gmail.com', category: 'employee'},
+                        {name: 'Rory Boscoe', email: 'rory@aol.com', category: 'vendor'},
+                        {name: 'Simon Green', email: 'sgreen@yahoo.com', category: 'vendor'},
+                        {name: 'Quentin Rose', email: 'qrose@msn.com', category: 'vendor'},
+                        {name: 'Micah Barry', email: 'barry4u@hotmail.com', category: 'vendor'},
+                        {name: 'Alex Angle', email: 'alex.angle@mail.com', category: 'vendor'}
+                    ]
+                };
+                $scope.ddSimpleSel = 'charles@gmail.com';
+
+                // advanced example using grouping.
+                $scope.ddAdv = {
+                    text: 'name',
+                    value: 'email',
+                    groupKey: 'category',
+                    source: [
+                        {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
+                        {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'},
+                        {name: 'Scott Sandres', email: 'sanders.scott@aol.com', category: 'customer'},
+                        {name: 'Rob Reiner', email: 'rr@dc.rr.com', category: 'customer'},
+                        {name: 'Jim Thomas', email: 'jthomas@gmail.com', category: 'customer'},
+                        {name: 'Bob Blair', email: 'bblair@aol.com', category: 'employee'},
+                        {name: 'Randy Quick', email: 'randy.quick@yahoo.com', category: 'employee'},
+                        {name: 'Bob Smith', email: 'bobsmith@msn.com', category: 'employee'},
+                        {name: 'Susan Jones', email: 'susan.jones@hotmail.com', category: 'employee'},
+                        {name: 'Larry Anderson', email: 'anderson.larry@mail.com', category: 'employee'},
+                        {name: 'Harry Ellis', email: 'ellis@gmail.com', category: 'employee'},
+                        {name: 'Rory Boscoe', email: 'rory@aol.com', category: 'vendor'},
+                        {name: 'Simon Green', email: 'sgreen@yahoo.com', category: 'vendor'},
+                        {name: 'Quentin Rose', email: 'qrose@msn.com', category: 'vendor'},
+                        {name: 'Micah Barry', email: 'barry4u@hotmail.com', category: 'vendor'},
+                        {name: 'Alex Angle', email: 'alex.angle@mail.com', category: 'vendor'}
+                    ]
+                };
+                $scope.ddAdvSel = 'ellis@gmail.com';
+
+                // example using remote url.
+                $scope.ddRemote = {
+                    text: 'name',
+                    value: 'email',
+                    split: true,
+                    source: '/dropdown/example/data.json'
+                };
+
+            }
+
         }
     ];
 

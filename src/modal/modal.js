@@ -5,7 +5,7 @@ angular.module('ai.modal', [])
     var defaults = {
 
             title: 'Dialog',                      // the default template's title.
-            template: 'ai-modal.html',            // a custom template string.
+            template: 'modal.tpl.html',           // a custom template string.
             content: null,                        // the default template's text or html body.
             locals: {},                           // locals that are passed to scope.
 
@@ -53,8 +53,8 @@ angular.module('ai.modal', [])
 
 
             var defaultTemplate,
-                _cache = $templateCache,
                 instances = [],
+                body,
                 sce;
 
             sce = $injector.get('$sce');
@@ -78,28 +78,28 @@ angular.module('ai.modal', [])
                 }
             }
 
-            function find(q, element) {
-                return angular.element(element.querySelectorAll(q));
+            function findElement(q, element) {
+                return angular.element((element || document).querySelectorAll(q));
             }
 
             defaultTemplate =
                 '<div class="modal">' +
-                '<div class="modal-dialog" >' +
-                '<div class="modal-content">' +
-                '<div class="modal-header" ng-show="header">' +
-                '<button type="button" ng-class="closeIconClass" aria-hidden="true" ng-click="close()" ng-bind="closeIcon"></button>' +
-                '<h4 ng-show="title"class="modal-title" ng-bind="title"></h4>' +
-                '</div>' +
-                '<div class="modal-body" ng-bind="content"></div>' +
-                '<div class="modal-footer" ng-show="footer">' +
-                '<button type="button" ng-class="closeClass" ng-click="close()" ng-bind="closeText"></button>' +
-                '<button type="button" ng-class="okClass" ng-click="ok()" ng-bind="okText"></button>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
+                    '<div class="modal-dialog" >' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header" ng-show="header">' +
+                                '<button type="button" ng-class="closeIconClass" aria-hidden="true" ng-click="close()" ng-bind="closeIcon"></button>' +
+                                '<h4 ng-show="title"class="modal-title" ng-bind="title"></h4>' +
+                                '</div>' +
+                            '<div class="modal-body" ng-bind="content"></div>' +
+                            '<div class="modal-footer" ng-show="footer">' +
+                                '<button type="button" ng-class="closeClass" ng-click="close()" ng-bind="closeText"></button>' +
+                                '<button type="button" ng-class="okClass" ng-click="ok()" ng-bind="okText"></button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
                 '</div>';
 
-            _cache.put('ai-modal.html', defaultTemplate);
+            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, defaultTemplate);
 
             $rootScope.$on('$routeChangeStart', function (event, next, current) {
                 angular.forEach(instances, function (instance) {
@@ -112,7 +112,7 @@ angular.module('ai.modal', [])
 
                 var self, ctrl, isDefault, closing,
                     scope, element, opts,
-                    body, backdrop, initializing, dialog,
+                    backdrop, initializing, dialog,
                     _requestAnimationFrame, _cancelAnimationFrame,
                     lastAnimation;
 
@@ -136,8 +136,8 @@ angular.module('ai.modal', [])
 
                     if (!opts.template) throw new Error('ai-modal requires a template but was not specified.');
 
-                    /* var to note using default built in template */
-                    isDefault = opts.template === 'ai-modal.html';
+                    // var to note using default built in template
+                    isDefault = opts.template === 'modal.tpl.html';
 
                     return loadTemplate(opts.template);
                 }
@@ -145,7 +145,7 @@ angular.module('ai.modal', [])
                 // resolves the content if exists
                 function getContent() {
 
-                    /* add some default html in case no content was provided */
+                    // add some default html in case no content was provided
                     opts.content = opts.content || '';
 
                     return loadTemplate(opts.content);
@@ -168,9 +168,9 @@ angular.module('ai.modal', [])
                             isElement = angular.element(isElement).css('display', 'none');
 
                             /* local element in page used as template store in cache */
-                            markup = _cache.get(template) || angular.element('<div></div>')
+                            markup = $templateCache.get(template) || angular.element('<div></div>')
                                 .append(isElement).html();
-                            _cache.put(template, markup);
+                            $templateCache.put(template, markup);
                         }
 
                         /* if html is present return promise */
@@ -181,10 +181,10 @@ angular.module('ai.modal', [])
                     } else {
 
                         /* html was not loaded use $http.get to load */
-                        return $q.when(_cache.get(template) || $http.get(template))
+                        return $q.when($templateCache.get(template) || $http.get(template))
                             .then(function (res) {
                                 if (res.data) {
-                                    _cache.put(template, res.data);
+                                    $templateCache.put(template, res.data);
                                     return res.data;
                                 }
                                 return res;
@@ -390,7 +390,7 @@ angular.module('ai.modal', [])
                     }
 
                     if(scope.isHtml && obj.content) {
-                        var contentDiv = find('.ai-modal-content', dialog[0]);
+                        var contentDiv = findElement('.ai-modal-content', dialog[0]);
                         if(contentDiv)
                             contentDiv.html(obj.content);
                     }
@@ -501,7 +501,8 @@ angular.module('ai.modal', [])
                     if (opts.backdrop !== 'static')
                         backdropTemplate = '<div class="ai-modal-background" ng-click="close($event)"></div>';
 
-                    body = find('body', document);
+                    if(!body)
+                        body = findElement('body', document);
 
                     /* create the backdrop template */
                     backdrop = angular.element(backdropTemplate);
@@ -530,7 +531,7 @@ angular.module('ai.modal', [])
                     bindMethods();
 
                     var html = getTemplate(),
-                        container = find(opts.container, document),
+                        container = findElement(opts.container, document),
                         contentHtml = getContent();
 
                     contentHtml.then(function (content) {
@@ -550,7 +551,7 @@ angular.module('ai.modal', [])
 
                             var bindType = htmlReady() ? 'ng-bind-html' : 'ng-bind',
                                 bindAttr = '[' + bindType + '="content"]',
-                                contentDiv = find(bindAttr, dialog[0]).addClass('ai-modal-content');
+                                contentDiv = findElement(bindAttr, dialog[0]).addClass('ai-modal-content');
 
                             // check for content
                             if (content) {
@@ -616,7 +617,6 @@ angular.module('ai.modal', [])
                 }
 
                 // merge options
-
                 opts = angular.extend(defaults, options);
 
                 // initialize modal.

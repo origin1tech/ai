@@ -17,23 +17,23 @@
 <div class="tabpanel">
 
     <ul class="nav nav-tabs">
-        <li ng-class="{ active: tabs.markup.active }"><a ng-click="showTab('markup')">Markup</a></li>
-        <li ng-class="{ active: tabs.script.active }"><a ng-click="showTab('script')">Script</a></li>
-        <li ng-class="{ active: tabs.options.active }"><a ng-click="showTab('options')">Options</a></li>
+        <li ng-class="{ active: tabActive('step:markup')}"><a ng-click="showTab('step:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('step:code') }"><a ng-click="showTab('step:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('step:options') }"><a ng-click="showTab('step:options')">Options</a></li>
     </ul>
 
     <div class="tab-content">
 
-        <div ng-class="{ active: tabs.markup.active }" ng-show="tabs.markup.active">
+        <div ng-class="{ active: tabActive('step:markup') }" ng-show="tabActive('step:markup')">
             <h4>Markup</h4>
             <pre>
 &lt;ai-step options=&quot;stepOptions&quot; &gt;&lt;/ai-step&gt;
 -OR-
-&lt;div options=&quot;stepOptions&quot; &gt;&lt;/div&gt;
+&lt;div ai-step options=&quot;stepOptions&quot; &gt;&lt;/div&gt;
             </pre>
         </div>
 
-        <div ng-class="{ active: tabs.script.active }" ng-show="tabs.script.active">
+            <div ng-class="{ active: tabActive('step:code') }" ng-show="tabActive('step:code')">
             <h4>Code</h4>
             <pre>
 // using directive
@@ -99,7 +99,7 @@ angular.module('myModule', [])
             </pre>
         </div>
 
-        <div ng-class="{ active: tabs.options.active }" ng-show="tabs.options.active">
+        <div ng-class="{ active: tabActive('step:options') }" ng-show="tabActive('step:options')">
             <h4>Options</h4>
             <pre>
 var defaults = {

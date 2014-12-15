@@ -1,19 +1,38 @@
-// validate styles.
+$message-text-color:                darkred;
+$message-font-size:                 85%;
+$message-margin-top:                4px;
+$message-margin-left:               2px;
+
+$summary-bg-color:                  lighten(darkred, 60%);
+$summary-border-color:              darken($summary-bg-color, 15%);
+$summary-text-color:                darken($summary-bg-color, 35%);
+$summary-margin-bottom:             20px;
+$summary-padding:                   8px;
+$summary-border-radius:             4px;
+$summary-font-size:                 85%;
 
 .ai-validate-message {
-  color: red;
-  font-size: 90%;
+  color: $message-text-color;
+  font-size: $message-font-size;
   display:block;
-  margin-top: 4px;
-  margin-left: 2px;
+  margin-top: $message-margin-top;
+  margin-left: $message-margin-left;
   &.focus { display: none !important; }
   &.ai-summary { display: none !important; }
 }
 
 .ai-validate-summary  {
-  margin: 12px 0px;
-  list-style:none; padding-top: 12px;
-  li { margin-top: 3px; }
+  margin: 0 0 $summary-margin-bottom 0;
+  font-size: $summary-font-size;
+  list-style:none;
+  padding: $summary-padding;
+  background-color: $summary-bg-color;
+  border-radius: $summary-border-radius;
+  color: $summary-text-color;
+  border: 1px solid $summary-border-color;
+  li {
+    margin-top: 3px;
+  }
 }
 
 .ai-validate-input:focus
@@ -39,17 +58,3 @@ input.ng-invalid.ng-dirty, select.ng-invalid.ng-dirty, textarea.ng-invalid.ng-di
     transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s;
   }
 }
-
-//input.ai-validate-tooltip.ng-invalid.ng-dirty,
-//select.ai-validate-tooltip.ng-invalid.ng-dirty,
-//textarea.ai-validate-tooltip.ng-invalid.ng-dirty
-//{
-//  &:not(:focus) {
-//    border-color: $input-border;
-//    -webkit-box-shadow: none;
-//    -moz-box-shadow: none;
-//    box-shadow: none;
-//    -webkit-transition: none;
-//    transition: none;
-//  }
-//}

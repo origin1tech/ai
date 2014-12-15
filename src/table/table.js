@@ -103,11 +103,11 @@ angular.module('ai.table', ['ngSanitize'])
 
             // TEMPLATING
 
-            actionsTemplate: 'ai-table-actions.html',      // template where search input is located datatype: string
-            tableTemplate: 'table.html',                    // the template for the table datatype: string
-            pagerTemplate: 'ai-table-pager.html',          // the template for paging datatype: string
-            nodataTemplate: 'ai-table-nodata.html',        // presented when no data rows are present datatype: string.
-            loaderTemplate: 'ai-table-loader.html',        // loading spinner template. datatype: string
+            actionsTemplate: 'table-actions.tpl.html', // template where search input is located datatype: string
+            tableTemplate: 'table.tpl.html',           // the template for the table datatype: string
+            pagerTemplate: 'table-pager.tpl.html',     // the template for paging datatype: string
+            nodataTemplate: 'table-nodata.tpl.html',   // presented when no data rows are present datatype: string.
+            loaderTemplate: 'table-loader.tpl.html',   // loading spinner template. datatype: string
 
             // BOOTSTRAP TEMPLATING
 
@@ -166,84 +166,84 @@ angular.module('ai.table', ['ngSanitize'])
 
                 actionsTemplate =
                     '<div class="ai-table-actions" ng-show="actions">' +
-                    '<div class="ai-table-actions-row row row-fluid">' +
-                    '<div class="ai-table-actions-filter col-sm-6 span-6">' +
-                    '<div class="row row-fluid" ng-show="searchable">' +
-                    '<div class="col-sm-8 span-8">' +
-                    '<input class="form-control" type="text" placeholder="Search" ng-model="q" ng-change="filter(q)" ng-disabled="editing"/>' +
-                    '</div>' +
-                    '<div class="col-sm-4 span-4">' +
-                    '<button class="btn btn-warning" type="button"  ng-click="reset()" ng-disabled="editing">Reset</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="ai-table-actions-options col-sm-6 span-6">' +
-                    '<div class="row row-fluid form-inline" ng-show="options">' +
-                    '<div class="col-sm-3 span-3">' +
-                    '<div ng-show="exportable">' +
-                    '<button ng-click="exportURI()" class="btn btn-warning">Export to CSV</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="col-sm-3 span-3">' +
-                    '<div ng-show="goto">' +
-                    '<input type="text" ng-model="gotoPage" class="form-control goto" placeholder="Goto" ng-keyup="pageToKeyUp($event, gotoPage)" ng-disabled="editing"/>  <button ng-click="pageTo(gotoPage)" class="btn btn-primary" ng-disabled="editing || (gotoPage > indices.max)">Go</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="col-sm-6 span-6 text-right">' +
-                    '<label ng-show="changeable">Displayed</label>' +
-                    '<select ng-show="changeable" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing">' +
-                    '<option ng-repeat="d in displayed">{{d}}</option>' +
-                    '</select>' +
-                    '<button ng-click="selectAllRows(true)" ng-show="!selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Select All</button>' +
-                    '<button style="min-width: 80px;" ng-click="selectAllRows(false)" ng-show="selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Clear All</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>' +
+                        '<div class="ai-table-actions-row row row-fluid">' +
+                            '<div class="ai-table-actions-filter col-sm-6 span-6">' +
+                                '<div class="row row-fluid" ng-show="searchable">' +
+                                '<div class="col-sm-8 span-8">' +
+                                    '<input class="form-control" type="text" placeholder="Search" ng-model="q" ng-change="filter(q)" ng-disabled="editing"/>' +
+                                '</div>' +
+                                '<div class="col-sm-4 span-4">' +
+                                    '<button class="btn btn-warning" type="button"  ng-click="reset()" ng-disabled="editing">Reset</button>' +
+                                '</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="ai-table-actions-options col-sm-6 span-6">' +
+                                '<div class="row row-fluid form-inline" ng-show="options">' +
+                                    '<div class="col-sm-3 span-3">' +
+                                        '<div ng-show="exportable">' +
+                                            '<button ng-click="exportURI()" class="btn btn-warning">Export to CSV</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="col-sm-3 span-3">' +
+                                        '<div ng-show="goto">' +
+                                        '<input type="text" ng-model="gotoPage" class="form-control goto" placeholder="Goto" ng-keyup="pageToKeyUp($event, gotoPage)" ng-disabled="editing"/>  <button ng-click="pageTo(gotoPage)" class="btn btn-primary" ng-disabled="editing || (gotoPage > indices.max)">Go</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="col-sm-6 span-6 text-right">' +
+                                        '<label ng-show="changeable">Displayed</label>' +
+                                        '<select ng-show="changeable" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing">' +
+                                            '<option ng-repeat="d in displayed">{{d}}</option>' +
+                                        '</select>' +
+                                        '<button ng-click="selectAllRows(true)" ng-show="!selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Select All</button>' +
+                                        '<button style="min-width: 80px;" ng-click="selectAllRows(false)" ng-show="selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Clear All</button>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
                     '</div>';
 
 
                 tableTemplate =
                     '<table class="ai-table-table table table-bordered table-striped table-hover table-condensed" ng-class="{ \'ai-table-selectable\': selectable }">' +
                     '<thead>' +
-                    '<tr>' +
-                    '<th class="ai-table-header" ng-class="sortClass(column)" ng-repeat="column in columns" ng-click="sort(column)" ng-if="!column.excluded"></th>' +
-                    '</tr>' +
+                        '<tr>' +
+                            '<th class="ai-table-header" ng-class="sortClass(column)" ng-repeat="column in columns" ng-click="sort(column)" ng-if="!column.excluded"></th>' +
+                        '</tr>' +
                     '</thead>' +
-                    '<tbody>' +
-                    '<tr class="ai-table-row" ng-repeat="row in filtered" ng-click="selectTableRow($event, row, $index)" ng-if="$index >= filteredRows.start && $index < filteredRows.end" ng-class="{ \'ai-table-row-selected\': row.selected,  \'ai-table-row-editing\': row.edits }">' +
-                    '<td class="ai-table-cell" ng-if="!column.excluded" ng-repeat="column in columns"></td>' +
-                    '</tr>' +
-                    '</tbody>' +
+                        '<tbody>' +
+                            '<tr class="ai-table-row" ng-repeat="row in filtered" ng-click="selectTableRow($event, row, $index)" ng-if="$index >= filteredRows.start && $index < filteredRows.end" ng-class="{ \'ai-table-row-selected\': row.selected,  \'ai-table-row-editing\': row.edits }">' +
+                                '<td class="ai-table-cell" ng-if="!column.excluded" ng-repeat="column in columns"></td>' +
+                            '</tr>' +
+                        '</tbody>' +
                     '</table>';
 
                 pagerTemplate =
                     '<div class="ai-table-pager" ng-show="pager">' +
-                    '<div class="ai-table-pager-row row">' +
-                    '<div class="ai-table-pager-records col-sm-6">' +
-                    '<div ng-show="counts">' +
-                    '<span>Page <strong>{{page}}</strong> of <strong>{{indices.filtered}}</strong></span>  -  ' +
-                    ' <span>Filtered (<strong>{{filtered.length}}</strong>)</span>  -  ' +
-                    ' <span>Total (<strong>{{total}}</strong>)</span>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="ai-table-pager-pages col-sm-6">' +
-                    '<ul class="pagination" ng-show="pagination && indices.filtered > 0">' +
-                    '<li ng-class="{ disabled: !hasPrev(page) || editing }"><a ng-click="pagePrev(page)">&laquo;</a></li>' +
-                    '<li ng-class="{ disabled: page == 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(1)">First</a></li>' +
-                    '<li ng-class="{ active: pg == page, disabled: editing }" ng-repeat="pg in pages">' +
-                    '<a ng-click="pageTo(pg)" ng-bind="pg"></a>' +
-                    '                           </li>' +
-                    '<li ng-class="{ disabled: page == indices.filtered || indices.filtered === 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(indices.filtered)">Last</a></li>' +
-                    '<li ng-class="{ disabled: !hasNext(page) || indices.filtered ===1 || editing }"><a ng-click="pageNext(page)">&raquo;</a></li>' +
-                    '</ul>' +
-                    '</div>' +
-                    '</div>' +
+                        '<div class="ai-table-pager-row row">' +
+                            '<div class="ai-table-pager-records col-sm-6">' +
+                                '<div ng-show="counts">' +
+                                '<span>Page <strong>{{page}}</strong> of <strong>{{indices.filtered}}</strong></span>  -  ' +
+                                ' <span>Filtered (<strong>{{filtered.length}}</strong>)</span>  -  ' +
+                                ' <span>Total (<strong>{{total}}</strong>)</span>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="ai-table-pager-pages col-sm-6">' +
+                                '<ul class="pagination" ng-show="pagination && indices.filtered > 0">' +
+                                    '<li ng-class="{ disabled: !hasPrev(page) || editing }"><a ng-click="pagePrev(page)">&laquo;</a></li>' +
+                                    '<li ng-class="{ disabled: page == 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(1)">First</a></li>' +
+                                    '<li ng-class="{ active: pg == page, disabled: editing }" ng-repeat="pg in pages">' +
+                                        '<a ng-click="pageTo(pg)" ng-bind="pg"></a>' +
+                                    '                           </li>' +
+                                    '<li ng-class="{ disabled: page == indices.filtered || indices.filtered === 1 || editing }" ng-show="firstLast"><a ng-click="pageTo(indices.filtered)">Last</a></li>' +
+                                    '<li ng-class="{ disabled: !hasNext(page) || indices.filtered ===1 || editing }"><a ng-click="pageNext(page)">&raquo;</a></li>' +
+                                '</ul>' +
+                            '</div>' +
+                        '</div>' +
                     '</div>';
 
                 nodataTemplate =
                     '<div class="ai-table-table table table-bordered table-striped table-hover table-condensed">' +
-                    '<div class="ai-table-nodata">0 records found in collection or columns not specified.</div>' +
+                        '<div class="ai-table-nodata">0 records found in collection or columns not specified.</div>' +
                     '</div>';
 
                 loaderTemplate = '<div class="ai-table-loader" ng-show="loading"><div><div>&nbsp;</div></div></div>';
@@ -265,7 +265,7 @@ angular.module('ai.table', ['ngSanitize'])
             }
 
             function find(q, element) {
-                return angular.element(element.querySelectorAll(q));
+                return angular.element((element || document).querySelectorAll(q));
             }
 
             function range(start, end, step) {

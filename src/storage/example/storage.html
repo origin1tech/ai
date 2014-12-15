@@ -1,2 +1,94 @@
 <h3>{{title}}</h3>
 <hr/>
+<p class="alert alert-warning">
+    Storage is a trivial hook to localStorage. Its benefit comes in the built in fallback to cookies when local
+    storage is unavailable in the "browser"
+</p>
+<div class="row">
+    <div class="form-group col-md-3">
+        <label>Set Value</label>
+        <input type="text" class="form-control" ng-model="storageValue"/>
+    </div>
+    <div class="col-md-9">
+        <label class="empty"></label>
+        <button class="btn btn-primary" ng-click="setStorage(storageValue)">Set</button>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-3">
+        <label>Get Value</label>
+        <input type="text" readonly ng-model="viewStorage" class="form-control"/>
+    </div>
+    <div class="form-group col-md-9">
+        <label class="empty"></label>
+        <button class="btn btn-warning" ng-click="getStorage()">Get</button>
+    </div>
+</div>
+
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('storage:markup') }"><a ng-click="showTab('storage:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('storage:code') }"><a ng-click="showTab('storage:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('storage:options') }"><a ng-click="showTab('storage:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('storage:markup') }" ng-show="tabActive('storage:markup')">
+            <pre>
+Markup is not required for this module as it does not contain a directive.
+
+Markup used in this example:
+
+&lt;div class=&quot;row&quot;&gt;
+    &lt;div class=&quot;form-group col-md-3&quot;&gt;
+        &lt;label&gt;Set Value&lt;/label&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ng-model=&quot;storageValue&quot;/&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;col-md-9&quot;&gt;
+        &lt;label class=&quot;empty&quot;&gt;&lt;/label&gt;
+        &lt;button class=&quot;btn btn-primary&quot; ng-click=&quot;setStorage(storageValue)&quot;&gt;Set&lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;row&quot;&gt;
+    &lt;div class=&quot;col-md-3&quot;&gt;
+        &lt;label&gt;Get Value&lt;/label&gt;
+        &lt;input type=&quot;text&quot; readonly ng-model=&quot;viewStorage&quot; class=&quot;form-control&quot;/&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;form-group col-md-9&quot;&gt;
+        &lt;label class=&quot;empty&quot;&gt;&lt;/label&gt;
+        &lt;button class=&quot;btn btn-warning&quot; ng-click=&quot;getStorage()&quot;&gt;Get&lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+
+
+            </pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('storage:code') }" ng-show="tabActive('storage:code')">
+<pre>
+var storage = $storage( // your storage options );
+storage.set('storage', '');
+$scope.setStorage = function (v) {
+    storage.set('storage', v);
+};
+$scope.getStorage = function () {
+    $scope.viewStorage = storage.get('storage');
+};
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('storage:options') }" ng-show="tabActive('storage:options')">
+<pre>
+var defaults = {
+    ns: 'app',              // the namespace for saving cookie/localStorage keys.
+    cookiePath: '/',        // the path for storing cookies.
+    cookieExpiry: 30        // the time in minutes for which cookies expires.
+}
+</pre>
+        </div>
+
+    </div>
+
+</div>

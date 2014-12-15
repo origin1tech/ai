@@ -42,16 +42,21 @@ table { width: 100%; }
 }
 
 .ai-table-wrapper {
-  position: relative; /* required when using loader */
+  position: relative; // required when using loader
 }
 
 .ai-table-selectable {
-  tr { cursor: default !important; } /* prevent text select cursor so we have just our pointer my preference personally */
+  tr { cursor: default !important; } // prevent text select cursor so we have just our pointer my preference personally
 }
 
 .ai-table-header {
 
   cursor: default;
+
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -ms-user-select: none;
 
   &.ascending {
     background-image: $table-sort-img-asc;

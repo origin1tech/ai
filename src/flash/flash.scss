@@ -72,7 +72,7 @@ $flash-danger-border-color:                   darken(adjust-hue($flash-danger-bg
   &.danger {
     @include ai-flash-mixin($flash-danger-text-color, $flash-danger-bg-color, $flash-danger-border-color);
   }
-  
+
 }
 
 // the close element for the message.

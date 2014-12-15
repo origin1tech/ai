@@ -11,11 +11,11 @@ angular.module('ai.step', [])
             breadcrumb: false,              // when true only header is shown, used as breadcrumb.
                                             // breadcrumb mode looks for property 'href' to navigate to.
 
-                                            // default html templates, cant be html or path to template.
+                                            // html templates, can be html or path to template.
 
-            header: 'step-header.html',     // the header template when using directive.
-            content: 'step-content.html',   // the content template to use when using directive.
-            actions: 'step-actions.html',   // the actions template when using directive.
+            header: 'step-header.tpl.html',   // the header template when using directive.
+            content: 'step-content.tpl.html', // the content template to use when using directive.
+            actions: 'step-actions.tpl.html', // the actions template when using directive.
 
                                             // hide/show buttons, disable/enable header click events.
 
@@ -81,12 +81,12 @@ angular.module('ai.step', [])
             return ext === 'html' || ext === 'tpl';
         }
 
-       function isElement(elem) {
+        function isElement(elem) {
                 return !!(elem && elem[0] && (elem[0] instanceof HTMLElement));
             }
 
         function findElement(q, element) {
-            return angular.element(element.querySelectorAll(q));
+            return angular.element(element || document).querySelectorAll(q);
         }
 
         function loadTemplate(t) {
@@ -358,33 +358,8 @@ angular.module('ai.step', [])
                     return true;
             }
 
-            function done() {
-
-                // Expose methods to module and scope.
-                $module.find = scope.find = find;
-                $module.active = scope.active = active;
-                $module.add = scope.add = add;
-                $module.to = scope.to = to;
-                $module.next = scope.next = next;
-                $module.prev = scope.prev = prev;
-                $module.submit = scope.submit = submit;
-                scope.headTo = headTo;
-                $module.isFirst = scope.isFirst = isFirst;
-                $module.isLast = scope.isLast = isLast;
-                $module.isActive = scope.isActive = isActive;
-                $module.isEnabled = scope.isEnabled = isEnabled;
-                $module.hasNext = scope.hasNext = hasNext;
-                $module.hasPrev = scope.hasPrev = hasPrev;
-                $module.steps = scope.steps = steps;
-
-                if(angular.isFunction(options.onLoad))
-                    options.onLoad($module);
-
-                return $module;
-            }
-
             // initialize the module.
-            function init(callback) {
+            function init() {
 
                 // if initialized with steps
                 // add them to the collection.
@@ -473,13 +448,35 @@ angular.module('ai.step', [])
                         element.html(template);
                         $compile(element.contents())(scope);
                     }
-                    callback();
 
                 });
 
+
+                // Expose methods to module and scope.
+                $module.find = scope.find = find;
+                $module.active = scope.active = active;
+                $module.add = scope.add = add;
+                $module.to = scope.to = to;
+                $module.next = scope.next = next;
+                $module.prev = scope.prev = prev;
+                $module.submit = scope.submit = submit;
+                scope.headTo = headTo;
+                $module.isFirst = scope.isFirst = isFirst;
+                $module.isLast = scope.isLast = isLast;
+                $module.isActive = scope.isActive = isActive;
+                $module.isEnabled = scope.isEnabled = isEnabled;
+                $module.hasNext = scope.hasNext = hasNext;
+                $module.hasPrev = scope.hasPrev = hasPrev;
+                $module.steps = scope.steps = steps;
+
+                if(angular.isFunction(options.onLoad))
+                    options.onLoad($module);
+
+                return $module;
+
             }
 
-            return init(done);
+            return init();
 
         }
 

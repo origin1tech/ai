@@ -16,14 +16,16 @@ var form = angular.module('ai.validate', [])
                                                                                 // hence if you have custom validators you may need this to be stripped as well.
                                                                                 // for example if you have a directive "myValidator" which in markup would be my-validator
 
-            validateOnDirty: true,                                              // validation is throw when message is dirty but invalid.
+            validateOnDirty: false,                                             // validation is throw when message is dirty and has error.
+            validateOnTouched: true,                                            // validation is thrown when has error and has lost focus e.g. been touched.
             validateOnSubmit: true,                                             // throw validation on form submission.
-            validateOnDirtyEmpty: true,                                         // when validate on dirty is true then dirt validation events fire even if model value is undefined/null.
+            validateOnDirtyEmpty: true,                                         // when validate on dirty is true then dirty validation events fire even if model value is undefined/null.
             pristineOnReset: true,                                              // when form is reset return to pristine state.
 
             messageTitlecase: true,                                             // when validation messages are show convert to title case (useful when ng-model properties are lower case).
             novalidate: true,                                                   // when true adds html5 novalidate tag.
             onBind: null,                                                       // callback called after the form is initialized returns the form object.
+
             validators: {
                 'required': '{{name}} is required.',
                 'minlength': '{{name}} must be at least {{value}} characters in length.',
@@ -103,9 +105,9 @@ var form = angular.module('ai.validate', [])
 
     initializing = false;
 
-    /* LOCAL METHODS
-     ******************************************************/
+    // Local Methods
 
+    // find summary in form if exists.
     function findSummary() {
 
         // tooltips cannot be used with summary
@@ -129,7 +131,6 @@ var form = angular.module('ai.validate', [])
 
     }
 
-    // use query selector to find
     function findElement(q, element) {
         var elements;
         if(element.querySelectorAll)
@@ -370,6 +371,9 @@ var form = angular.module('ai.validate', [])
                 valTemplate += ' && {{form}}.{{name}}.$dirty';
         }
 
+        if($scope.options.validateOnTouched)
+            valTemplate += ' && {{form}}.{{name}}.$touched';
+
         if ($scope.options.validateOnSubmit)
             valTemplate += ' || {{form}}.submitted && {{form}}.{{name}}.$error.{{attr}}';
 
@@ -437,8 +441,7 @@ var form = angular.module('ai.validate', [])
 
     }
 
-    /* SCOPE METHODS
-     ******************************************************/
+    // Scope Methods
 
     $scope.findElement = findElement;
 
@@ -640,16 +643,19 @@ var form = angular.module('ai.validate', [])
                 }
 
                 formProp.$setPristine(true);
+                formProp.$setUntouched(true);
                 formProp.$dirty = false;
                 input.addClass('ng-pristine').removeClass('ng-dirty');
 
 
             });
 
-            // timeout important to fix issue where form re-evals when setting form defaults
+            // timeout important to fix issue where
+            // form re-evals when setting form defaults
             $timeout(function () {
                 form.$dirty = false;
                 form.$setPristine(true);
+                form.$setUntouched(true);
                 form.submitted = false;
                 resetting = false;
             });
@@ -688,6 +694,7 @@ var form = angular.module('ai.validate', [])
 
             form.$pristine = false;
             form.$setDirty(true);
+            form.$setTouched(true);
             submitting = false;
 
         }
@@ -757,7 +764,7 @@ var form = angular.module('ai.validate', [])
     return {
         restrict: 'AC',
         controller: 'AiValidateFormController',
-        compile: function (tElement, tAttrs) {
+        compile: function (tElement) {
 
             var inputs = tElement[0].querySelectorAll(elements);
 
