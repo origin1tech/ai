@@ -109,7 +109,9 @@ var defaults = {
     capitalize: true,                       // if true display is capitalized. (group is cap also if used).
     searchable: true,                       // indicates that the dropdown is searchable.
     placeholder: 'Please Select',           // placeholder text shown on null value.
-    allowNull: true,                       // when true user can select placeholder/null value.
+    allowNull: true,                        // when true user can select placeholder/null value.
+    inline: false,                          // positions element inline.
+    shadow: true,                           // when true adds shadow to bottom of list.
 
     template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
     itemTemplate:
@@ -140,7 +142,7 @@ var defaults = {
     onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
     onLoad: false                           // callback on directive loaded. returns
 
-}
+    }
 </pre>
         </div>
 

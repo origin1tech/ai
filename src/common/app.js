@@ -229,7 +229,7 @@ define(function (require) {
                 $scope.ddSimple = {
                     text: 'name',
                     value: 'email',
-                    block: true,
+                    inline: true,
                     source: [
                         {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
                         {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'},
@@ -281,7 +281,6 @@ define(function (require) {
                 $scope.ddRemote = {
                     text: 'name',
                     value: 'email',
-                    split: true,
                     source: '/dropdown/example/data.json'
                 };
 

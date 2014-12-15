@@ -1,51 +1,105 @@
-// TODO: add variables for styling.
+$dropdown-min-width:              150px;
 
-// base styles
-.ai-dropdown {
+$dropdown-caret-top:              45%;
+$dropdown-caret-right:            18px;
+$dropdown-caret-border-color:     #777;
 
-  position: relative;
-  min-width: 235px;
-  display: inline-block;
-  zoom: 1;
-  vertical-align: middle;
+$dropdown-wrapper-zindex:         1060;
 
-  // block 100% of container.
-  &.block {
+$dropdown-items-bg-color:         #fff;
+$dropdown-items-border-color:     rgba(0,0,0,.15);
+$dropdown-items-border-radius:    4px;
+$dropdown-items-padding:          4px;
 
-    text-align: left;
-    width: 100%;
-    display: block;
+$dropdown-link-padding:           1px 8px;
+$dropdown-link-active-color:      #eee;
+$dropdown-link-hover-color:       #eee;
 
-    .toggle, .ai-dropdown-toggle {
-      text-align: left;
+
+$dropdown-list-max-height:        250px;
+$dropdown-list-margin:            4px -4px;
+
+//$caret-border-color       the color of the dropdown icon/caret
+//$items-bg-color           the list items background color.
+//$items-border-color       the border color of the list items.
+//$items-border-radius      the bottom border radius of the items list.
+//$min-width                the min width of the dropdown element itself.
+//$max-height               the max height of the list items, overflow creates scrollbar.
+
+@mixin ai-dropdown-mixin($caret-border-color, $items-bg-color, $items-border-color,
+                         $items-border-radius, $link-active-color, $link-hover-color) {
+  
+  min-width: $dropdown-min-width;
+
+  .caret {
+    &.down {
+      border-color:  $caret-border-color transparent transparent transparent;    
     }
-
-    .caret {
-      position: absolute;
-      right: 18px;
-      top: 45%;
+    &.up {
+      border-color:  transparent transparent $caret-border-color transparent;   
     }
+  }
 
-    .wrapper, .ai-items-wrapper {
-      width: 100%;
+  .wrapper, .ai-items-wrapper {
+    z-index: $dropdown-wrapper-zindex;
+  }
+
+  .items, .ai-dropdown-items {
+    
+    border: 1px solid $items-border-color;
+    padding: $dropdown-items-padding;
+    background-color: $items-bg-color;
+
+    -webkit-border-bottom-right-radius: $items-border-radius;
+    -webkit-border-bottom-left-radius: $items-border-radius;
+    border-bottom-right-radius: $items-border-radius;
+    border-bottom-left-radius: $items-border-radius;
+
+    li {
+
+      a {       
+        padding: $dropdown-link-padding;
+      }
+      
+      &.active {
+        background-color: $link-active-color;
+      } 
+      &:hover {
+        background-color: $link-hover-color;
+      }
+
     }
 
   }
 
-  &.split {
+  .items > ul, .ai-dropdown-items > ul {
+    margin: $dropdown-list-margin;
+    max-height: $dropdown-list-max-height;
+  }
 
-    text-align: left;
+  .items > div, .ai-dropdown-items > div {
+    margin: $dropdown-list-margin;
+    max-height: $dropdown-list-max-height;
+  }
+  
+}
 
-    .toggle, .ai-dropdown-toggle {
-      text-align: left;
-    }
+// base styles
+.ai-dropdown {
 
-    .caret {
-      position: absolute;
-      right: 18px;
-      top: 45%;
-    }
+  @include ai-dropdown-mixin($dropdown-caret-border-color, $dropdown-items-bg-color,
+                             $dropdown-items-border-color, $dropdown-items-border-radius,
+                             $dropdown-link-active-color, $dropdown-link-hover-color);
 
+  position: relative;
+  //min-width: 150px;
+  vertical-align: middle;
+  width: 100%;
+  display: block;
+
+  &.inline {
+    width: auto;
+    display: inline-block;
   }
 
   // toggles list.
@@ -54,29 +108,31 @@
     width: inherit;
     min-width: inherit;
     position: relative;
+    text-align: left;
 
     .selected {
       display: inline-block;
-      margin-right: 8px;
     }
 
     .caret {
 
-      margin-top: -1px;
       display: inline-block;
       width: 0;
       height: 0;
       border-style: solid;
       line-height: inherit;
       vertical-align: middle;
+      position: absolute;
+      right: 18px;
+      top: 45%;
 
       &.down {
-        border-color:  #777 transparent transparent transparent;
+        //border-color:  #777 transparent transparent transparent;
         border-width: 5px 4px 0 4px;
       }
 
       &.up {
-        border-color:  transparent transparent #777 transparent;
+        //border-color:  transparent transparent #777 transparent;
         border-width: 0 4px 5px 4px;
       }
 
@@ -84,18 +140,20 @@
 
   }
 
-  .search {
+  // search input.
+  .search, .ai-dropdown-search {
     &:focus {
-      //border: none !important;
-      //box-shadow: none !important;
+      border: 1px solid #ccc;
+      box-shadow: none;
     }
   }
 
   // used to prevent needing static height
   .wrapper, .ai-items-wrapper {
-    clear:both;
     position: relative;
     min-width: inherit;
+    width: inherit;
+    //z-index: 1060;
   }
 
   // contains all list items
@@ -104,39 +162,27 @@
     position: absolute;
     width: inherit;
     min-width: inherit;
-    background-color: #fff;
-    z-index: 1060;
     top: -1px;
     left: 0;
-    border: 1px solid rgba(0,0,0,.15);
-    padding: 4px;
+    //border: 1px solid rgba(0,0,0,.15);
+    //padding: 4px;
+    //background-color: #fff;
 
-    -webkit-border-bottom-right-radius: 4px;
-    -webkit-border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
-    border-bottom-left-radius: 4px;
+//    -webkit-border-bottom-right-radius: 4px;
+//    -webkit-border-bottom-left-radius: 4px;
+//    border-bottom-right-radius: 4px;
+//    border-bottom-left-radius: 4px;
 
-    -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
-    box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
-
-    h5 {
-      margin: 0 0 0 2px;
-      &:first-child {
-        margin-top: 6px;
-      }
+    &.shadow {
+      -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
+      box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
     }
 
     ul {
-      margin: 4px -4px;
       padding: 0;
       list-style: none;
       width: inherit;
       text-align: left;
-      border-radius: 4px;
-      background-color: #fff;
-      max-height: 275px;
-      overflow-x: hidden;
-      overflow-y: auto;
     }
 
     li {
@@ -146,16 +192,41 @@
 
       a {
         display: block;
-        padding: 1px 8px;
+        //padding: 1px 8px;
         white-space: nowrap;
         text-decoration: none;
 
       }
 
-      &.active, &:hover {
-        background-color: #eee;
-      }
+//      &.active, &:hover {
+//        background-color: #eee;
+//      }
 
+    }
+
+  }
+
+  // base element list.
+  .items > ul, .ai-dropdown-items > ul {
+      //margin: 4px -4px;
+      //max-height: 250px;
+      overflow-x: hidden;
+      overflow-y: auto;
+  }
+
+  // group element list.
+  .items > div, .ai-dropdown-items > div {
+    //margin: 4px -4px;
+    //max-height: 250px;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    ul {
+      margin-bottom: 0;
+    }
+
+    h5 {
+      margin: 3px 0 1px 4px;
     }
 
   }

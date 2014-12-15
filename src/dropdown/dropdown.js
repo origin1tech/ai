@@ -11,8 +11,8 @@ angular.module('ai.dropdown', [])
             searchable: true,                       // indicates that the dropdown is searchable.
             placeholder: 'Please Select',           // placeholder text shown on null value.
             allowNull: true,                        // when true user can select placeholder/null value.
-            block: false,                           // element will be 100% of width.
-            split: false,                           // splits caret button text to left and right of button.
+            inline: false,                          // positions element inline.
+            shadow: true,                           // when true adds shadow to bottom of list.
 
             template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
             itemTemplate:
@@ -61,16 +61,27 @@ angular.module('ai.dropdown', [])
                                 '</div>' +
                             '</div>';
 
+        // item template must be wrapped
+        // with outer <ul>.
         var itemTemplate =  '<ul>' +
-                                '<li ng-repeat="item in items" ng-class="{ active: item.active }"><a ng-click="select($event, item)">{{item.display}}</a></li>' +
+                                '<li ng-repeat="item in items" ng-class="{ active: item.active }">' +
+                                    '<a ng-click="select($event, item)">{{item.display}}</a>' +
+                                '</li>' +
                             '</ul>';
 
-        var itemGroupTemplate = '<div ng-repeat="group in items" ng-if="!group.hidden">' +
-                                    '<h5 ng-bind="group.display" ng-show="group.display"></h5>' +
-                                    '<ul>' +
-                                        '<li ng-repeat="item in group.items" ng-class="{ active: item.active }"><a ng-click="select($event, item)">{{item.display}}</a></li>' +
-                                    '</ul>' +
+        // item group template must be
+        // wrapped in outer <div>
+        var itemGroupTemplate = '<div>' +
+                                    '<div ng-repeat="group in items" ng-if="!group.hidden">' +
+                                        '<h5 ng-bind="group.display" ng-show="group.display"></h5>' +
+                                        '<ul>' +
+                                            '<li ng-repeat="item in group.items" ng-class="{ active: item.active }">' +
+                                                '<a ng-click="select($event, item)">{{item.display}}</a>' +
+                                            '</li>' +
+                                        '</ul>' +
+                                    '</div>' +
                                 '</div>';
+
 
         var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="search form-control" placeholder="search"/>';
 
@@ -452,11 +463,12 @@ angular.module('ai.dropdown', [])
                             dropdown.addClass('ai-dropdown');
 
                             // check if block display.
-                            if(options.block)
-                                dropdown.addClass('block');
+                            if(options.inline)
+                                dropdown.addClass('inline');
 
-                            if(options.split)
-                                dropdown.addClass('split');
+                            // if group add class to main element.
+                            if(options.groupKey)
+                                dropdown.addClass('group');
 
                             // if additional class add it.
                             if(options.addClass)
@@ -473,6 +485,9 @@ angular.module('ai.dropdown', [])
                             // get the items container.
                             items = findElement('.items', dropdown[0], true);
                             items = angular.element(items);
+
+                            if(options.shadow)
+                                items.addClass('shadow');
 
                             // add items and search if required.
                             if(options.searchable)
@@ -577,7 +592,7 @@ angular.module('ai.dropdown', [])
     }
 
     return {
-        restrict: 'AC',
+        restrict: 'EAC',
         scope: true,
         require: '^ngModel',
         link: function (scope, element, attrs, ngModel){
