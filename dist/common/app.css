@@ -1,0 +1,24 @@
+
+/*
+ * NOTE: this file is only used for styling
+ * the various examples within Ai. It is not
+ * included in the Ai bundle.
+ */
+
+/* html element styles */
+header {
+    background-color: #333;
+    color: #fff;
+    height: 45px;
+}
+header h2 { margin-top: 8px; }
+h4 { margin-top: 24px; }
+h5 { font-weight: 600; }
+a[ng-click] { cursor: pointer; }
+label.empty { display:block; margin-bottom: 5px; line-height: inherit; }
+label.empty:before { content: 'b'; color: transparent; }
+
+/* main styles */
+.main { padding-bottom: 32px; }
+
+ul.nav-tabs { margin-bottom: 20px; }
