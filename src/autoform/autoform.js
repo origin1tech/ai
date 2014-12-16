@@ -1,153 +1,340 @@
 angular.module('ai.autoform', [])
 
-    .provider('$autoform', function $autoform() {
+.provider('$autoform', function $autoform() {
 
-        var defaults = {
-                prefix: '',                 // value to prepend to models.
-                labels: false              // when true labels are created.
-            },
-            get, set;
+    var defaults = {
 
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
-        };
+            prefix: 'model',           // value to prepend to models.
+            labels: true,              // when true labels are created.
+            type: 'text',              // the default type for elements.
+            addClass: false,           // specify class to be added to form for styling.
+            placeholders: true,        // when true placeholders are created for text elements.
+            textareaAt: 35,            // if value is greater than this use textarea.
 
-        get = ['$rootScope', '$compile', function ($rootScope, $compile) {
+            datetimeExp:               // date time expression
+                /^(0?[1-9]|1[012])(:[0-5]\d) [APap][mM]$/,
 
-            function buildAttributes(attributes) {
-                var result = '';
-                angular.forEach(attributes, function (v, k) {
-                    result += (k + '="' + v + '"');
-                });
-                return result;
+            phoneExp:                   // phone expression
+                /^(?!.*911.*\d{4})((\+?1[\/ ]?)?(?![\(\. -]?555.*)\( ?[2-9][0-9]{2} ?\) ?|(\+?1[\.\/ -])?[2-9][0-9]{2}[\.\/ -]?)(?!555.?01..)([2-9][0-9]{2})[\.\/ -]?([0-9]{4})$/,
+
+            intExp:                     // integer/number expression.
+                /^\d+$/,
+                                        // email expression.
+            emailExp:
+                /^[\w-]+(\.[\w-]+)*@([a-z0-9-]+(\.[a-z0-9-]+)*?\.[a-z]{2,6}|(\d{1,3}\.){3}\d{1,3})(:\d{4})?$/
+
+        },
+        get, set;
+
+    set = function (options) {
+        defaults = angular.extend(defaults, options);
+    };
+
+    get = ['$rootScope', '$compile', function ($rootScope, $compile) {
+
+        // iterate attributes build string.
+        function parseAttributes(attrs) {
+            if(!attrs || !angular.isObject(attrs)) return '';
+            var result = [];
+            angular.forEach(attrs, function (v, k) {
+                if(k === 'ngModel')
+                    k = 'ng-model';
+                result.push(k + '="' + v + '"');
+            });
+            return result.join(' ');
+        }
+
+        // tests if value is boolean.
+        function isBoolean(value) {
+            if(typeof value === 'boolean')
+                return true;
+            return !!(value == 'true' || value == 'false');
+        }
+
+        // tests if array contains value.
+        function contains(arr, value){
+            return arr.indexOf(value) !== -1;
+        }
+
+        // generate tabs.
+        function tab(qty) {
+            var _tab = '',
+                ctr = 0;
+            while(ctr < qty){
+                _tab += '\t';
+                ctr += 1;
             }
+            return _tab;
+        }
 
-            function AutoformFactory(element, options) {
+        // trim string.
+        function trim(str) {
+            return str.replace(/^\s+/, '').replace(/\s+$/, '');
+        }
 
-                var $module = {},
-                    template = '',
-                    scope;
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
 
-                scope = options.scope || $rootScope.$new();
-                options = scope.options = angular.extend(defaults, options);
+        // parse the element type.
+        function parseType(value, options) {
+            if(isBoolean(value))
+                return 'checkbox';
+            if(options.phoneExp.test(value))
+                return 'tel';
+            if(options.datetimeExp.test(value))
+                return 'datetime';
+            if(options.intExp.test(value))
+                return 'number';
+            if(options.emailExp.test(value))
+                return 'email';
+            return options.type;
+        }
 
-                angular.forEach(options.model, function (v, k) {
+        function generateRadios(values, attrs){
+            var radAttrs = attrs,
+                radios = '';
+            angular.forEach(values, function (v) {
+                var radOpts = '\t\t<label class="checkbox-inline"><input {{ATTRS}}/>' +
+                    ' {{NAME}}</label>\n\t</div>';
+                radios += (tab(3) + radOpts
+                    .replace('{{ATTRS}}', trim(radAttrs + ' value="' + v + '"')))
+                    .replace('{{NAME}}', v);
+            });
+            return radios;
+        }
 
-                    var config = options.config[k] || {},
-                        labelStr = k.charAt(0).toUpperCase() + k.slice(1),
-                        attributes,
-                        name,
-                        ngModel,
-                        type;
+        function ModuleFactory(element, options) {
 
-                    if(config){
+            var $module = {},
+                template = '',
+                scope,
+                elements;
 
-                        type = config.type || 'text';
-                        attributes = buildAttributes(config.attributes);
-                        ngModel = options.prefix ? ' ng-model="' + options.prefix + '.' + k + '" ': ' ng-model="' + k + '" ';
-                        ngModel = config.model === false ? '' : ngModel;
-                        name = config.attributes && config.attributes.name ? '' : ' name="' + k + '" ';
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+            elements = options.elements || {};
 
-                        if(type !== 'radio' && type !== 'checkbox')
-                            template += '<div class="form-group">';
-                        else
-                            template += '<div class="' + type + '">';
+            // initialize the module.
+            function init() {
 
-                        if(config.label){
-                            if(type !== 'radio' && type !== 'checkbox')
-                                template += '<label>' + labelStr + '</label>';
-                            else
-                                template += '<label>';
+                var template = '',
+                    groups = [];
+
+                // normalize the data.
+                angular.forEach(options.source, function (v,k) {
+
+                    // parse source get type & attributes
+                    var elem = elements[k] = elements[k] || {},
+                        capName = capitalize(k),
+                        attrs,
+                        tmpValue,
+                        el;
+                    attrs = elem.attributes = elem.attributes || {};
+
+                    // set type
+                    var origType = attrs.type || elem.type;
+                    attrs.type = origType;
+
+                    // normalize name attribute.
+                    attrs.name = attrs.name || k;
+
+                    // set value.
+                    attrs.value = v || attrs.value || elem.value;
+                    attrs.type = parseType(attrs.value, options);
+
+                    // set default class value.
+                    attrs.class = attrs.class || '';
+
+                    // if ngModel is false delete from attrs.
+                    // if undefined create adding prefix.
+                    if(attrs.ngModel === false || elem.ngModel === false)
+                        delete attrs.ngModel;
+                    else
+                        attrs.ngModel =
+                            attrs.ngModel ||
+                            elem.ngModel ||
+                            options.prefix ? options.prefix + '.' + k : k;
+
+                    // if values array/object
+                    // supplied set type as select
+                    // if not specified by user
+                    // and not of type radio.
+                    if(elem.values){
+                        if(angular.isString(elem.values))
+                            elem.values = elem.values.split(',');
+                        if(!angular.isArray(elem.values) && angular.isObject(elem.values)){
+                            // if is object can only be select.
+                            attrs.type = 'select';
                         }
-
-
-                        if(type === 'select' || type === 'textarea'){
-
-                            if(type === 'textarea'){
-                                template += '<textarea' + name + ngModel + 'class="form-control"></textarea>';
-                            } else {
-                                scope.items = config.items;
-                                var opt = angular.isObject(config.data) ? 'key as value for (key, value) in list' : 'item.' + config.value + ' as item.' + config.text + ' for item in items',
-                                    select = '<select' + name + ngModel + 'class="form-control"' + attributes + '>' +
-                                        '<option ng-options="' + opt + '"></option>' +
-                                        '</select>';
-
-                                template +=  select;
-                            }
-
-                        } else {
-
-                            if(type === 'checkbox' || type === 'radio'){
-                                template += '<input' + name + ngModel + 'type="' + type + '"' + attributes + '/> ' + labelStr + '</label>' ;
-                            } else {
-                                template += '<input' + name + ngModel + 'type="' + type + '" class="form-control"' + attributes + '/>';
-                            }
-
+                        if(angular.isArray(elem.values)){
+                            attrs.type = attrs.type === 'radio' ? 'radio' : 'select';
                         }
-
-                        if(config.help)
-                            template += '<p class="help-block">' + config.help + '</p>';
-                        template += '</div>';
                     }
 
+                    // test if textarea is needed.
+                    if(attrs.value && angular.isString(attrs.value) && attrs.value.length > options.textareaAt)
+                        attrs.type = 'textarea';
+
+                    // add default class for inputs/selects.
+                    if(!contains(['textarea', 'checkbox', 'radio'], attrs.type))
+                        attrs.class = trim(attrs.class.replace('form-control', '') + ' form-control');
+
+                    // store value temporarily.
+                    tmpValue = attrs.value;
+
+                    // set value as checked/selected if radio
+                    // or select delete from attrs.
+                    if(contains(['select', 'radio', 'textarea'], attrs.type)){
+                        if(attrs.type === 'radio')
+                            elem.checked = attrs.value;
+                        if(attrs.type === 'select')
+                            elem.selected = attrs.value;
+                        if(attrs.type === 'textarea')
+                            elem.content = attrs.value;
+                        delete attrs.value;
+                    }
+
+                    // parse all attributes.
+                    var attrsStr = elem.attributesStr = parseAttributes(attrs);
+
+                    // add value back in after parsing.
+                    attrs.value = tmpValue;
+
+                    var group = '';
+
+                    // create opening group markup.
+                    if(attrs.type !== 'checkbox')
+                        group += (tab(1) + '<div class="form-group">');
+                    else
+                        group += (tab(1) + '<div class="checkbox">');
+
+                    // generate labels.
+                    if(attrs.type !== 'radio') {
+                        var label = (tab(2) + '<label{{FOR}}>');
+                        if(attrs.type !== 'checkbox')
+                            label = label.replace('{{FOR}}', ' for="' + k + '"') + capName + '</label>';
+                        else   
+                            label = label.replace('{{FOR}}', ' class="checkbox"');
+
+                        // labels are required for checkboxes.
+                        if(options.labels || attrs.type === 'checkbox')
+                            group += label;
+                    }
+
+                    // check if non-standard input type.
+                    if(contains(['select', 'textarea', 'radio'], attrs.type)) {
+
+                        if(attrs.type === 'textarea'){
+                            el = '<textarea {{ATTRS}}>{{CONTENT}}</textarea>';
+                            el = el.replace('{{CONTENT}}', attrs.value);
+                        }
+
+                        if(attrs.type === 'select'){
+                            var opts = '',
+                                isKeyVal = !angular.isArray(elem.values);
+                            el = '<select {{ATTRS}}>{{OPTIONS}}</select>';
+                            angular.forEach(elem.values, function (v,k) {
+                                var opt = (tab(4) + '<option {{VALUE}}>{{TEXT}}</option>');
+                                if(isKeyVal)
+                                    opt = (opt.replace('{{VALUE}}', k).replace('{{TEXT}}', v));
+                                else
+                                    opt = (opt.replace('{{VALUE}}', '').replace('{{TEXT}}', v));
+                                opts += opt;
+                            });
+                            el = el.replace('{{OPTIONS}}', opts);
+                        }
+
+                        if(attrs.type === 'radio'){
+
+                            group += generateRadios(elem.values, attrsStr);
+
+                        }
+
+                    } else {
+                        el = '<input {{ATTRS}}/>';
+                    }
+
+                    // add attribute string.
+                    if(el) {
+                        el = (tab(3) + el.replace('{{ATTRS}}', attrsStr));
+                        // add element to group.
+                        group += el;
+                    }
+
+                    // close label if radio or checkbox.
+                    if(attrs.type === 'checkbox')
+                        group += (tab(2) + capName + '</label>');
+                    
+                    // close markup group.
+                    //if(!contains(['radio', 'checkbox'], attrs.type))
+                        group += (tab(1) + '</div>');
+                    
+                    // add to the collection.
+                    groups.push(group);
+
                 });
 
-                template += '<div class="form-buttons">' +
-                    '<button type="submit" class="btn btn-primary">Submit</button>' +
-                    '</div>';
+                var wrapper = angular.element('<div></div>'),
+                    form = angular.element('<form></form>');
 
-                template = $compile(template)(scope);
+                template = groups.join('\n');
+                element.replaceWith(wrapper);
+                form.html(template);
+                wrapper.append(form);
 
-                element.empty().html(template);
-
+                scope.model = options.source;
+                $compile(wrapper.contents())(scope);
 
                 return $module;
 
             }
 
-            return AutoformFactory;
+            return init();
 
-        }];
+        }
 
-        return {
-            $get: get,
-            $set: set
-        };
+        return ModuleFactory;
 
-    })
+    }];
 
-    .directive('aiAutoform', ['$rootScope', '$autoform', function($rootScope, $autoform) {
-        console.log('auto form')
-        return {
-            //restrict: 'AC',
-            scope: {
-                options: '&aiAutoform',
-                model: '=ngModel'
-            },
-           // priority: -1,
-            link: function (scope, element, attrs) {
+    return {
+        $get: get,
+        $set: set
+    };
 
-                var defaults, options, $module;
+})
 
-                defaults = {
-                    scope: scope
-                };
+.directive('aiAutoform', ['$autoform', function($autoform) {
 
-                function init() {
+    return {
+        restrict: 'AC',
+        scope: true,
+        //priority: -1,
+        link: function (scope, element, attrs) {
 
-                    // model may be passed in options or via ngModel.
-                    options.model = options.model || scope.model;
+            var defaults, options, $module;
 
-                    // create the directive.
-                    $module = $autoform(element, options)
-                }
+            defaults = {
+                scope: scope
+            };
 
-                options = angular.extend(defaults, scope.$eval(scope.options));
-
-                init();
-
+            function init() {
+                // create the directive.
+                $module = $autoform(element, options);
             }
 
-        };
+            // get options and model.
+            options = angular.extend(defaults, scope.$eval(attrs.aiAutoform || attrs.options));
 
-    }]);
+            // define the source.
+            options.source = options.source || scope.$eval(attrs.source);
+
+            init();
+
+        }
+
+    };
+
+}]);

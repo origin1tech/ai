@@ -16,7 +16,6 @@
     <input class="form-control" type="text" ai-decimal ng-model="decimal"/>
     <span style="display:block;">Any numeric value is forced to two decimal places.</span>
 </div>
-
 <div class="tabpanel">
 
     <ul class="nav nav-tabs">
@@ -145,6 +144,37 @@ compare: {
                                     // valid options 'minutes', 'seconds', 'milliseconds'
 }
 </pre>
+        </div>
+
+    </div>
+
+</div>
+
+<h4>Placeholder</h4>
+<div class="form-group">
+    <input class="form-control" placeholder="username" ai-placeholder />
+    <span>This widget automatically falls back to labels when placeholders are not supported.</span>
+</div>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('placeholder:markup') }"><a ng-click="showTab('placeholder:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('placeholder:code') }"><a ng-click="showTab('placeholder:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('placeholder:options') }"><a ng-click="showTab('placeholder:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('placeholder:markup') }" ng-show="tabActive('placeholder:markup')">
+
+        </div>
+
+        <div ng-class="{ active: tabActive('placeholder:code') }" ng-show="tabActive('placeholder:code')">
+
+        </div>
+
+        <div ng-class="{ active: tabActive('placeholder:options') }" ng-show="tabActive('placeholder:options')">
+
         </div>
 
     </div>

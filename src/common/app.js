@@ -16,6 +16,7 @@ define(function (require) {
     require('storage/storage.js');
     require('passport/passport.js');
     require('dropdown/dropdown.js');
+    require('autoform/autoform.js');
 
 
     var app, tmpAreas, keys, areas, controller;
@@ -44,7 +45,7 @@ define(function (require) {
     });
 
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table', 'ai.storage', 'ai.dropdown',
-        'ai.widget', 'ai.modal', 'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate']);
+        'ai.widget', 'ai.modal', 'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate', 'ai.autoform']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider',
         function ($routeProvider, $locationProvider, $passportProvider) {
@@ -96,7 +97,9 @@ define(function (require) {
                 modal:      { active: 'markup' },
                 storage:    { active: 'markup' },
                 viewer:     { active: 'markup' },
-                dropdown:   { active: 'markup' }
+                dropdown:   { active: 'markup' },
+                autoform:   { active: 'markup' },
+                placeholder:{ active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -286,6 +289,21 @@ define(function (require) {
 
             }
 
+            if (area === 'autoform') {
+                $scope.autoSource = {
+                    name: 'Nancy Brewer',
+                    email: 'nancy@gmail.com',
+                    phone: '8885551212',
+                    age: 23,
+                    enabled: true
+                };
+                $scope.autoOptions = {
+                    elements: {
+                        email: { type: 'email' },
+                        age: { type: 'radio', values: [19,20,21,22,23,24,25] }
+                    }
+                };
+            }
         }
     ];
 
