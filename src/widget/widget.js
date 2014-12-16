@@ -400,7 +400,7 @@ angular.module('ai.widget', [])
             angular.forEach(parents.children(), function (v,k) {
                 var child = angular.element(v),
                     _ts = child.attr('_ts_');
-                if(ts == _ts){
+                if(ts.toString() === _ts){
                     prevIdx = k -1;
                 }
             });
@@ -413,14 +413,15 @@ angular.module('ai.widget', [])
         }
     }
 
+    // capitalize a string.
     function capitalize(str) {
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
     // test if placeholder is supported.
     function placeholderSupported() {
-        var test = document.createElement('input');
-        return ('placeholder' in test);
+        var test = document.createElement('input'); return false;
+        //return ('placeholder' in test);
     }
 
     return {

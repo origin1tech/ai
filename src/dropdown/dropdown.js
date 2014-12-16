@@ -477,7 +477,8 @@ angular.module('ai.dropdown', [])
                             // replace the orig. element.
                             // use after as jqlite doesn't
                             // support .before();
-                            options.before.after(dropdown);
+                            var prev = options.before;
+                            prev.element[prev.method](dropdown);
 
                             // set content to template html.
                             dropdown.html(res[0]);
@@ -575,20 +576,26 @@ angular.module('ai.dropdown', [])
 
 .directive('aiDropdown', [ '$dropdown', function ($dropdown) {
 
-    // find previous sibling.
-    function prevSibling(elem) {
-        var parents = elem.parent(),
-            prevIdx;
-
-        angular.forEach(parents.children(), function (v,k) {
-            var child = angular.element(v);
-            if(child.attr('ai-dropdown') !== undefined || child.hasClass('ai-dropdown')){
-                prevIdx = k -1 >= 0 ? k -1 : 0;
-            }
-        });
-
-        // get the previous element by index.
-       return angular.element(parents.children().eq(prevIdx));
+    // get the previous sibling
+    // to the current element.
+    function prevSibling(elem, ts) {
+        try {
+            var parents = elem.parent(),
+                prevIdx;
+            angular.forEach(parents.children(), function (v,k) {
+                var child = angular.element(v),
+                    _ts = child.attr('_ts_');
+                if(ts.toString() === _ts){
+                    prevIdx = k -1;
+                }
+            });
+            elem.removeAttr('_ts_');
+            if(prevIdx < 0)
+                return { element: angular.element(elem.parent()), method: 'prepend' };
+            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
+        } catch(ex) {
+            return false;
+        }
     }
 
     return {
@@ -598,9 +605,10 @@ angular.module('ai.dropdown', [])
         link: function (scope, element, attrs, ngModel){
 
             var defaults, options, $module, model,
-                tagName, initialized;
+                tagName, initialized, ts;
 
             initialized = false;
+            ts = new Date().getTime();
 
             defaults = {
                 scope: scope
@@ -609,8 +617,9 @@ angular.module('ai.dropdown', [])
             function init() {
 
                 // get previous sibling for appending.
-                //options.before = angular.element(element[0].previousElementSibling);
-                options.before = prevSibling(element);
+                element.attr('_ts_', ts);
+
+                options.before = prevSibling(element, ts);
 
                 // save visibility attrs to object.
                 options.visibility = {
