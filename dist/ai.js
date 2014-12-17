@@ -2742,10 +2742,9 @@ angular.module('ai.step', [])
                 if(!options.headTo) return;
                 var step = steps[idx];
                 if(!options.breadcrumb && step.content) {
-                    to(idx, function (curIdx, curActive) {
-                        if(angular.isFunction(options.onHead))
-                            options.onHead.call($module, curIdx, curActive, e);
-                    });
+                    to(idx);
+                    if(angular.isFunction(options.onHead))
+                        options.onHead.call($module, curIdx, curActive, e);
                 } else {
                     // breadcrumb mode navigate
                     // to href if provided.
@@ -2962,6 +2961,71 @@ angular.module('ai.step', [])
             }
 
             options = scope.$eval(attrs.aiStep || attrs.options);
+            options = angular.extend(defaults, options);
+
+            init();
+
+        }
+    };
+
+}]);
+angular.module('ai.tab', [])
+.provider('$tab', function $tab() {
+
+    var defaults = {
+
+        }, get, set;
+
+    set = function set(key, value) {
+        if(arguments.length === 2)
+           defaults[key] = value;
+        if(arguments.length === 1 && angular.isObject(key))
+            defaults = angular.extend(defaults, key);
+    };
+
+    get = [function () {
+
+        function ModuleFactory(element, options){
+
+            var $module = {},
+                scope;
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+
+
+
+            return $module;
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+.directive('aiTab', ['$tab', function ($tab) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $tab(element, options);
+            }
+
+            options = scope.$eval(attrs.aiTab || attrs.options);
             options = angular.extend(defaults, options);
 
             init();
@@ -5197,71 +5261,148 @@ angular.module('ai.table', ['ngSanitize'])
 
     }]);
 
-angular.module('ai.tab', [])
-.provider('$tab', function $tab() {
+angular.module('ai.viewer', [])
 
-    var defaults = {
+    .provider('$viewer', function $viewer() {
 
-        }, get, set;
+        var defaults = {
+                template: '<div class="ai-viewer" ng-view />',
+                viewCss: 'ai-viewer-view',
+                animate: 'slide'
+            },
+            get, set;
 
-    set = function set(key, value) {
-        if(arguments.length === 2)
-           defaults[key] = value;
-        if(arguments.length === 1 && angular.isObject(key))
-            defaults = angular.extend(defaults, key);
-    };
+        set = function $set(options) {
+            defaults = angular.extend(defaults, options);
+        };
 
-    get = [function () {
+        get = ['$rootScope', '$compile', '$location', function $get($rootScope, $compile, $location) {
 
-        function ModuleFactory(element, options){
+            var prevRoutes = [],
+                initialized = false,
+                state;
 
-            var $module = {},
-                scope;
+            // store previous route set in/out state.
+            $rootScope.$on('$routeChangeStart', function (event, next, current) {
 
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+                var prevRoute = prevRoutes.slice(0).pop(),
+                    route = next.$$route.originalPath;
 
+                current = current || {
+                    $$route: '/'
+                };
 
+                if(initialized) {
+                    if(route === prevRoute) {
+                        state = 'back';
+                        prevRoutes.pop();
+                    } else {
+                        state = 'forward';
+                        prevRoutes.push(current.$$route.originalPath);
+                    }
+                } else {
+                    initialized = true;
+                }
 
-            return $module;
-        }
+            });
 
-        return ModuleFactory;
+            function ModuleFactory(element, options) {
 
-    }];
+                var $module = {},
+                    view,
+                    scope;
 
-    return {
-        $get: get,
-        $set: set
-    };
+                scope = options.scope || $rootScope.$new();
+                options = scope.options = angular.extend(defaults, options);
 
-})
-.directive('aiTab', ['$tab', function ($tab) {
+                view = angular.element(options.template);
+                view.addClass(options.viewCss);
 
-    return {
-        restrict: 'AC',
-        scope: true,
-        link: function (scope, element, attrs) {
+                // only add ng-class state if animate is enabled.
+                if(scope.options.animate)
+                    view.attr('ng-class', 'state');
 
-            var defaults, options, $module;
-            defaults = {
-                scope: scope
-            };
+                view = $compile(view)(scope);
 
-            function init() {
-                $module = $tab(element, options);
+                element.append(view);
+
+                // gets previous view.
+                $module.getView = function () {
+                    return angular.element(document.querySelectorAll('.' + options.viewCss)[0]);
+                };
+
+                // gets current state.
+                $module.getState = function () {
+                    return state;
+                };
+
+                $module.forward = function (path) {
+                    $location.path(path);
+                };
+
+                $module.backward = function (path) {
+                    // push route view will see as return path or backward.
+                    prevRoutes.push(path);
+                    $location.path(path);
+                };
+
+                return $module;
             }
 
-            options = scope.$eval(attrs.aiTab || attrs.options);
-            options = angular.extend(defaults, options);
+            return ModuleFactory;
 
-            init();
+        }];
 
-        }
-    };
+        return {
+            $get: get,
+            $set: set
+        };
 
-}]);
+    })
+
+    .directive('aiViewer', ['$rootScope', '$viewer', function($rootScope, $viewer) {
+
+        return {
+            restrict: 'EA',
+            link: function(scope, element) {
+
+                var defaults, options, $module;
+
+                defaults = {
+                    scope: scope
+                };
+
+                function init() {
+
+                    $module = $viewer(element, options);
+
+                    // listen for route change and update state when animation is enabled.
+                    $rootScope.$on('$routeChangeSuccess', function () {
+
+                        var state = $module.getState(),
+                            prevView = $module.getView();
+
+                        if(state && scope.options.animate) {
+                            // check for previously rendered views.
+                            if(prevView)
+                                prevView.removeClass(state === 'forward' ? 'back' : 'forward').addClass(state);
+                        }
+
+                        scope.state = state;
+
+                    });
+
+                }
+
+                options = attrs.aiViewer || attrs.options;
+                options = angular.extend(defaults, scope.$eval(options));
+
+                init();
+            }
+        };
+
+    }]);
+
 var form = angular.module('ai.validate', [])
 .provider('$validate', function $validate() {
 
@@ -6149,148 +6290,6 @@ var form = angular.module('ai.validate', [])
 }]);
 
 
-
-angular.module('ai.viewer', [])
-
-    .provider('$viewer', function $viewer() {
-
-        var defaults = {
-                template: '<div class="ai-viewer" ng-view />',
-                viewCss: 'ai-viewer-view',
-                animate: 'slide'
-            },
-            get, set;
-
-        set = function $set(options) {
-            defaults = angular.extend(defaults, options);
-        };
-
-        get = ['$rootScope', '$compile', '$location', function $get($rootScope, $compile, $location) {
-
-            var prevRoutes = [],
-                initialized = false,
-                state;
-
-            // store previous route set in/out state.
-            $rootScope.$on('$routeChangeStart', function (event, next, current) {
-
-                var prevRoute = prevRoutes.slice(0).pop(),
-                    route = next.$$route.originalPath;
-
-                current = current || {
-                    $$route: '/'
-                };
-
-                if(initialized) {
-                    if(route === prevRoute) {
-                        state = 'back';
-                        prevRoutes.pop();
-                    } else {
-                        state = 'forward';
-                        prevRoutes.push(current.$$route.originalPath);
-                    }
-                } else {
-                    initialized = true;
-                }
-
-            });
-
-            function ModuleFactory(element, options) {
-
-                var $module = {},
-                    view,
-                    scope;
-
-                scope = options.scope || $rootScope.$new();
-                options = scope.options = angular.extend(defaults, options);
-
-                view = angular.element(options.template);
-                view.addClass(options.viewCss);
-
-                // only add ng-class state if animate is enabled.
-                if(scope.options.animate)
-                    view.attr('ng-class', 'state');
-
-                view = $compile(view)(scope);
-
-                element.append(view);
-
-                // gets previous view.
-                $module.getView = function () {
-                    return angular.element(document.querySelectorAll('.' + options.viewCss)[0]);
-                };
-
-                // gets current state.
-                $module.getState = function () {
-                    return state;
-                };
-
-                $module.forward = function (path) {
-                    $location.path(path);
-                };
-
-                $module.backward = function (path) {
-                    // push route view will see as return path or backward.
-                    prevRoutes.push(path);
-                    $location.path(path);
-                };
-
-                return $module;
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $get: get,
-            $set: set
-        };
-
-    })
-
-    .directive('aiViewer', ['$rootScope', '$viewer', function($rootScope, $viewer) {
-
-        return {
-            restrict: 'EA',
-            link: function(scope, element) {
-
-                var defaults, options, $module;
-
-                defaults = {
-                    scope: scope
-                };
-
-                function init() {
-
-                    $module = $viewer(element, options);
-
-                    // listen for route change and update state when animation is enabled.
-                    $rootScope.$on('$routeChangeSuccess', function () {
-
-                        var state = $module.getState(),
-                            prevView = $module.getView();
-
-                        if(state && scope.options.animate) {
-                            // check for previously rendered views.
-                            if(prevView)
-                                prevView.removeClass(state === 'forward' ? 'back' : 'forward').addClass(state);
-                        }
-
-                        scope.state = state;
-
-                    });
-
-                }
-
-                options = attrs.aiViewer || attrs.options;
-                options = angular.extend(defaults, scope.$eval(options));
-
-                init();
-            }
-        };
-
-    }]);
 
 angular.module('ai.widget', [])
 

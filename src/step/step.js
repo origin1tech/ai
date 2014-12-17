@@ -293,10 +293,9 @@ angular.module('ai.step', [])
                 if(!options.headTo) return;
                 var step = steps[idx];
                 if(!options.breadcrumb && step.content) {
-                    to(idx, function (curIdx, curActive) {
-                        if(angular.isFunction(options.onHead))
-                            options.onHead.call($module, curIdx, curActive, e);
-                    });
+                    to(idx);
+                    if(angular.isFunction(options.onHead))
+                        options.onHead.call($module, curIdx, curActive, e);
                 } else {
                     // breadcrumb mode navigate
                     // to href if provided.
