@@ -307,8 +307,11 @@ angular.module('ai.step', [])
 
             // submit button for last step.
             function submit(e) {
+                var curActive, curIdx;
+                curActive = active();
+                curIdx = indexOf(curActive);
                 if(angular.isFunction(options.onSubmit)){
-                    options.onSubmit.call($module, e);
+                    options.onSubmit.call($module, curIdx, curActive, e);
                 }
             }
 

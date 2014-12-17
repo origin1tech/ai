@@ -17,7 +17,7 @@ define(function (require) {
     require('passport/passport.js');
     require('dropdown/dropdown.js');
     require('autoform/autoform.js');
-
+    require('tab/tab.js');
 
     var app, tmpAreas, keys, areas, controller;
 
@@ -33,7 +33,8 @@ define(function (require) {
         '/validate': 'Form validation with auto model binding.',
         '/viewer': 'Animated slide transitions for views.',
         '/widget': 'Various widgets - case, nicescroll, redactor, decimal, input mask & compare.',
-        '/step': 'Creates form step wizard.'
+        '/step': 'Creates form step wizard.',
+        '/tab': 'Creates tab content.'
     };
 
     // sort areas.
@@ -44,8 +45,10 @@ define(function (require) {
         areas[k] = tmpAreas[k];
     });
 
-    app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table', 'ai.storage', 'ai.dropdown',
-        'ai.widget', 'ai.modal', 'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate', 'ai.autoform']);
+    app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
+                                 'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal',
+                                 'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate',
+                                 'ai.autoform', 'ai.tab']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider',
         function ($routeProvider, $locationProvider, $passportProvider) {
@@ -99,7 +102,8 @@ define(function (require) {
                 viewer:     { active: 'markup' },
                 dropdown:   { active: 'markup' },
                 autoform:   { active: 'markup' },
-                placeholder:{ active: 'markup' }
+                placeholder:{ active: 'markup' },
+                tab:        { active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -153,6 +157,9 @@ define(function (require) {
                     alert('Passed validation your data would submit here.');
                 };
                 $scope.validateFormConf = {
+                    onLoad: function (form, ctrl) {
+                        console.log(form);
+                    },
                     validators: {
                         phone: {
                             'ng-pattern': function (obj, form) {
@@ -303,6 +310,10 @@ define(function (require) {
                         age: { type: 'radio', values: [19,20,21,22,23,24,25] }
                     }
                 };
+            }
+
+            if (area === 'tab') {
+
             }
         }
     ];

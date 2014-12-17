@@ -24,7 +24,8 @@ var form = angular.module('ai.validate', [])
 
             messageTitlecase: true,                                             // when validation messages are show convert to title case (useful when ng-model properties are lower case).
             novalidate: true,                                                   // when true adds html5 novalidate tag.
-            onBind: null,                                                       // callback called after the form is initialized returns the form object.
+          
+            onLoad: null,                                                       // callback called after the form is initialized returns the form object.
 
             validators: {
                 'required': '{{name}} is required.',
@@ -453,7 +454,9 @@ var form = angular.module('ai.validate', [])
 
         initializing = true;
 
-        // this resets the form objects. pass true so we don't init twice
+        // this resets the form objects.
+        // pass true so we don't init twice
+        // from a modal etc.
         $scope.reinitForm(true);
 
         // save ref to form
@@ -546,7 +549,7 @@ var form = angular.module('ai.validate', [])
         });
 
         // callback when bind is complete maybe should call this bound
-        if($scope.options.onBind) $scope.options.onBind(form, $scope);
+        if($scope.options.onLoad) $scope.options.onLoad(form, $scope);
 
         initializing = false;
 
@@ -693,8 +696,8 @@ var form = angular.module('ai.validate', [])
             });
 
             form.$pristine = false;
+            form.$setUntouched(false);
             form.$setDirty(true);
-            form.$setTouched(true);
             submitting = false;
 
         }
@@ -784,7 +787,7 @@ var form = angular.module('ai.validate', [])
                 });
             }
 
-            return function (scope, element, attrs) {
+            return function (scope, element, attrs, ctrl) {
 
                 var form, formName, options, $module;
 
@@ -828,7 +831,6 @@ var form = angular.module('ai.validate', [])
 
                 // init the form.
                 scope.init(form);
-
 
             };
 

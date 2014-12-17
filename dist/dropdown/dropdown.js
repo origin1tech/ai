@@ -679,7 +679,8 @@ angular.module('ai.dropdown', [])
                 return console.error('Invalid element, ai-dropdown requires an input element with ng-model.');
 
             // get options and model.
-            options = angular.extend(defaults, scope.$eval(attrs.aiDropdown || attrs.options));
+            options = scope.$eval(attrs.aiDropdown || attrs.options);
+            options = angular.extend(defaults, options);
 
             // define the source & model data.
             options.source = options.source || scope.$eval(attrs.source);

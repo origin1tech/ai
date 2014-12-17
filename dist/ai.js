@@ -1031,7 +1031,8 @@ angular.module('ai.dropdown', [])
                 return console.error('Invalid element, ai-dropdown requires an input element with ng-model.');
 
             // get options and model.
-            options = angular.extend(defaults, scope.$eval(attrs.aiDropdown || attrs.options));
+            options = scope.$eval(attrs.aiDropdown || attrs.options);
+            options = angular.extend(defaults, options);
 
             // define the source & model data.
             options.source = options.source || scope.$eval(attrs.source);
@@ -2755,8 +2756,11 @@ angular.module('ai.step', [])
 
             // submit button for last step.
             function submit(e) {
+                var curActive, curIdx;
+                curActive = active();
+                curIdx = indexOf(curActive);
                 if(angular.isFunction(options.onSubmit)){
-                    options.onSubmit.call($module, e);
+                    options.onSubmit.call($module, curIdx, curActive, e);
                 }
             }
 
@@ -2966,6 +2970,351 @@ angular.module('ai.step', [])
     };
 
 }]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         * @param {object} options - the options to be merged with defaults.
+         */
+        set = function (options) {
+            defaults = angular.extend(defaults, options);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
+
 
 angular.module('ai.table', ['ngSanitize'])
 
@@ -4538,9 +4887,12 @@ angular.module('ai.table', ['ngSanitize'])
 
                 }
 
-                scope.$watch('aiTable', function (newVal, oldVal) {
-                    if(newVal === oldVal) return;
-                }, true);
+                scope.$watch(
+                    function () {
+                        return attrs.aiTable || attrs.options;
+                    }, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                    }, true);
 
 
                 scope.$on('$destroy', function () {
@@ -4845,351 +5197,71 @@ angular.module('ai.table', ['ngSanitize'])
 
     }]);
 
-angular.module('ai.storage', [])
+angular.module('ai.tab', [])
+.provider('$tab', function $tab() {
 
-    .provider('$storage', function $storage() {
+    var defaults = {
 
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
         }, get, set;
 
+    set = function set(key, value) {
+        if(arguments.length === 2)
+           defaults[key] = value;
+        if(arguments.length === 1 && angular.isObject(key))
+            defaults = angular.extend(defaults, key);
+    };
 
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+    get = [function () {
+
+        function ModuleFactory(element, options){
+
+            var $module = {},
+                scope;
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+
+
+
+            return $module;
         }
 
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+.directive('aiTab', ['$tab', function ($tab) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $tab(element, options);
             }
-            return def;
+
+            options = scope.$eval(attrs.aiTab || attrs.options);
+            options = angular.extend(defaults, options);
+
+            init();
+
         }
+    };
 
-        /**
-         * Sets provider defaults.
-         * @param {object} options - the options to be merged with defaults.
-         */
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
-
+}]);
 var form = angular.module('ai.validate', [])
 .provider('$validate', function $validate() {
 
@@ -5216,7 +5288,8 @@ var form = angular.module('ai.validate', [])
 
             messageTitlecase: true,                                             // when validation messages are show convert to title case (useful when ng-model properties are lower case).
             novalidate: true,                                                   // when true adds html5 novalidate tag.
-            onBind: null,                                                       // callback called after the form is initialized returns the form object.
+          
+            onLoad: null,                                                       // callback called after the form is initialized returns the form object.
 
             validators: {
                 'required': '{{name}} is required.',
@@ -5645,7 +5718,9 @@ var form = angular.module('ai.validate', [])
 
         initializing = true;
 
-        // this resets the form objects. pass true so we don't init twice
+        // this resets the form objects.
+        // pass true so we don't init twice
+        // from a modal etc.
         $scope.reinitForm(true);
 
         // save ref to form
@@ -5738,7 +5813,7 @@ var form = angular.module('ai.validate', [])
         });
 
         // callback when bind is complete maybe should call this bound
-        if($scope.options.onBind) $scope.options.onBind(form, $scope);
+        if($scope.options.onLoad) $scope.options.onLoad(form, $scope);
 
         initializing = false;
 
@@ -5885,8 +5960,8 @@ var form = angular.module('ai.validate', [])
             });
 
             form.$pristine = false;
+            form.$setUntouched(false);
             form.$setDirty(true);
-            form.$setTouched(true);
             submitting = false;
 
         }
@@ -5976,7 +6051,7 @@ var form = angular.module('ai.validate', [])
                 });
             }
 
-            return function (scope, element, attrs) {
+            return function (scope, element, attrs, ctrl) {
 
                 var form, formName, options, $module;
 
@@ -6020,7 +6095,6 @@ var form = angular.module('ai.validate', [])
 
                 // init the form.
                 scope.init(form);
-
 
             };
 

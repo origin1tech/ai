@@ -1570,9 +1570,12 @@ angular.module('ai.table', ['ngSanitize'])
 
                 }
 
-                scope.$watch('aiTable', function (newVal, oldVal) {
-                    if(newVal === oldVal) return;
-                }, true);
+                scope.$watch(
+                    function () {
+                        return attrs.aiTable || attrs.options;
+                    }, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                    }, true);
 
 
                 scope.$on('$destroy', function () {
