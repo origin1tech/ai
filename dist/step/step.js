@@ -293,7 +293,7 @@ angular.module('ai.step', [])
                 if(!options.headTo) return;
                 var step = steps[idx];
                 if(!options.breadcrumb && step.content) {
-                    to(idx);
+                    to(idx, null, e);
                     if(angular.isFunction(options.onHead))
                         options.onHead.call($module, curIdx, curActive, e);
                 } else {
