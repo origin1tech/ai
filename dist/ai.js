@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.0.2* Author: Origin1 Technologies <origin1tech@gmail.com>
+* Version: 0.0.4* Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
 */
@@ -1421,6 +1421,305 @@ angular.module('ai.flash', [
     'ai.flash.interceptor'
 ]);
 
+
+angular.module('ai.passport.factory', [])
+
+    .provider('$passport', function $passport() {
+
+        var defaults, get, set;
+
+        defaults = {
+            levels: {
+                0: '*',
+                1: 'user',
+                2: 'manager',
+                3: 'admin',
+                4: 'superadmin'
+            },
+
+            401: true,                                          // set to false to not handle 401 status codes.
+            403: true,                                          // set to false to not handle 403 status codes.
+            paranoid: false,                                     // when true, fails if access level is missing.
+            delimiter: ',',                                     // char to use to separate roles when passing string.
+
+            // passport paths.
+            defaultUrl: '/',                                    // the default path or home page.
+            loginUrl: '/login',                                 // path to login form.
+            resetUrl: '/passport/reset',                        // path to password reset form.
+            recoverUrl: '/passport/recover',                    // path to password recovery form.
+
+            // passport actions
+            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
+            logoutAction: '/api/passport/logout',               // endpoint/func used to logout/remove session.
+            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
+            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
+
+            // success fail actions.
+            onLoginSuccess: '/',                                // path or func on success.
+            onLoginFailed: '/login',                            // path or func when login fails.
+            onUnauthenticated: '/login',                        // path or func when unauthenticated.
+            onUnauthorized: '/login'                            // path or func when unauthorized.
+        };
+
+        set = function (options) {
+            defaults = angular.extend(defaults, options);
+        };
+
+        get = ['$rootScope', '$location', '$http', function ($rootScope, $location, $http) {
+
+            var instance;
+
+            // nomralize url to method/path object.
+            function urlToObject(url) {
+                var parts = url.split(' '),
+                    obj = { method: 'get' };
+                obj.path =  parts[0];
+                if(parts.length > 1){
+                    obj.method = parts[0];
+                    obj.path = parts[1];
+                }
+                return obj;
+            }
+
+            function rolesToLevels(source, roles){
+                var arr = [];
+                source = source || [];
+                angular.forEach(roles, function (v) {
+                    if(source[v] !== undefined)
+                        arr.push(source[v]);
+                });
+                return arr;
+            }
+
+            // reverse the levels map setting role values as keys.
+            function reverseMap(levels) {
+                var obj = {};
+                angular.forEach(levels, function (v,k) {
+                    obj[v] = parseFloat(k);
+                });
+                return obj;
+            }
+
+            function ModuleFactory(options) {
+
+                var $module = {};
+
+                function setOptions(options) {
+
+                    // ensure valid object.
+                    options = options || {};
+
+                    // override options map if exists.
+                    defaults.levels = options.levels || defaults.levels;
+
+                    // merge the options.
+                    $module.options = angular.extend(defaults, options);
+
+                    // normalize/reverse levels map
+                    $module.options.roles = reverseMap($module.options.levels);
+                }
+
+                // login passport credentials.
+                $module.login = function login(data) {
+                    var url = urlToObject($module.options.loginAction);
+                    $http[url.method](url.path, data)
+                        .then(function (res) {
+                            // set to authenticated and merge in passport profile.
+                            angular.extend(self, res.data);
+                            if(angular.isFunction($module.options.onLoginSuccess)) {
+                                $module.options.onLoginSuccess.call(this, res);
+                            } else {
+                                $location.path($module.options.onLoginSuccess);
+                            }
+                        }, function (res) {
+                            if(angular.isFunction($module.options.onLoginFailed)) {
+                                $module.options.onLoginFailed.call(this, res);
+                            } else {
+                                $location.path($module.options.onLoginFailed);
+                            }
+                        });
+                };
+
+                $module.logout = function logout() {
+                    var self = $module;
+                    if(angular.isFunction($module.options.logoutAction)){
+                        $module.options.logoutAction.call(this);
+                    } else {
+                        var url = urlToObject($module.options.logoutAction);
+                        $http[url.method](url.path)
+                            .then(function () {
+                                // reset passport instance to default.
+                                instance = new ModuleFactory();
+                                $rootScope.Passport = instance;
+                                $location.path($module.options.defaultUrl);
+                            });
+                    }
+                };
+
+                $module.recover = function recover() {
+
+                };
+
+                $module.reset = function reset() {
+
+                };
+
+                // expects string.
+                $module.hasRole = function hasRole(role) {
+                    var passportRoles = $module.roles || [];
+                    // if string convert to role level.
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // if public return true
+                    if(role === 0)
+                        return true;
+                    return passportRoles.indexOf(role) !== -1;
+                };
+
+                // expects string or array of strings.
+                $module.hasAnyRole = function hasAnyRole(roles) {
+                    var passportRoles = $module.roles || [];
+                    // if a string convert to role levels.
+                    if(angular.isString(roles)){
+                        roles = roles.split($module.options.delimiter);
+                        roles = rolesToLevels($module.options.roles, roles);
+                    }
+                    // if public return true
+                    if(roles.indexOf(0) !== -1)
+                        return true;
+                    return roles.some(function (v) {
+                        return passportRoles.indexOf(v) !== -1;
+                    });
+                };
+
+                // check if meets the minimum roll required.
+                $module.minRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole >= role;
+                };
+
+                // check if role is not greater than.
+                $module.maxRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole < role;
+                };
+
+                // reinit passport
+                $module.init = function init(options) {
+                    setOptions(options);
+                };
+
+                // unauthorized handler.
+                $module.unauthenticated = function unauthenticated() {
+                    var action = $module.options.onUnauthenticated;
+
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+
+                };
+
+                // unauthorized handler.
+                $module.unauthorized = function unauthorized() {
+                    var action = $module.options.onUnauthorized;
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+                };
+
+                setOptions(options);
+
+                return $module;
+
+            }
+
+            function getInstance() {
+                if(!instance)
+                    return new ModuleFactory();
+                return instance;
+            }
+
+            return getInstance();
+           
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    });
+
+// intercepts 401 and 403 errors.
+angular.module('ai.passport.interceptor', [])
+    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+                // get passport here to prevent circ dependency.
+                var passport = $injector.get('$passport');
+                // handle unauthenticated response
+                if (res.status === 401 && passport.options['401'])
+                    passport.unauthenticated();
+                if(res.status === 403 && passport.options['403'])
+                    passport.unauthorized();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$passportInterceptor');
+    }]);
+
+// handles intercepting route when
+// required permissions are not met.
+angular.module('ai.passport.route', [])
+    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
+        $rootScope.$on('$routeChangeStart', function (event, next) {
+            var area = {},
+                route = {},
+                access,
+                authorized;
+            if(next && next.$$route){
+                route = next.$$route;
+                if(route.area)
+                    area = route.area;
+            }
+            access = route.access || area.access;
+            // when paranoid is true require access params
+            // if undefined call unauthorized.
+            // when paranoid is false unauthorized is not called
+            // when access is undefined.
+            if($passport.options.paranoid && access === undefined)
+                return $passport.unauthorized();
+            if(access !== undefined){
+                authorized = $passport.hasAnyRole('*');
+                if(!authorized)
+                    $passport.unauthorized();
+            }
+        });
+    }]);
+
+// imports above modules.
+angular.module('ai.passport', [
+    'ai.passport.factory',
+    'ai.passport.interceptor',
+    'ai.passport.route'
+]);
 angular.module('ai.modal', [])
 
 .provider('$modal', function $modal() {
@@ -2148,305 +2447,519 @@ angular.module('ai.modal', [])
 
 }]);
 
+angular.module('ai.step', [])
 
-angular.module('ai.passport.factory', [])
+.provider('$step', function $step() {
 
-    .provider('$passport', function $passport() {
+    var defaults = {
 
-        var defaults, get, set;
+            key: '$id',                     // the primary key for the collection of steps.
+            start: 0,                       // the starting index of the step wizard.
+            title: 'true',                  // when true title is auto generated if not set in step object.
+            continue: true,                 // when true if called step is disabled continue to next enabled.
+            breadcrumb: false,              // when true only header is shown, used as breadcrumb.
+                                            // breadcrumb mode looks for property 'href' to navigate to.
 
-        defaults = {
-            levels: {
-                0: '*',
-                1: 'user',
-                2: 'manager',
-                3: 'admin',
-                4: 'superadmin'
-            },
+                                            // html templates, can be html or path to template.
 
-            401: true,                                          // set to false to not handle 401 status codes.
-            403: true,                                          // set to false to not handle 403 status codes.
-            paranoid: false,                                     // when true, fails if access level is missing.
-            delimiter: ',',                                     // char to use to separate roles when passing string.
+            header: 'step-header.tpl.html',   // the header template when using directive.
+            content: 'step-content.tpl.html', // the content template to use when using directive.
+            actions: 'step-actions.tpl.html', // the actions template when using directive.
 
-            // passport paths.
-            defaultUrl: '/',                                    // the default path or home page.
-            loginUrl: '/login',                                 // path to login form.
-            resetUrl: '/passport/reset',                        // path to password reset form.
-            recoverUrl: '/passport/recover',                    // path to password recovery form.
+                                            // hide/show buttons, disable/enable header click events.
 
-            // passport actions
-            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
-            logoutAction: '/api/passport/logout',               // endpoint/func used to logout/remove session.
-            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
-            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
+            showNumber: true,               // when true step number show next to title.
+            showNext: true,                 // when true next button is created.
+            showPrev: true,                 // when true prev button is created.
+            showSubmit: true,               // when true submit button is created.
+            headTo: true,                   // when true header can be clicked to navigate.
 
-            // success fail actions.
-            onLoginSuccess: '/',                                // path or func on success.
-            onLoginFailed: '/login',                            // path or func when login fails.
-            onUnauthenticated: '/login',                        // path or func when unauthenticated.
-            onUnauthorized: '/login'                            // path or func when unauthorized.
-        };
+                                            // all events are called with $module context except onload which passes it.
 
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
-        };
+            onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
+            onSubmit: undefined,            // callback on submit returns ({ active }, event)
+            onLoad: undefined               // callback on load returns ($module)
 
-        get = ['$rootScope', '$location', '$http', function ($rootScope, $location, $http) {
+        }, get, set;
 
-            var instance;
+    set = function set(obj) {
+        angular.extend(defaults, obj);
+    };
 
-            // nomralize url to method/path object.
-            function urlToObject(url) {
-                var parts = url.split(' '),
-                    obj = { method: 'get' };
-                obj.path =  parts[0];
-                if(parts.length > 1){
-                    obj.method = parts[0];
-                    obj.path = parts[1];
-                }
-                return obj;
+    get = [ '$rootScope', '$templateCache', '$compile', '$http', '$q', '$location',
+        function($rootScope, $templateCache, $compile, $http, $q, $location) {
+
+        var headerTemplate, contentTemplate, actionsTemplate;
+
+        headerTemplate = '<div class="ai-step-header" ng-show="steps.length">' +
+                            '<ul>' +
+                                '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
+                                'ng-class="{ active: step.active, disabled: !step.enabled, ' +
+                                'clickable: options.headTo && step.enabled, nonum: !options.showNumber }">' +
+                                    '<span class="title">{{step.title}}</span>' +
+                                    '<span class="number">{{step.$number}}</span>' +
+                                '</li>' +
+                            '</ul>' +
+                         '</div>';
+
+        contentTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-content" ng-show="steps.length">' +
+                            '<div ng-show="isActive($index)" ng-repeat="step in steps" ng-bind-html="step.content"></div>' +
+                          '</div>';
+
+        actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
+                            '<hr/><button ng-show="options.showPrev" ng-disabled="isFirst()" class="btn btn-warning" ' +
+                                'ng-click="prev($event)">Previous</button> ' +
+                            '<button ng-show="options.showNext" ng-disabled="isLast()" class="btn btn-primary" ' +
+                                'ng-click="next($event)">Next</button> ' +
+                            '<button ng-show="isLast() && options.showSubmit" class="btn btn-success submit" ' +
+                                'ng-click="submit($event)">Submit</button>' +
+                          '</div>';
+
+        $templateCache.get(defaults.header) || $templateCache.put(defaults.header, headerTemplate);
+        $templateCache.get(defaults.content) || $templateCache.put(defaults.content, contentTemplate);
+        $templateCache.get(defaults.actions) || $templateCache.put(defaults.actions, actionsTemplate);
+
+        function isHtml(str) {
+            return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
+        }
+
+        function isPath(str) {
+            if(!str || !angular.isString(str)) return false;
+            var ext = str.split('.').pop();
+            return ext === 'html' || ext === 'tpl';
+        }
+
+        function isElement(elem) {
+                return !!(elem && elem[0] && (elem[0] instanceof HTMLElement));
             }
 
-            function rolesToLevels(source, roles){
-                var arr = [];
-                source = source || [];
-                angular.forEach(roles, function (v) {
-                    if(source[v] !== undefined)
-                        arr.push(source[v]);
+        function findElement(q, element) {
+            return angular.element(element || document).querySelectorAll(q);
+        }
+
+        function loadTemplate(t) {
+            // handle html an strings.
+            if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
+                var defer = $q.defer();
+                defer.resolve(t);
+                return defer.promise;
+            } else {
+                // handle paths.
+                return $q.when($templateCache.get(t) || $http.get(t))
+                    .then(function (res) {
+                        if (res.data) {
+                            $templateCache.put(t, res.data);
+                            return res.data;
+                        }
+                        return res;
+                    });
+            }
+        }
+
+        function ModuleFactory(element, options) {
+
+            var $module = {},
+                steps = [],
+                templates =[],
+                contentTemplates = [],
+                _steps,
+                scope,
+                _previous;
+
+            // shift args if needed.
+            if(!isElement(element) && angular.isObject(element)){
+                options = element;
+                element = undefined;
+            }
+
+            // extend options
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(defaults, options);
+
+            // check if options contain steps.
+            if(options.steps){
+                _steps = options.steps;
+                delete options.steps;
+            }
+
+            // Private Methods.
+
+            // trim string
+            function trim(str) {
+                return str.replace(/^\s+/, '').replace(/\s+$/, '');
+            }
+
+            // clears active step.
+            function clear() {
+                angular.forEach(steps, function (v) {
+                    v.active = false;
                 });
-                return arr;
             }
 
-            // reverse the levels map setting role values as keys.
-            function reverseMap(levels) {
-                var obj = {};
-                angular.forEach(levels, function (v,k) {
-                    obj[v] = parseFloat(k);
-                });
-                return obj;
-            }
+            // Public API
 
-            function ModuleFactory(options) {
-
-                var $module = {};
-
-                function setOptions(options) {
-
-                    // ensure valid object.
-                    options = options || {};
-
-                    // override options map if exists.
-                    defaults.levels = options.levels || defaults.levels;
-
-                    // merge the options.
-                    $module.options = angular.extend(defaults, options);
-
-                    // normalize/reverse levels map
-                    $module.options.roles = reverseMap($module.options.levels);
+            // get step by key/value, index or step.
+            function find(key, value, first) {
+                if(angular.isNumber(key) && !value){
+                    return steps[key];
+                } else {
+                    if(!value){
+                        value = key;
+                        key = options.key;
+                    }
+                    var result = steps.filter(function (v) {
+                        if(v[key])
+                            return v[key] === value;
+                        return false;
+                    });
+                    if(result && first)
+                        return result[0];
+                    return result;
                 }
+            }
 
-                // login passport credentials.
-                $module.login = function login(data) {
-                    var url = urlToObject($module.options.loginAction);
-                    $http[url.method](url.path, data)
-                        .then(function (res) {
-                            // set to authenticated and merge in passport profile.
-                            angular.extend(self, res.data);
-                            if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call(this, res);
-                            } else {
-                                $location.path($module.options.onLoginSuccess);
+            // get the index of a step.
+            function indexOf(step) {
+                if(!step)
+                    return -1;
+                return steps.indexOf(step);
+            }
+
+            // getter/setter for active step.
+            function active(key, value) {
+                if(!key) {
+                    return steps.filter(function (v) {
+                        return v.active === true;
+                    })[0];
+                } else {
+                    var step = find(key, value, true);
+                    if(step && step.enabled){
+                        clear();
+                        step.active = true;
+                    }
+                }
+            }
+
+            // go to a specific step index or object.
+            function to(key, reverse, e) {
+                var curActive = active(),
+                    nextActive,
+                    nextIdx;
+                if(angular.isNumber(key)){
+                    nextIdx = key;
+                    nextActive = steps[key];
+                }
+                if(angular.isObject(key)){
+                    nextIdx = indexOf(key);
+                    nextActive = key;
+                }
+                if(nextActive) {
+                    if(!nextActive.enabled && options.continue){
+                        var i, altActive;
+                        if(reverse) {
+                            for(i = nextIdx -1; i >= 0; i-- )  {
+                                altActive = steps[i];
+                                if(altActive.enabled){
+                                    nextActive = altActive;
+                                    nextIdx = i;
+                                }
                             }
-                        }, function (res) {
-                            if(angular.isFunction($module.options.onLoginFailed)) {
-                                $module.options.onLoginFailed.call(this, res);
-                            } else {
-                                $location.path($module.options.onLoginFailed);
+                        } else {
+                            for(i = nextIdx; i < steps.length; i++ )  {
+                                altActive = steps[i];
+                                if(altActive.enabled){
+                                    nextActive = altActive;
+                                    nextIdx = i;
+                                }
+                            }
+                        }
+                    }
+                    if(nextActive.enabled) {
+                        clear();
+                        nextActive.active = true;
+                        _previous = nextActive;
+                    }
+                }
+                if(angular.isFunction(options.onChange))
+                    options.onChange.call($module, { previous: curActive, active: nextActive }, e);
+            }
+
+            // adds a new step
+            function add(name, obj) {
+                if(!name && !obj) return;
+                var nextIdx = steps.length,
+                    nameOnly;
+                if(angular.isObject(name)){
+                    obj = name;
+                    name = undefined;
+                }
+                nameOnly = !obj;
+                if(nameOnly){
+                    obj = {};
+                    obj.content = name;
+                }
+                // must have name or defined key in object.
+                if(!name && !obj[options.key]) return;
+                obj.enabled = obj.enabled !== undefined ? obj.enabled : true;
+                obj.active = nextIdx === options.start;
+                obj[options.key] = obj[options.key] || name;
+                obj.content = obj.content || name;
+                if(options.title){
+                    obj.title = obj.title || 'Step';
+                    obj.title = obj.title.charAt(0).toUpperCase() + obj.title.slice(1);
+                }
+                obj.$index = nextIdx;
+                obj.$number = nextIdx +1;
+                // simple string wrap in span.
+                if(!isHtml(obj.content) && !isPath(obj.content))
+                    obj.content = '<span>' + obj.content + '</span>';
+                contentTemplates.push(loadTemplate(obj.content));
+                $rootScope.$broadcast('step:add', obj);
+                steps.push(obj);
+            }
+
+            // go to next step;
+            function next(e) {
+                var cur = active();
+                if(cur)
+                    to(cur.$index + 1, null, e);
+            }
+
+            // go to previous step.
+            function prev(e) {
+                var cur = active();
+                if(cur)
+                    to(cur.$index - 1, true, e);
+            }
+
+            // on header click.
+            function headTo(e, idx) {
+                if(!options.headTo) return;
+                var step = steps[idx];
+                if(!options.breadcrumb && step.content) {
+                    to(idx, null, e);
+                } else {
+                    // breadcrumb mode navigate
+                    // to href if provided.
+                    if(step && step.href && step.enabled)
+                        $location.path(step.href);
+                }
+            }
+
+            // submit button for last step.
+            function submit(e) {
+                if(angular.isFunction(options.onSubmit)){
+                    options.onSubmit.call($module, { active: active() }, e);
+                }
+            }
+
+            // indicates if step is first.
+            function isFirst(key, value) {
+                var step = find(key, value, true),
+                    idx;
+                step = step || active();
+                idx = indexOf(step);
+                return 0 === idx;
+            }
+
+            // indicates if step is last.
+            function isLast(key, value) {
+                var step = find(key, value, true),
+                    idx;
+                step = step || active();
+                idx = indexOf(step);
+                return steps.length -1 === idx;
+            }
+
+            // checks if is active.
+            function isActive(key, value){
+                var step = find(key, value, true);
+                return !!(step && step.active === true);
+            }
+
+            // checks if is enabled.
+            function isEnabled(key, value) {
+                var step = find(key, value, true);
+                return !!(step && step.enabled === true);
+            }
+
+            // step has next step.
+            function hasNext() {
+                var idx = indexOf(active()) + 1,
+                    _next = steps[idx];
+                if(_next && _next.enabled)
+                    return true;
+            }
+
+            // step has previous step.
+            function hasPrev() {
+                var idx = indexOf(active()) - 1,
+                    _prev = steps[idx];
+                if(_prev && _prev.enabled)
+                    return true;
+            }
+
+            // initialize the module.
+            function init() {
+
+                // if initialized with steps
+                // add them to the collection.
+                if(_steps) {
+                    // convert string to array.
+                    if(angular.isString(_steps))
+                        _steps = trim(_steps).split(',');
+                    // convert object to array.
+                    if(angular.isObject(_steps)){
+                        var tmpArr = [];
+                        angular.forEach(_steps, function (v,k){
+                            if(angular.isObject(v) || angular.isString(v)){
+                                if(angular.isString(v)){
+                                    var tmpObj = {};
+                                    tmpObj[options.key] = k;
+                                    tmpObj.content = v;
+                                    tmpArr.push(tmpObj);
+                                } else {
+                                    v[options.key] = v[options.key] || k;
+                                    if(options.title)
+                                        v.title = v.title || k;
+                                    tmpArr.push(v);
+                                }
                             }
                         });
-                };
-
-                $module.logout = function logout() {
-                    var self = $module;
-                    if(angular.isFunction($module.options.logoutAction)){
-                        $module.options.logoutAction.call(this);
-                    } else {
-                        var url = urlToObject($module.options.logoutAction);
-                        $http[url.method](url.path)
-                            .then(function () {
-                                // reset passport instance to default.
-                                instance = new ModuleFactory();
-                                $rootScope.Passport = instance;
-                                $location.path($module.options.defaultUrl);
-                            });
                     }
-                };
-
-                $module.recover = function recover() {
-
-                };
-
-                $module.reset = function reset() {
-
-                };
-
-                // expects string.
-                $module.hasRole = function hasRole(role) {
-                    var passportRoles = $module.roles || [];
-                    // if string convert to role level.
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // if public return true
-                    if(role === 0)
-                        return true;
-                    return passportRoles.indexOf(role) !== -1;
-                };
-
-                // expects string or array of strings.
-                $module.hasAnyRole = function hasAnyRole(roles) {
-                    var passportRoles = $module.roles || [];
-                    // if a string convert to role levels.
-                    if(angular.isString(roles)){
-                        roles = roles.split($module.options.delimiter);
-                        roles = rolesToLevels($module.options.roles, roles);
-                    }
-                    // if public return true
-                    if(roles.indexOf(0) !== -1)
-                        return true;
-                    return roles.some(function (v) {
-                        return passportRoles.indexOf(v) !== -1;
+                    angular.forEach(_steps, function (v) {
+                        if(angular.isString(v))
+                            v = trim(v);
+                        add(v);
                     });
-                };
+                }
 
-                // check if meets the minimum roll required.
-                $module.minRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole >= role;
-                };
+                if(!element)
+                    return callback();
 
-                // check if role is not greater than.
-                $module.maxRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole < role;
-                };
+                var template, contentTemplate;
 
-                // reinit passport
-                $module.init = function init(options) {
-                    setOptions(options);
-                };
+                template = '';
+                contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
 
-                // unauthorized handler.
-                $module.unauthenticated = function unauthenticated() {
-                    var action = $module.options.onUnauthenticated;
+                if(options.header)
+                    templates.push(loadTemplate(options.header || ''));
 
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
+                if(options.content)
+                    templates.push(loadTemplate(options.content || ''));
 
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
+                if(options.actions)
+                    templates.push(loadTemplate(options.actions || ''));
 
-                };
+                templates = templates.concat(contentTemplates);
 
-                // unauthorized handler.
-                $module.unauthorized = function unauthorized() {
-                    var action = $module.options.onUnauthorized;
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-                };
+                // load user content/templates.
 
-                setOptions(options);
+                templates = $q.all(templates);
+                templates.then(function(res) {
+
+                    if(res){
+                        // load each base template
+                        // which will be the template or empty string.
+                        var map = {
+                            header: res[0],
+                            content: res[1],
+                            actions: res[2],
+                            steps: []
+                        };
+
+                        // load content templates.
+                        for(var i = 3; i < res.length; i++){
+                            map.steps.push(res[i]);
+                        }
+                        template += map.header;
+                        if(map.content && map.content.length){
+                            var content = angular.element(map.content),
+                                contents = '',
+                                contentHtml;
+                            angular.forEach(map.steps, function(v,k) {
+                                contents += contentTemplate.replace('{{INDEX}}', k).replace('{{CONTENT}}', v);
+                            });
+                            content.html(contents);
+                            contentHtml = angular.element('<div/>').append(content).clone().html();
+                            template += contentHtml;
+                        }
+                        template += map.actions;
+
+                        element.html(template);
+                        $compile(element.contents())(scope);
+                    }
+
+                });
+
+
+                // Expose methods to module and scope.
+                $module.find = scope.find = find;
+                $module.active = scope.active = active;
+                $module.add = scope.add = add;
+                $module.to = scope.to = to;
+                $module.next = scope.next = next;
+                $module.prev = scope.prev = prev;
+                $module.submit = scope.submit = submit;
+                scope.headTo = headTo;
+                $module.isFirst = scope.isFirst = isFirst;
+                $module.isLast = scope.isLast = isLast;
+                $module.isActive = scope.isActive = isActive;
+                $module.isEnabled = scope.isEnabled = isEnabled;
+                $module.hasNext = scope.hasNext = hasNext;
+                $module.hasPrev = scope.hasPrev = hasPrev;
+                $module.steps = scope.steps = steps;
+
+                if(angular.isFunction(options.onLoad))
+                    options.onLoad($module);
 
                 return $module;
 
             }
 
-            function getInstance() {
-                if(!instance)
-                    return new ModuleFactory();
-                return instance;
-            }
+            return init();
 
-            return getInstance();
-           
-        }];
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+
+})
+
+.directive('aiStep', [ '$step', function ($step) {
 
         return {
-            $get: get,
-            $set: set
-        };
+        restrict: 'EAC',
+        scope: true,
+        link: function (scope, element, attrs) {
 
-    });
+            var defaults, options, $module;
 
-// intercepts 401 and 403 errors.
-angular.module('ai.passport.interceptor', [])
-    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                // get passport here to prevent circ dependency.
-                var passport = $injector.get('$passport');
-                // handle unauthenticated response
-                if (res.status === 401 && passport.options['401'])
-                    passport.unauthenticated();
-                if(res.status === 403 && passport.options['403'])
-                    passport.unauthorized();
-                return $q.reject(res);
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $step(element, options);
             }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$passportInterceptor');
-    }]);
 
-// handles intercepting route when
-// required permissions are not met.
-angular.module('ai.passport.route', [])
-    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
-        $rootScope.$on('$routeChangeStart', function (event, next) {
-            var area = {},
-                route = {},
-                access,
-                authorized;
-            if(next && next.$$route){
-                route = next.$$route;
-                if(route.area)
-                    area = route.area;
-            }
-            access = route.access || area.access;
-            // when paranoid is true require access params
-            // if undefined call unauthorized.
-            // when paranoid is false unauthorized is not called
-            // when access is undefined.
-            if($passport.options.paranoid && access === undefined)
-                return $passport.unauthorized();
-            if(access !== undefined){
-                authorized = $passport.hasAnyRole('*');
-                if(!authorized)
-                    $passport.unauthorized();
-            }
-        });
-    }]);
+            options = scope.$eval(attrs.aiStep || attrs.options);
+            options = angular.extend(defaults, options);
 
-// imports above modules.
-angular.module('ai.passport', [
-    'ai.passport.factory',
-    'ai.passport.interceptor',
-    'ai.passport.route'
-]);
+            init();
+
+        }
+    };
+
+}]);
 angular.module('ai.storage', [])
 
     .provider('$storage', function $storage() {
@@ -2792,593 +3305,6 @@ angular.module('ai.storage', [])
 
     });
 
-angular.module('ai.tab', [])
-.provider('$tab', function $tab() {
-
-    var defaults = {
-
-        }, get, set;
-
-    set = function set(key, value) {
-        if(arguments.length === 2)
-           defaults[key] = value;
-        if(arguments.length === 1 && angular.isObject(key))
-            defaults = angular.extend(defaults, key);
-    };
-
-    get = [function () {
-
-        function ModuleFactory(element, options){
-
-            var $module = {},
-                scope;
-
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
-
-
-
-            return $module;
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-.directive('aiTab', ['$tab', function ($tab) {
-
-    return {
-        restrict: 'AC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $tab(element, options);
-            }
-
-            options = scope.$eval(attrs.aiTab || attrs.options);
-            options = angular.extend(defaults, options);
-
-            init();
-
-        }
-    };
-
-}]);
-angular.module('ai.step', [])
-
-.provider('$step', function $step() {
-
-    var defaults = {
-
-            key: '$id',                     // the primary key for the collection of steps.
-            start: 0,                       // the starting index of the step wizard.
-            title: 'true',                  // when true title is auto generated if not set in step object.
-            continue: true,                 // when true if called step is disabled continue to next enabled.
-            breadcrumb: false,              // when true only header is shown, used as breadcrumb.
-                                            // breadcrumb mode looks for property 'href' to navigate to.
-
-                                            // html templates, can be html or path to template.
-
-            header: 'step-header.tpl.html',   // the header template when using directive.
-            content: 'step-content.tpl.html', // the content template to use when using directive.
-            actions: 'step-actions.tpl.html', // the actions template when using directive.
-
-                                            // hide/show buttons, disable/enable header click events.
-
-            showNumber: true,               // when true step number show next to title.
-            showNext: true,                 // when true next button is created.
-            showPrev: true,                 // when true prev button is created.
-            showSubmit: true,               // when true submit button is created.
-            headTo: true,                   // when true header can be clicked to navigate.
-
-                                            // all events are called with $module context except onload which passes it.
-
-            onChange: undefined,            // callback on changed step, returns (index, active step, event)
-            onHead: undefined,              // callback on header clicked returns (index, active step, event)
-            onSubmit: undefined,            // callback on submit returns (index, active step, event)
-            onLoad: undefined               // callback on load returns ($module)
-
-        }, get, set;
-
-    set = function set(obj) {
-        angular.extend(defaults, obj);
-    };
-
-    get = [ '$rootScope', '$templateCache', '$compile', '$http', '$q', '$location',
-        function($rootScope, $templateCache, $compile, $http, $q, $location) {
-
-        var headerTemplate, contentTemplate, actionsTemplate;
-
-        headerTemplate = '<div class="ai-step-header" ng-show="steps.length">' +
-                            '<ul>' +
-                                '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
-                                'ng-class="{ active: step.active, disabled: !step.enabled, ' +
-                                'clickable: options.headTo && step.enabled, nonum: !options.showNumber }">' +
-                                    '<span class="title">{{step.title}}</span>' +
-                                    '<span class="number">{{step.$number}}</span>' +
-                                '</li>' +
-                            '</ul>' +
-                         '</div>';
-
-        contentTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-content" ng-show="steps.length">' +
-                            '<div ng-show="isActive($index)" ng-repeat="step in steps" ng-bind-html="step.content"></div>' +
-                          '</div>';
-
-        actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
-                            '<hr/><button ng-show="options.showPrev" ng-disabled="isFirst()" class="btn btn-warning" ' +
-                                'ng-click="prev($event)">Previous</button> ' +
-                            '<button ng-show="options.showNext" ng-disabled="isLast()" class="btn btn-primary" ' +
-                                'ng-click="next($event)">Next</button> ' +
-                            '<button ng-show="isLast() && options.showSubmit" class="btn btn-success submit" ' +
-                                'ng-click="submit($event)">Submit</button>' +
-                          '</div>';
-
-        $templateCache.get(defaults.header) || $templateCache.put(defaults.header, headerTemplate);
-        $templateCache.get(defaults.content) || $templateCache.put(defaults.content, contentTemplate);
-        $templateCache.get(defaults.actions) || $templateCache.put(defaults.actions, actionsTemplate);
-
-        function isHtml(str) {
-            return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
-        }
-
-        function isPath(str) {
-            if(!str || !angular.isString(str)) return false;
-            var ext = str.split('.').pop();
-            return ext === 'html' || ext === 'tpl';
-        }
-
-        function isElement(elem) {
-                return !!(elem && elem[0] && (elem[0] instanceof HTMLElement));
-            }
-
-        function findElement(q, element) {
-            return angular.element(element || document).querySelectorAll(q);
-        }
-
-        function loadTemplate(t) {
-            // handle html an strings.
-            if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
-                var defer = $q.defer();
-                defer.resolve(t);
-                return defer.promise;
-            } else {
-                // handle paths.
-                return $q.when($templateCache.get(t) || $http.get(t))
-                    .then(function (res) {
-                        if (res.data) {
-                            $templateCache.put(t, res.data);
-                            return res.data;
-                        }
-                        return res;
-                    });
-            }
-        }
-
-        function ModuleFactory(element, options) {
-
-            var $module = {},
-                steps = [],
-                templates =[],
-                contentTemplates = [],
-                _steps,
-                scope;
-
-            // shift args if needed.
-            if(!isElement(element) && angular.isObject(element)){
-                options = element;
-                element = undefined;
-            }
-
-            // extend options
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(defaults, options);
-
-            // check if options contain steps.
-            if(options.steps){
-                _steps = options.steps;
-                delete options.steps;
-            }
-
-            // Private Methods.
-
-            // trim string
-            function trim(str) {
-                return str.replace(/^\s+/, '').replace(/\s+$/, '');
-            }
-
-            // clears active step.
-            function clear() {
-                angular.forEach(steps, function (v) {
-                    v.active = false;
-                });
-            }
-
-
-            // Public API
-
-            // get step by key/value, index or step.
-            function find(key, value, first) {
-                if(angular.isNumber(key) && !value){
-                    return steps[key];
-                } else {
-                    if(!value){
-                        value = key;
-                        key = options.key;
-                    }
-                    var result = steps.filter(function (v) {
-                        if(v[key])
-                            return v[key] === value;
-                        return false;
-                    });
-                    if(result && first)
-                        return result[0];
-                    return result;
-                }
-            }
-
-            // get the index of a step.
-            function indexOf(step) {
-                if(!step)
-                    return -1;
-                return steps.indexOf(step);
-            }
-
-            // getter/setter for active step.
-            function active(key, value) {
-                if(!key) {
-                    return steps.filter(function (v) {
-                        return v.active === true;
-                    })[0];
-                } else {
-                    var step = find(key, value, true);
-                    if(step && step.enabled){
-                        clear();
-                        step.active = true;
-                    }
-                }
-            }
-
-            // go to a specific step index or object.
-            function to(key, reverse, e) {
-                var curActive = active(),
-                    curIdx = indexOf(active()),
-                    nextActive,
-                    nextIdx;
-                if(angular.isNumber(key)){
-                    nextIdx = key;
-                    nextActive = steps[key];
-                }
-                if(angular.isObject(key)){
-                    nextIdx = indexOf(key);
-                    nextActive = key;
-                }
-                if(nextActive) {
-                    if(!nextActive.enabled && options.continue){
-                        var i, altActive;
-                        if(reverse) {
-                            for(i = nextIdx -1; i >= 0; i-- )  {
-                                altActive = steps[i];
-                                if(altActive.enabled){
-                                    nextActive = altActive;
-                                    nextIdx = i;
-                                }
-                            }
-                        } else {
-                            for(i = nextIdx; i < steps.length; i++ )  {
-                                altActive = steps[i];
-                                if(altActive.enabled){
-                                    nextActive = altActive;
-                                    nextIdx = i;
-                                }
-                            }
-                        }
-                    }
-                    if(nextActive.enabled) {
-                        clear();
-                        nextActive.active = true;
-                        $rootScope.$broadcast('step:to', nextIdx, nextActive);
-                    }
-                }
-                $rootScope.$broadcast('step:to', curIdx, curActive);
-                if(angular.isFunction(options.onChange)){
-                    options.onChange.call($module, nextIdx, nextActive, e);
-                }
-            }
-
-            // adds a new step
-            function add(name, obj) {
-                if(!name && !obj) return;
-                var nextIdx = steps.length,
-                    nameOnly;
-                if(angular.isObject(name)){
-                    obj = name;
-                    name = undefined;
-                }
-                nameOnly = !obj;
-                if(nameOnly){
-                    obj = {};
-                    obj.content = name;
-                }
-                // must have name or defined key in object.
-                if(!name && !obj[options.key]) return;
-                obj.enabled = obj.enabled !== undefined ? obj.enabled : true;
-                obj.active = nextIdx === options.start;
-                obj[options.key] = obj[options.key] || name;
-                obj.content = obj.content || name;
-                if(options.title){
-                    obj.title = obj.title || 'Step';
-                    obj.title = obj.title.charAt(0).toUpperCase() + obj.title.slice(1);
-                }
-                obj.$index = nextIdx;
-                obj.$number = nextIdx +1;
-                // simple string wrap in span.
-                if(!isHtml(obj.content) && !isPath(obj.content))
-                    obj.content = '<span>' + obj.content + '</span>';
-                contentTemplates.push(loadTemplate(obj.content));
-                $rootScope.$broadcast('step:add', obj);
-                steps.push(obj);
-            }
-
-            // go to next step;
-            function next(e) {
-                var cur = active();
-                if(cur)
-                    to(cur.$index + 1, null, e);
-            }
-
-            // go to previous step.
-            function prev(e) {
-                var cur = active();
-                if(cur)
-                    to(cur.$index - 1, true, e);
-            }
-
-            // on header click.
-            function headTo(e, idx) {
-                if(!options.headTo) return;
-                var step = steps[idx];
-                if(!options.breadcrumb && step.content) {
-                    to(idx, null, e);
-                    if(angular.isFunction(options.onHead))
-                        options.onHead.call($module, curIdx, curActive, e);
-                } else {
-                    // breadcrumb mode navigate
-                    // to href if provided.
-                    if(step && step.href && step.enabled)
-                        $location.path(step.href);
-                }
-            }
-
-            // submit button for last step.
-            function submit(e) {
-                var curActive, curIdx;
-                curActive = active();
-                curIdx = indexOf(curActive);
-                if(angular.isFunction(options.onSubmit)){
-                    options.onSubmit.call($module, curIdx, curActive, e);
-                }
-            }
-
-            // indicates if step is first.
-            function isFirst(key, value) {
-                var step = find(key, value, true),
-                    idx;
-                step = step || active();
-                idx = indexOf(step);
-                return 0 === idx;
-            }
-
-            // indicates if step is last.
-            function isLast(key, value) {
-                var step = find(key, value, true),
-                    idx;
-                step = step || active();
-                idx = indexOf(step);
-                return steps.length -1 === idx;
-            }
-
-            // checks if is active.
-            function isActive(key, value){
-                var step = find(key, value, true);
-                return !!(step && step.active === true);
-            }
-
-            // checks if is enabled.
-            function isEnabled(key, value) {
-                var step = find(key, value, true);
-                return !!(step && step.enabled === true);
-            }
-
-            // step has next step.
-            function hasNext() {
-                var idx = indexOf(active()) + 1,
-                    _next = steps[idx];
-                if(_next && _next.enabled)
-                    return true;
-            }
-
-            // step has previous step.
-            function hasPrev() {
-                var idx = indexOf(active()) - 1,
-                    _prev = steps[idx];
-                if(_prev && _prev.enabled)
-                    return true;
-            }
-
-            // initialize the module.
-            function init() {
-
-                // if initialized with steps
-                // add them to the collection.
-                if(_steps) {
-                    // convert string to array.
-                    if(angular.isString(_steps))
-                        _steps = trim(_steps).split(',');
-                    // convert object to array.
-                    if(angular.isObject(_steps)){
-                        var tmpArr = [];
-                        angular.forEach(_steps, function (v,k){
-                            if(angular.isObject(v) || angular.isString(v)){
-                                if(angular.isString(v)){
-                                    var tmpObj = {};
-                                    tmpObj[options.key] = k;
-                                    tmpObj.content = v;
-                                    tmpArr.push(tmpObj);
-                                } else {
-                                    v[options.key] = v[options.key] || k;
-                                    if(options.title)
-                                        v.title = v.title || k;
-                                    tmpArr.push(v);
-                                }
-                            }
-                        });
-                    }
-                    angular.forEach(_steps, function (v) {
-                        if(angular.isString(v))
-                            v = trim(v);
-                        add(v);
-                    });
-                }
-
-                if(!element)
-                    return callback();
-
-                var template, contentTemplate;
-
-                template = '';
-                contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
-
-                if(options.header)
-                    templates.push(loadTemplate(options.header || ''));
-
-                if(options.content)
-                    templates.push(loadTemplate(options.content || ''));
-
-                if(options.actions)
-                    templates.push(loadTemplate(options.actions || ''));
-
-                templates = templates.concat(contentTemplates);
-
-                // load user content/templates.
-
-                templates = $q.all(templates);
-                templates.then(function(res) {
-
-                    if(res){
-                        // load each base template
-                        // which will be the template or empty string.
-                        var map = {
-                            header: res[0],
-                            content: res[1],
-                            actions: res[2],
-                            steps: []
-                        };
-
-                        // load content templates.
-                        for(var i = 3; i < res.length; i++){
-                            map.steps.push(res[i]);
-                        }
-                        template += map.header;
-                        if(map.content && map.content.length){
-                            var content = angular.element(map.content),
-                                contents = '',
-                                contentHtml;
-                            angular.forEach(map.steps, function(v,k) {
-                                contents += contentTemplate.replace('{{INDEX}}', k).replace('{{CONTENT}}', v);
-                            });
-                            content.html(contents);
-                            contentHtml = angular.element('<div/>').append(content).clone().html();
-                            template += contentHtml;
-                        }
-                        template += map.actions;
-
-                        element.html(template);
-                        $compile(element.contents())(scope);
-                    }
-
-                });
-
-
-                // Expose methods to module and scope.
-                $module.find = scope.find = find;
-                $module.active = scope.active = active;
-                $module.add = scope.add = add;
-                $module.to = scope.to = to;
-                $module.next = scope.next = next;
-                $module.prev = scope.prev = prev;
-                $module.submit = scope.submit = submit;
-                scope.headTo = headTo;
-                $module.isFirst = scope.isFirst = isFirst;
-                $module.isLast = scope.isLast = isLast;
-                $module.isActive = scope.isActive = isActive;
-                $module.isEnabled = scope.isEnabled = isEnabled;
-                $module.hasNext = scope.hasNext = hasNext;
-                $module.hasPrev = scope.hasPrev = hasPrev;
-                $module.steps = scope.steps = steps;
-
-                if(angular.isFunction(options.onLoad))
-                    options.onLoad($module);
-
-                return $module;
-
-            }
-
-            return init();
-
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-
-})
-
-.directive('aiStep', [ '$step', function ($step) {
-
-        return {
-        restrict: 'EAC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $step(element, options);
-            }
-
-            options = scope.$eval(attrs.aiStep || attrs.options);
-            options = angular.extend(defaults, options);
-
-            init();
-
-        }
-    };
-
-}]);
 
 angular.module('ai.table', ['ngSanitize'])
 
@@ -5261,6 +5187,71 @@ angular.module('ai.table', ['ngSanitize'])
 
     }]);
 
+angular.module('ai.tab', [])
+.provider('$tab', function $tab() {
+
+    var defaults = {
+
+        }, get, set;
+
+    set = function set(key, value) {
+        if(arguments.length === 2)
+           defaults[key] = value;
+        if(arguments.length === 1 && angular.isObject(key))
+            defaults = angular.extend(defaults, key);
+    };
+
+    get = [function () {
+
+        function ModuleFactory(element, options){
+
+            var $module = {},
+                scope;
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+
+
+
+            return $module;
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+.directive('aiTab', ['$tab', function ($tab) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $tab(element, options);
+            }
+
+            options = scope.$eval(attrs.aiTab || attrs.options);
+            options = angular.extend(defaults, options);
+
+            init();
+
+        }
+    };
+
+}]);
 var form = angular.module('ai.validate', [])
 .provider('$validate', function $validate() {
 

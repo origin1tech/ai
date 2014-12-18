@@ -27,9 +27,8 @@ angular.module('ai.step', [])
 
                                             // all events are called with $module context except onload which passes it.
 
-            onChange: undefined,            // callback on changed step, returns (index, active step, event)
-            onHead: undefined,              // callback on header clicked returns (index, active step, event)
-            onSubmit: undefined,            // callback on submit returns (index, active step, event)
+            onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
+            onSubmit: undefined,            // callback on submit returns ({ active }, event)
             onLoad: undefined               // callback on load returns ($module)
 
         }, get, set;
@@ -115,7 +114,8 @@ angular.module('ai.step', [])
                 templates =[],
                 contentTemplates = [],
                 _steps,
-                scope;
+                scope,
+                _previous;
 
             // shift args if needed.
             if(!isElement(element) && angular.isObject(element)){
@@ -147,7 +147,6 @@ angular.module('ai.step', [])
                     v.active = false;
                 });
             }
-
 
             // Public API
 
@@ -196,7 +195,6 @@ angular.module('ai.step', [])
             // go to a specific step index or object.
             function to(key, reverse, e) {
                 var curActive = active(),
-                    curIdx = indexOf(active()),
                     nextActive,
                     nextIdx;
                 if(angular.isNumber(key)){
@@ -231,13 +229,11 @@ angular.module('ai.step', [])
                     if(nextActive.enabled) {
                         clear();
                         nextActive.active = true;
-                        $rootScope.$broadcast('step:to', nextIdx, nextActive);
+                        _previous = nextActive;
                     }
                 }
-                $rootScope.$broadcast('step:to', curIdx, curActive);
-                if(angular.isFunction(options.onChange)){
-                    options.onChange.call($module, nextIdx, nextActive, e);
-                }
+                if(angular.isFunction(options.onChange))
+                    options.onChange.call($module, { previous: curActive, active: nextActive }, e);
             }
 
             // adds a new step
@@ -294,8 +290,6 @@ angular.module('ai.step', [])
                 var step = steps[idx];
                 if(!options.breadcrumb && step.content) {
                     to(idx, null, e);
-                    if(angular.isFunction(options.onHead))
-                        options.onHead.call($module, curIdx, curActive, e);
                 } else {
                     // breadcrumb mode navigate
                     // to href if provided.
@@ -306,11 +300,8 @@ angular.module('ai.step', [])
 
             // submit button for last step.
             function submit(e) {
-                var curActive, curIdx;
-                curActive = active();
-                curIdx = indexOf(curActive);
                 if(angular.isFunction(options.onSubmit)){
-                    options.onSubmit.call($module, curIdx, curActive, e);
+                    options.onSubmit.call($module, { active: active() }, e);
                 }
             }
 

@@ -103,18 +103,19 @@ angular.module('myModule', [])
             <h4>Options</h4>
             <pre>
 var defaults = {
-    key: '$id',                     // the primary key for the collection.
+
+    key: '$id',                     // the primary key for the collection of steps.
     start: 0,                       // the starting index of the step wizard.
     title: 'true',                  // when true title is auto generated if not set in step object.
     continue: true,                 // when true if called step is disabled continue to next enabled.
     breadcrumb: false,              // when true only header is shown, used as breadcrumb.
                                     // breadcrumb mode looks for property 'href' to navigate to.
 
-                                    // default html templates, cant be html or path to template.
+                                    // html templates, can be html or path to template.
 
-    header: 'step-header.html',     // the header template when using directive.
-    content: 'step-content.html',   // the content template to use when using directive.
-    actions: 'step-actions.html',   // the actions template when using directive.
+    header: 'step-header.tpl.html',   // the header template when using directive.
+    content: 'step-content.tpl.html', // the content template to use when using directive.
+    actions: 'step-actions.tpl.html', // the actions template when using directive.
 
                                     // hide/show buttons, disable/enable header click events.
 
@@ -126,10 +127,10 @@ var defaults = {
 
                                     // all events are called with $module context except onload which passes it.
 
-    onChange: undefined,            // callback on changed step.
-    onHead: undefined,              // callback on header clicked returns (index, active step, event)
-    onSubmit: undefined,            // callback on submit returns (index, active step, event)
+    onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
+    onSubmit: undefined,            // callback on submit returns ({ active }, event)
     onLoad: undefined               // callback on load returns ($module)
+
 };
             </pre>
         </div>
