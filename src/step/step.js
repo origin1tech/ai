@@ -27,6 +27,7 @@ angular.module('ai.step', [])
 
                                             // all events are called with $module context except onload which passes it.
 
+            onBeforeChange: undefined,      // callback event fired before changing steps.
             onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
             onSubmit: undefined,            // callback on submit returns ({ active }, event)
             onLoad: undefined               // callback on load returns ($module)
@@ -205,35 +206,54 @@ angular.module('ai.step', [])
                     nextIdx = indexOf(key);
                     nextActive = key;
                 }
-                if(nextActive) {
-                    if(!nextActive.enabled && options.continue){
-                        var i, altActive;
-                        if(reverse) {
-                            for(i = nextIdx -1; i >= 0; i-- )  {
-                                altActive = steps[i];
-                                if(altActive.enabled){
-                                    nextActive = altActive;
-                                    nextIdx = i;
+
+                if(angular.isFunction(options.onBeforeChange)){
+                    $q.when(options.onBeforeChange({ active: curActive, next: nextActive }, e))
+                        .then(function(res) {
+                            if(res) done();
+                        });
+                }
+
+                function done() {
+
+                    if(nextActive) {
+                        if(!nextActive.enabled && options.continue){
+
+                            var i, altActive;
+                            if(reverse) {
+                                for(i = nextIdx -1; i >= 0; i-- )  {
+                                    altActive = steps[i];
+                                    if(altActive.enabled){
+                                        nextActive = altActive;
+                                        nextIdx = i;
+                                    }
                                 }
-                            }
-                        } else {
-                            for(i = nextIdx; i < steps.length; i++ )  {
-                                altActive = steps[i];
-                                if(altActive.enabled){
-                                    nextActive = altActive;
-                                    nextIdx = i;
+                            } else {
+                                for(i = nextIdx; i < steps.length; i++ )  {
+                                    altActive = steps[i];
+                                    if(altActive.enabled){
+                                        nextActive = altActive;
+                                        nextIdx = i;
+                                    }
                                 }
                             }
                         }
+
+
+                        if(nextActive.enabled) {
+                            clear();
+                            nextActive.active = true;
+                            _previous = nextActive;
+                        }
+
+                        // callback on change.
+                        if(angular.isFunction(options.onChange))
+                            options.onChange.call($module, { previous: curActive, active: nextActive }, e);
+
                     }
-                    if(nextActive.enabled) {
-                        clear();
-                        nextActive.active = true;
-                        _previous = nextActive;
-                    }
+
                 }
-                if(angular.isFunction(options.onChange))
-                    options.onChange.call($module, { previous: curActive, active: nextActive }, e);
+
             }
 
             // adds a new step

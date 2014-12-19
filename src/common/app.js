@@ -203,11 +203,14 @@ define(function (require) {
                         name: {content: '/step/example/step-name.html'},
                         finish: {content: '/step/example/step-finish.html'}
                     },
+                    onBeforeChange: function (steps, e) {
+                        console.log(steps, e);
+                        return true;
+                    },
                     onLoad: function ($module) {
                         $module.steps[1].enabled = false;
                     }
                 };
-
 
             }
 
@@ -312,9 +315,6 @@ define(function (require) {
                 };
             }
 
-            if (area === 'tab') {
-
-            }
         }
     ];
 
