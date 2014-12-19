@@ -1,0 +1,40 @@
+$arrow-size:                                  50px;
+$arrow-size-divided:                          $arrow-size / 2;
+$arrow-size-adjusted:                         $arrow-size * .60;
+$arrow-color-active:                          #337ab7;
+$arrow-color-normal:                          lighten($arrow-color-active, 15%);
+$arrow-color-disabled:                        #888888;
+
+.ai-arrow {
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+.ai-arrow-top {
+  @extend .ai-arrow;
+  border-color: transparent transparent $arrow-color-normal transparent;
+  border-width: 0 $arrow-size-divided $arrow-size-adjusted $arrow-size-divided;
+  &.active { border-bottom-color: $arrow-color-active; }
+  &.disabled{ border-bottom-color: $arrow-color-disabled; }
+}
+.ai-arrow-right {
+  @extend .ai-arrow;
+  border-color: transparent transparent transparent $arrow-color-normal;
+  border-width: $arrow-size-divided 0 $arrow-size-divided $arrow-size-adjusted;
+  &.active { border-left-color: $arrow-color-active; }
+  &.disabled{ border-left-color: $arrow-color-disabled; }
+}
+.ai-arrow-bottom {
+  @extend .ai-arrow;
+  border-color:  $arrow-color-normal transparent transparent transparent;
+  border-width: $arrow-size-adjusted $arrow-size-divided 0 $arrow-size-divided;
+  &.active { border-top-color: $arrow-color-active; }
+  &.disabled{ border-top-color: $arrow-color-disabled; }
+}
+.ai-arrow-left {
+  @extend .ai-arrow;
+  border-color:  transparent $arrow-color-normal transparent transparent;
+  border-width: $arrow-size-divided $arrow-size-adjusted $arrow-size-divided 0;
+  &.active { border-right-color: $arrow-color-active; }
+  &.disabled{ border-right-color: $arrow-color-disabled; }
+}

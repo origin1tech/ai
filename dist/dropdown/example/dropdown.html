@@ -1,0 +1,151 @@
+<h3>{{title}}</h3>
+
+<hr/>
+
+<p class="alert alert-warning">
+    Dropdown is an advanced select list directive. It handles dynamic loading of list content via static model
+    resource or dynamic http endpoint.
+</p>
+
+<form name="ddForm" ai-validate-form>
+
+    <div class="form-group">
+        <label style="display: block;">Basic List (block 100% width)</label>
+        <input type="text" class="form-control" ai-dropdown ng-model="ddSimpleSel" options="ddSimple" />
+    </div>
+
+    <div class="form-group">
+        <label style="display: block;">List by Group (centered)</label>
+        <input type="text" class="form-control" ai-dropdown ng-model="ddAdvSel" options="ddAdv" />
+    </div>
+
+    <div class="form-group">
+        <label style="display: block;">Remote Source (w/ validation)</label>
+        <input type="text" class="form-control" ai-dropdown ng-model="ddRemoteSel" options="ddRemote" required/>
+    </div>
+
+    <ai-validate-summary></ai-validate-summary>
+
+</form>
+
+
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('dropdown:markup') }"><a ng-click="showTab('dropdown:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('dropdown:code') }"><a ng-click="showTab('dropdown:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('dropdown:options') }"><a ng-click="showTab('dropdown:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('dropdown:markup') }" ng-show="tabActive('dropdown:markup')">
+<pre>
+&lt;form name=&quot;ddForm&quot; ai-validate-form&gt;
+
+    &lt;div class=&quot;form-group&quot;&gt;
+        &lt;label&gt;Basic List&lt;/label&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddSimpleSel&quot; options=&quot;ddSimple&quot; /&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;form-group&quot;&gt;
+        &lt;label&gt;List by Group&lt;/label&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddAdvSel&quot; options=&quot;ddAdv&quot; /&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;form-group&quot;&gt;
+        &lt;label&gt;Remote Source&lt;/label&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddRemoteSel&quot; options=&quot;ddRemote&quot; required/&gt;
+    &lt;/div&gt;
+
+    &lt;ai-validate-summary&gt;&lt;/ai-validate-summary&gt;
+
+&lt;/form&gt;
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('dropdown:code') }" ng-show="tabActive('dropdown:code')">
+<pre>
+// basic dropdown example.
+$scope.ddSimple = {
+    text: 'name',
+    value: 'email',
+    source: [
+        {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
+        {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'},
+        {name: 'Scott Sandres', email: 'sanders.scott@aol.com', category: 'customer'}
+    ]
+};
+$scope.ddSimpleSel = 'charles@gmail.com';
+
+// advanced example using grouping.
+$scope.ddAdv = {
+    text: 'name',
+    value: 'email',
+    groupKey: 'category',
+    source: [
+        {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
+        {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'}
+    ]
+};
+$scope.ddAdvSel = 'ellis@gmail.com';
+
+// example using remote url.
+$scope.ddRemote = {
+    text: 'name',
+    value: 'email',
+    source: '/dropdown/example/data.json'
+};
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('dropdown:options') }" ng-show="tabActive('dropdown:options')">
+<pre>
+var defaults = {
+
+    text: 'text',                           // property to use for text values.
+    value: 'value',                         // property to use for model values default is text.
+    display: false,                         // alt property to use for display values.
+    capitalize: true,                       // if true display is capitalized. (group is cap also if used).
+    searchable: true,                       // indicates that the dropdown is searchable.
+    placeholder: 'Please Select',           // placeholder text shown on null value.
+    allowNull: true,                        // when true user can select placeholder/null value.
+    inline: false,                          // positions element inline.
+    shadow: true,                           // when true adds shadow to bottom of list.
+
+    template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
+    itemTemplate:
+        'dropdown-item.tpl.html',           // template used for list items.
+    itemGroupTemplate:
+        'dropdown-item-group.tpl.html',
+    searchTemplate:
+        'dropdown-search.tpl.html',         // template used for searching list.
+    addClass: false,                        // adds a class the top level of the component.
+
+    source: [],                             // data source can be csv, object, array of string/object or url.
+    params: {},                             // object of data params to pass with server requests.
+    queryParam: 'q',                        // the param key used to query on server requests.
+    method: 'get',                          // the method to use for requests.
+
+    groupKey: false,                        // the parent primary key to find children by.
+    groupDisplay: false,                    // used to display the group name.
+
+    selectClose: true,                      // if true list is closed after selection.
+    selectClear: false,                     // after selecting value clear item.
+    closeClear: true,                       // when searchable and on toggle close clear query filter.
+    blurClose: true,                        // when true list is closed on blur event.
+
+                                            // all callbacks are returned with $module context.
+    onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
+    onSelected: false,                      // callback on select. injects(selected, ngModel, event).
+    onFilter: false,                        // callback on filter. injects (filter, event).
+    onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
+    onLoad: false                           // callback on directive loaded. returns
+
+    }
+</pre>
+        </div>
+
+    </div>
+
+</div>

@@ -1,0 +1,84 @@
+
+// viewer
+$viewer-animation-speed:                      600ms;
+
+// slide transform animations
+// used primarily by viewer
+@-webkit-keyframes slideInFromLeft {
+  0% { -webkit-transform: translate3d(-100%,0,0); }
+  100% { -webkit-transform: translate3d(0, 0, 0); }
+}
+@-webkit-keyframes slideInFromRight {
+  0% { -webkit-transform: translate3d(100%, 0, 0);  }
+  100% { -webkit-transform: translate3d(0, 0, 0); }
+}
+@-webkit-keyframes slideOutToLeft {
+  0% { -webkit-transform: translate3d(0,0,0); }
+  100% { -webkit-transform: translate3d(-100%, 0, 0); }
+}
+@-webkit-keyframes slideOutToRight {
+  0% { -webkit-transform: translate3d(0, 0, 0); }
+  100% { -webkit-transform: translate3d(100%, 0, 0); }
+}
+
+@keyframes slideInFromLeft {
+  0% { -webkit-transform: translate3d(-100%,0,0); }
+  100% { -webkit-transform: translate3d(0, 0, 0); }
+}
+@keyframes slideInFromRight {
+  0% { -webkit-transform: translate3d(100%, 0, 0);  }
+  100% { -webkit-transform: translate3d(0, 0, 0); }
+}
+@keyframes slideOutToLeft {
+  0% { -webkit-transform: translate3d(0,0,0); }
+  100% { -webkit-transform: translate3d(-100%, 0, 0); }
+}
+@keyframes slideOutToRight {
+  0% { -webkit-transform: translate3d(0, 0, 0); }
+  100% { -webkit-transform: translate3d(100%, 0, 0); }
+}
+
+.ai-viewer {
+  position: relative;
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.ai-viewer-view {
+  left: 0;
+  top: 0;
+  position: absolute;
+  white-space: nowrap;
+  min-height: 100%;
+  width: 100%;
+  background-color: #fff;
+}
+
+.ai-viewer-view.ng-enter {
+  &.forward {
+    -webkit-animation: slideInFromRight $viewer-animation-speed ease-in-out;
+    animation: slideInFromRight $viewer-animation-speed ease-in-out;
+  }
+  &.back {
+    -webkit-animation: slideInFromLeft $viewer-animation-speed ease-in-out;
+    animation: slideInFromLeft $viewer-animation-speed ease-in-out;
+  }
+}
+
+.ai-viewer-view.ng-leave {
+  &.forward {
+    -webkit-animation: slideOutToLeft $viewer-animation-speed ease-in-out;
+    animation: slideOutToLeft $viewer-animation-speed ease-in-out;
+  }
+  &.back {
+    -webkit-animation: slideOutToRight $viewer-animation-speed ease-in-out;
+    animation: slideOutToRight $viewer-animation-speed ease-in-out;
+  }
+}
+
+
+
+
+
