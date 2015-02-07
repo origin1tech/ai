@@ -1,8 +1,8 @@
 {
   "name": "ai",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "A library for creating an intuitive ui in Angular.",
-  "main": "index.js",
+  "main": "gulpfile.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/origin1tech/ai",
   "dependencies": {
-
+    "gulp": "^3.8.10"
   },
   "devDependencies": {
     "del": "^0.1.3",

@@ -1067,6 +1067,7 @@ angular.module('ai.flash.factory', [])
                           'problem persists ' +
                           'please contact the ' +
                           'administrator.',
+            stack: false,                           // when true stack trace is shown.
             multiple: false,                        // whether to allow multiple flash messages at same time.
             type: 'info',                           // the default type of message to show also the css class name.
             typeError: 'danger',                    // the error type or class name for error messages.
@@ -1378,7 +1379,7 @@ angular.module('ai.flash.interceptor', [])
                     name = errObj.name || flash.options.errorName;
                     message = errObj.message || flash.options.errorMessage;
                     stack = errObj.stack || '';
-                    if(stack){
+                    if(stack && flash.options.stack){
                         if(angular.isArray(stack))
                             stack = stack.join('<br/>');
                         if(angular.isString(stack) && /\\n/g.test(stack))
@@ -2208,6 +2209,7 @@ angular.module('ai.passport.factory', [])
                 return obj;
             }
 
+            // convert string roles to levels.
             function rolesToLevels(source, roles){
                 var arr = [];
                 source = source || [];
@@ -3325,6 +3327,71 @@ angular.module('ai.storage', [])
 
     });
 
+angular.module('ai.tab', [])
+.provider('$tab', function $tab() {
+
+    var defaults = {
+
+        }, get, set;
+
+    set = function set(key, value) {
+        if(arguments.length === 2)
+           defaults[key] = value;
+        if(arguments.length === 1 && angular.isObject(key))
+            defaults = angular.extend(defaults, key);
+    };
+
+    get = [function () {
+
+        function ModuleFactory(element, options){
+
+            var $module = {},
+                scope;
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+
+
+
+            return $module;
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+.directive('aiTab', ['$tab', function ($tab) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $tab(element, options);
+            }
+
+            options = scope.$eval(attrs.aiTab || attrs.options);
+            options = angular.extend(defaults, options);
+
+            init();
+
+        }
+    };
+
+}]);
 
 angular.module('ai.table', ['ngSanitize'])
 
@@ -5207,71 +5274,6 @@ angular.module('ai.table', ['ngSanitize'])
 
     }]);
 
-angular.module('ai.tab', [])
-.provider('$tab', function $tab() {
-
-    var defaults = {
-
-        }, get, set;
-
-    set = function set(key, value) {
-        if(arguments.length === 2)
-           defaults[key] = value;
-        if(arguments.length === 1 && angular.isObject(key))
-            defaults = angular.extend(defaults, key);
-    };
-
-    get = [function () {
-
-        function ModuleFactory(element, options){
-
-            var $module = {},
-                scope;
-
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
-
-
-
-            return $module;
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-.directive('aiTab', ['$tab', function ($tab) {
-
-    return {
-        restrict: 'AC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $tab(element, options);
-            }
-
-            options = scope.$eval(attrs.aiTab || attrs.options);
-            options = angular.extend(defaults, options);
-
-            init();
-
-        }
-    };
-
-}]);
 var form = angular.module('ai.validate', [])
 .provider('$validate', function $validate() {
 

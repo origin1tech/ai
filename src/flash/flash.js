@@ -17,6 +17,7 @@ angular.module('ai.flash.factory', [])
                           'problem persists ' +
                           'please contact the ' +
                           'administrator.',
+            stack: false,                           // when true stack trace is shown.
             multiple: false,                        // whether to allow multiple flash messages at same time.
             type: 'info',                           // the default type of message to show also the css class name.
             typeError: 'danger',                    // the error type or class name for error messages.
@@ -328,7 +329,7 @@ angular.module('ai.flash.interceptor', [])
                     name = errObj.name || flash.options.errorName;
                     message = errObj.message || flash.options.errorMessage;
                     stack = errObj.stack || '';
-                    if(stack){
+                    if(stack && flash.options.stack){
                         if(angular.isArray(stack))
                             stack = stack.join('<br/>');
                         if(angular.isString(stack) && /\\n/g.test(stack))

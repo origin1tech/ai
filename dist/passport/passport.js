@@ -58,6 +58,7 @@ angular.module('ai.passport.factory', [])
                 return obj;
             }
 
+            // convert string roles to levels.
             function rolesToLevels(source, roles){
                 var arr = [];
                 source = source || [];

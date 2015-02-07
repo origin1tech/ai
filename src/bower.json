@@ -3,8 +3,7 @@
   "version": "0.0.4",
   "main": [
     "./ai.css",
-    "./ai.js",
-    "./register/register.js"
+    "./ai.js"
   ],
   "dependencies": {
   }

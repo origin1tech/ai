@@ -82,8 +82,6 @@ gulp.task('build-sass', ['clean'], function () {
 // build lib
 gulp.task('build-lib', ['clean'], function () {
     return gulp.src([
-            '!./src/register/register.js',
-            '!./src/register/register-amd.js',
             '!./src/common/**/*.js',
             './src/**/*.js'
          ])
@@ -94,13 +92,6 @@ gulp.task('build-lib', ['clean'], function () {
         .pipe(plugins.uglify())
         .pipe(plugins.rename({suffix: '.min'}))
         .pipe(gulp.dest('./dist'));
-});
-
-gulp.task('require-lib', ['clean'], function () {
-    plugins.requirejs({
-        baseUrl: './src/common.js',
-        out: 'ai-require.js'
-    }).pipe(gulp.dest('./require'));
 });
 
 // copy lib
