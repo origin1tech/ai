@@ -1,0 +1,27 @@
+{
+  "name": "ai",
+  "version": "0.0.7",
+  "homepage": "https://github.com/origin1tech/ai",
+  "authors": [
+    "Origin1 Technologies <origin1tech@gmail.com>"
+  ],
+  "description": "Angular directives, modules and providers.",
+  "main": [ "./dist/ai.css", "./dist/ai.js" ],
+  "keywords": [
+    "Angular",
+    "Providers",
+    "Directives",
+    "UI",
+    "User",
+    "Interface",
+    "Interface"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
