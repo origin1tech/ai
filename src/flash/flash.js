@@ -10,6 +10,7 @@ angular.module('ai.flash.factory', [])
             template: 'flash.html',                 // the template for flash message.
             html: true,                             // when true html flash messages can be used.(requires ngSanitize)
             errors: true,                           // when true flash is shown automatically on http status errors.
+            errorKey: 'err',
             excludeErrors: [401, 403, 404],         // exclude errors by status type.
             errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
             errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
@@ -326,6 +327,8 @@ angular.module('ai.flash.interceptor', [])
                     excludeErrors = flash.options.excludeErrors || [];
                 function handleFlashError(errObj){
                     var name, message, stack;
+                    if(flash.options.errorKey)
+                    errObj = errObj[flash.options.errorKey];
                     name = errObj.name || flash.options.errorName;
                     message = errObj.message || flash.options.errorMessage;
                     stack = errObj.stack || '';

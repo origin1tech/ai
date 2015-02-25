@@ -16,33 +16,43 @@ angular.module('ai.passport.factory', [])
 
             401: true,                                          // set to false to not handle 401 status codes.
             403: true,                                          // set to false to not handle 403 status codes.
-            paranoid: false,                                     // when true, fails if access level is missing.
+            paranoid: false,                                    // when true, fails if access level is missing.
             delimiter: ',',                                     // char to use to separate roles when passing string.
 
             // passport paths.
             defaultUrl: '/',                                    // the default path or home page.
-            loginUrl: '/login',                                 // path to login form.
+            loginUrl: '/passport/login',                        // path to login form.
             resetUrl: '/passport/reset',                        // path to password reset form.
-            recoverUrl: '/passport/recover',                    // path to password recovery form.
+            recoverUrl: '/passport/recover',                    // path to password recovery form.            
 
             // passport actions
             loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
-            logoutAction: '/api/passport/logout',               // endpoint/func used to logout/remove session.
+            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
             resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
             recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
+            refreshAction: 'get /api/passport/refresh',         // when the page is loaded the user may still be
+                                                                // logged in this calls the server to ensure the
+                                                                // active session is reloaded.
 
             // success fail actions.
             onLoginSuccess: '/',                                // path or func on success.
-            onLoginFailed: '/login',                            // path or func when login fails.
-            onUnauthenticated: '/login',                        // path or func when unauthenticated.
-            onUnauthorized: '/login'                            // path or func when unauthorized.
+            onLoginFailed: '/passport/login',                   // path or func when login fails.
+            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
+            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
+            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
+            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
+            
+            namePrefix: 'Welcome Back ',                        // prefix string to identity.
+            nameParams: [ 'firstName' ]                         // array of user properties which make up the
+                                                                // user's identity or full name, properties are 
+                                                                // separated by a space.
         };
 
         set = function (options) {
             defaults = angular.extend(defaults, options);
         };
 
-        get = ['$rootScope', '$location', '$http', function ($rootScope, $location, $http) {
+        get = ['$rootScope', '$location', '$http', '$route', function ($rootScope, $location, $http, $route) {
 
             var instance;
 
@@ -81,6 +91,8 @@ angular.module('ai.passport.factory', [])
             function ModuleFactory(options) {
 
                 var $module = {};
+                
+                $module.user = null;
 
                 function setOptions(options) {
 
@@ -103,39 +115,68 @@ angular.module('ai.passport.factory', [])
                     $http[url.method](url.path, data)
                         .then(function (res) {
                             // set to authenticated and merge in passport profile.
-                            angular.extend(self, res.data);
+                            //angular.extend(self, res.data);
+                            $module.user = res.data;
                             if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call(this, res);
+                                $module.options.onLoginSuccess.call($module, res);
                             } else {
                                 $location.path($module.options.onLoginSuccess);
                             }
                         }, function (res) {
                             if(angular.isFunction($module.options.onLoginFailed)) {
-                                $module.options.onLoginFailed.call(this, res);
+                                $module.options.onLoginFailed.call($module, res);
                             } else {
                                 $location.path($module.options.onLoginFailed);
                             }
                         });
                 };
 
-                $module.logout = function logout() {
-                    var self = $module;
+                $module.logout = function logout() {        
+                    function done() {
+                        $module.user = null;
+                        $location.path($module.options.loginUrl);
+                        $route.reload();
+                    }
                     if(angular.isFunction($module.options.logoutAction)){
-                        $module.options.logoutAction.call(this);
+                        $module.options.logoutAction.call($module);
                     } else {
                         var url = urlToObject($module.options.logoutAction);
-                        $http[url.method](url.path)
-                            .then(function () {
-                                // reset passport instance to default.
-                                instance = new ModuleFactory();
-                                $rootScope.Passport = instance;
-                                $location.path($module.options.defaultUrl);
+                        $http[url.method](url.path).then(function (res) {
+                                done();                               
                             });
                     }
                 };
 
                 $module.recover = function recover() {
-
+                    if(angular.isFunction($module.options.recoverAction)){
+                        $module.options.recoverAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.recoverAction);
+                        $http[url.method](url.path).then(function (res){
+                            if(angular.isFunction($module.options.onRecoverSuccess)) {
+                                $module.options.onRecoverSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverSuccess);
+                            }
+                        }, function () {
+                            if(angular.isFunction($module.options.onRecoverFailed)) {
+                                $module.options.onRecoverFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverFailed);
+                            }
+                        });        
+                    }
+                };               
+                
+                $module.refresh = function refresh() {               
+                    if(angular.isFunction($module.options.refreshAction)){
+                        $module.options.refreshAction.call($module);                            
+                    } else {
+                        var url = urlToObject($module.options.refreshAction);
+                        $http[url.method](url.path).then(function (res){
+                            $module.user = res.data;
+                        });
+                    }
                 };
 
                 $module.reset = function reset() {
@@ -192,11 +233,6 @@ angular.module('ai.passport.factory', [])
                     return maxRole < role;
                 };
 
-                // reinit passport
-                $module.init = function init(options) {
-                    setOptions(options);
-                };
-
                 // unauthorized handler.
                 $module.unauthenticated = function unauthenticated() {
                     var action = $module.options.onUnauthenticated;
@@ -219,8 +255,27 @@ angular.module('ai.passport.factory', [])
                     // default to the login url.
                     $location.path(action || $module.options.loginUrl);
                 };
+                
+                // gets the identity name of the authenticated user.
+                $module.getName = function getName(arr) {
+                    var result = '';
+                    arr = arr || $module.options.nameParams;
+                    if(!$module.user)
+                        return;
+                    angular.forEach(arr, function (v, k){
+                        if($module.user[v]){
+                            if(k === 0)
+                                result += $module.user[v];
+                            else
+                                result += (' ' + $module.user[v]);
+                        }      
+                    });    
+                    return $module.options.namePrefix + result;
+                };
 
                 setOptions(options);
+                
+                $module.refresh();
 
                 return $module;
 
@@ -228,7 +283,8 @@ angular.module('ai.passport.factory', [])
 
             function getInstance() {
                 if(!instance)
-                    return new ModuleFactory();
+                    instance = new ModuleFactory();
+                $rootScope.Passport = instance;
                 return instance;
             }
 

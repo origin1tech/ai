@@ -287,7 +287,7 @@ angular.module('ai.widget', [])
 
                 var valid;
 
-                if(!ngModelCompare.$viewValue || !ngModel.$viewValue && options.requireValue){
+                if(!ngModelCompare.$viewValue || (!ngModel.$viewValue && options.requireValue)){
 
                     valid = false;
 
@@ -387,6 +387,7 @@ angular.module('ai.widget', [])
 
         }
     };
+        
 }])
 
 .directive('aiPlaceholder', [ '$widget', function($widget) {
