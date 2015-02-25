@@ -1516,7 +1516,6 @@ angular.module('ai.table', ['ngSanitize'])
 
                             isReady = true;
 
-
                             // check for user bind event
                             onBind();
 
