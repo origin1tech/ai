@@ -126,6 +126,7 @@ angular.module('ai.table', ['ngSanitize'])
                                                         // this is useful when needing to pass additional params or modify the config before
                                                         // requesting from the server.
             onReset: undefined,                         // callback after table has been reset.
+            onReady: undefined,                         // callback after table as completely rendered.
 
             beforeFilter: undefined,                    // allows for custom filtering. passes filtered query and source collection.
                                                         // you may return a string, object or filtered array.
@@ -331,10 +332,11 @@ angular.module('ai.table', ['ngSanitize'])
             function ModuleFactory(element, options) {
 
                 var $module, scope, table, loadedTemplates, 
-                    loader, loading, isReady;
+                    loader, loading, isReady, nodata, initialized;
                 
                 $module = {};
                 isReady = false;
+                initialized = false;
 
                 // allow passing element in options.
                 if(isPlainObject(element)){
@@ -342,8 +344,10 @@ angular.module('ai.table', ['ngSanitize'])
                     element = options.element;
                 }
 
-                scope = options.scope || $rootScope.$new();
-                options = scope.options = angular.extend(defaults, options);
+                scope = (options.scope && options.scope.$new()) || $rootScope.$new();
+                //scope = options.scope || $rootScope.$new();
+                //options = scope.options = angular.extend(defaults, options);
+                options = angular.extend({}, defaults, options);
 
                 // TEMPLATING
                 function loadTemplate(t) {
@@ -481,7 +485,7 @@ angular.module('ai.table', ['ngSanitize'])
                         config.url = options.source;
 
                         // pass config for any additional prams etc 
-                        if(options.onLoad && angular.isFunction(options.onLoad)){
+                        if(angular.isFunction(options.onLoad)){
 
                             var usrConfig = options.onLoad(config) || config,
                                 whereKey, sortKey, limitKey;
@@ -708,7 +712,7 @@ angular.module('ai.table', ['ngSanitize'])
 
 
                         // check if user filter is used 
-                        if(options.beforeFilter && angular.isFunction(options.beforeFilter)){
+                        if(angular.isFunction(options.beforeFilter)){
 
                             $q.when(options.beforeFilter(scope.source.rows, q))
                                 .then(function (resp) {
@@ -743,6 +747,8 @@ angular.module('ai.table', ['ngSanitize'])
 
                 // clears filter 
                 function reset() {
+                    
+                    
 
                     if(scope.editing) return;
 
@@ -750,7 +756,7 @@ angular.module('ai.table', ['ngSanitize'])
                     scope.page = 1;
                     selectAllRows(false);
 
-                    if(options.onReset && angular.isFunction(options.onReset)) {
+                    if(angular.isFunction(options.onReset)) {
                         options.onReset();
                     }
 
@@ -999,7 +1005,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                     }
 
-                    if(options.onSelected && angular.isFunction(options.onSelected)){
+                    if(angular.isFunction(options.onSelected)){
                         var selectedResult = scope.selected;
                         if(!options.multiple)
                             selectedResult = scope.selected[0];
@@ -1037,7 +1043,7 @@ angular.module('ai.table', ['ngSanitize'])
                     if(row) {
 
                         //if before delete wrap in promise you can return promise, true or call done
-                        if(options.beforeDelete && angular.isFunction(options.beforeDelete)){
+                        if(angular.isFunction(options.beforeDelete)){
 
                             $q.when(options.beforeDelete(row, done)).then(function (resp) {
                                 if(resp) done(true);
@@ -1140,7 +1146,7 @@ angular.module('ai.table', ['ngSanitize'])
                                 scope.editing = row;
                             } else {
 
-                                if(options.beforeUpdate && angular.isFunction(options.beforeUpdate)){
+                                if(angular.isFunction(options.beforeUpdate)){
                                     $q.when(options.beforeUpdate(row.edits)).then(function (resp) {
                                         if(resp) done(resp);
                                         else editRowCancel(); // cancel if failed update.
@@ -1170,23 +1176,15 @@ angular.module('ai.table', ['ngSanitize'])
                     scope.editing = undefined;
                 }
 
-                // fires when table binds.
-                function onBind() {
-                    if(options.onBind && angular.isFunction(options.onBind)){
-                        options.onBind(self);
-                    }
-
-                }
-
                 function ready(fn) {
 
                     var wait;
 
                     function done() {
-                        if(fn && angular.isFunction(fn)){
+                        if(angular.isFunction(fn)){
                             if(isReady) {
                                 clearInterval(wait);
-                                fn.call(self);
+                                fn.call($module, scope);
                             }
                         }
                     }
@@ -1202,7 +1200,7 @@ angular.module('ai.table', ['ngSanitize'])
                         link,
                         encoded;
 
-                    if(options.beforeDownload && angular.isFunction(options.beforeDownload)){
+                    if(angular.isFunction(options.beforeDownload)){
                         $q.when(options.beforeDownload(scope.filtered, 'download.csv' ))
                             .then(function (resp) {
                                 if(resp && angular.isObject(resp)) {
@@ -1288,7 +1286,6 @@ angular.module('ai.table', ['ngSanitize'])
                     // define actions template, searchability etc 
                     scope.actions = options.actions;
                     scope.searchable = options.searchable;
-                    scope.options = options.options;
                     scope.filter = filter;
                     scope.reset = reset;
                     scope.q = undefined;
@@ -1320,7 +1317,7 @@ angular.module('ai.table', ['ngSanitize'])
                     scope.eventMap = filterEvents(options, /^on.+$/i, true);
 
                     scope.bind = bind;
-
+                    scope.init = init;
                 }
 
                 // BIND METHODS
@@ -1363,7 +1360,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                     $module.ready = ready;
                     $module.bind = bind;
-
+                    $module.init = init;
                 }
 
                 // INITIALIZATION METHODS
@@ -1432,6 +1429,9 @@ angular.module('ai.table', ['ngSanitize'])
 
                     // make sure we have a valid element 
                     if(!element) return;
+                    
+                    // empty the element.
+                    element.empty();
 
                     // initialize array w/ primary templates 
                     promises = [
@@ -1476,7 +1476,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                         bind(function() {
 
-                            var nodata = !scope.filtered || !scope.filtered.length || (!options.auto && !Object.keys(options.columns).length);
+                            nodata = !scope.filtered || !scope.filtered.length || (!options.auto && !Object.keys(options.columns).length);
 
                             // disable pager and action rows if no data present 
                             if(nodata){
@@ -1516,9 +1516,13 @@ angular.module('ai.table', ['ngSanitize'])
 
                             isReady = true;
 
-
                             // check for user bind event
-                            onBind();
+                            if(!initialized)
+                                ready(options.onBind);
+                            
+                            // prevents calling ready
+                            // after already initialized.
+                            initialized = true;
 
                         });
 
@@ -1550,7 +1554,7 @@ angular.module('ai.table', ['ngSanitize'])
     .directive('aiTable', ['$table', function aiTable ($table) {
 
         return {
-            restrict: 'EAC',
+            restrict: 'EAC',     
             link: function link(scope, element, attrs) {
 
                 var defaults, options, $module;
@@ -1565,7 +1569,7 @@ angular.module('ai.table', ['ngSanitize'])
                     $module = $table(element, options);
 
                     $module.ready(function() {
-                        scope.options.instance = options.instance = this;
+                        scope.instance = this;
                     });
 
                 }
@@ -1582,7 +1586,7 @@ angular.module('ai.table', ['ngSanitize'])
                     element.remove();
                     $module = null;
                     options = null;
-                });
+                });         
 
                 options = scope.$eval(attrs.aiTable || attrs.options);
                 options = angular.extend(defaults, options);
@@ -1838,7 +1842,7 @@ angular.module('ai.table', ['ngSanitize'])
                     // if resolve value is required use promise then compile column
                     // scope.resolvedValue will te set to the returned value
 
-                    if(column.resolve && angular.isFunction(column.resolve)) {
+                    if(angular.isFunction(column.resolve)) {
                         $q.when(column.resolve(row, column)).then(function (resp) {
                             if(resp)
                                 scope.resolvedValue = resp;

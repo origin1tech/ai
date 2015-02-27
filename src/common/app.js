@@ -125,27 +125,42 @@ define(function (require) {
             }
 
             if (area === 'table') {
+                var tblSrc = [
+                    {name: 'Jim Thomas', email: 'jthomas@gmail.com'},
+                    {name: 'Bob Blair', email: 'bblair@aol.com'},
+                    {name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
+                    {name: 'Bob Smith', email: 'bobsmith@msn.com'},
+                    {name: 'Susan Jones', email: 'susan.jones@hotmail.com'},
+                    {name: 'Larry Anderson', email: 'anderson.larry@mail.com'},
+                    {name: 'Harry Ellis', email: 'ellis@gmail.com'},
+                    {name: 'Rory Boscoe', email: 'rory@aol.com'},
+                    {name: 'Simon Green', email: 'sgreen@yahoo.com'},
+                    {name: 'Quentin Rose', email: 'qrose@msn.com'},
+                    {name: 'Micah Barry', email: 'barry4u@hotmail.com'},
+                    {name: 'Alex Angle', email: 'alex.angle@mail.com'}
+                ];
+                
                 $scope.tbl = {
-                    source: [
-                        {name: 'Jim Thomas', email: 'jthomas@gmail.com'},
-                        {name: 'Bob Blair', email: 'bblair@aol.com'},
-                        {name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
-                        {name: 'Bob Smith', email: 'bobsmith@msn.com'},
-                        {name: 'Susan Jones', email: 'susan.jones@hotmail.com'},
-                        {name: 'Larry Anderson', email: 'anderson.larry@mail.com'},
-                        {name: 'Harry Ellis', email: 'ellis@gmail.com'},
-                        {name: 'Rory Boscoe', email: 'rory@aol.com'},
-                        {name: 'Simon Green', email: 'sgreen@yahoo.com'},
-                        {name: 'Quentin Rose', email: 'qrose@msn.com'},
-                        {name: 'Micah Barry', email: 'barry4u@hotmail.com'},
-                        {name: 'Alex Angle', email: 'alex.angle@mail.com'}
-                    ],
+                    source: angular.copy(tblSrc),
                     orderBy: ['-name'],
                     selectable: true,
                     exportable: true,
                     display: 10,
                     hover: true,
                     goto: false
+                };
+                
+                $scope.tblAdv = {
+                    orderBy: ['-name'],
+                    selectable: true,
+                    exportable: true,
+                    display: 10,
+                    hover: true,
+                    goto: false,
+                    onBind: function (scope) {
+                        scope.options.source = tblSrc;
+                        scope.init();
+                    }
                 };
             }
 

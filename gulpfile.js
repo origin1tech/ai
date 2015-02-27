@@ -114,15 +114,7 @@ gulp.task('jshint', ['clean'],  function() {
 });
 
 // serve examples.
-gulp.task('serve', ['build'], function() {
-
-    gulp.watch([
-         './dist/**/*.*'
-    ], {
-        debounceDelay: 400
-    }, function() {
-        reload();
-    });
+gulp.task('serve', ['build'], function() {  
 
     var conf = {
         root: './dist',
@@ -130,7 +122,17 @@ gulp.task('serve', ['build'], function() {
         fallback: 'dist/index.html'
     };
     setTimeout(function () {
+        
         plugins.connect.server(conf);
+
+        gulp.watch([
+            './dist/**/*.*'
+        ], {
+            debounceDelay: 400
+        }, function() {
+            reload();
+        });
+        
     },200);
 
 });

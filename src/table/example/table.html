@@ -8,6 +8,10 @@
 <hr/>
 <div ai-table="tbl"></div>
 
+<h4>Loading Rows Manually <small> (see onReady)</small></h4>
+<hr/>
+<div ai-table="tblAdv"></div>
+
 <div class="tabpanel">
 
     <ul class="nav nav-tabs">
@@ -48,6 +52,29 @@ tbl = {
     },
     beforeFilter: function (source, q){
        // do something before filter must return filtered results.
+    }
+}
+    
+tblAdv = {
+    orderBy: [ '-name' ],
+    selectable: true,
+    exportable: true,
+    hover: true,
+    goto: false,
+    onReady: function (scope){
+    
+        // this is entire $module context.
+    
+        scope.options.source = [ // get your source from ajax call or other. ];
+        scope.init(); // reinitialize the table.
+    
+        // NOTE: if you have already loaded data/templates (your options.source had valid object),
+        //       then you need only call scope.bind() to rebind the data.
+        //       this is because the templates have already loaded.
+        //       you can also call scope.bind(your_callback_if_desired, true) with a callback
+        //       and optionally pass "true" as a second argument. this will append the 
+        //       additional items to the existing source.rows. this is used internally
+        //       when batch loading large datasets from the server.
     }
 }
 </pre>
@@ -134,6 +161,7 @@ defaults = {
                                                 // this is useful when needing to pass additional params or modify the config before
                                                 // requesting from the server.
     onReset: undefined,                         // callback after table has been reset.
+    onReady: undefined,                         // the table has loaded all templates and data.
 
     beforeFilter: undefined,                    // allows for custom filtering. passes filtered query and source collection.
                                                 // you may return a string, object or filtered array.
