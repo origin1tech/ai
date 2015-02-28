@@ -340,7 +340,6 @@ angular.module('ai.flash.interceptor', [])
                     excludeErrors = flash.options.excludeErrors || [];
                 
                 function handleFlashError(errObj){
-                    console.log(errObj);
                     var name, message, stack;
                     if(flash.options.errorKey && errObj[flash.options.errorKey])
                         errObj = errObj[flash.options.errorKey];
