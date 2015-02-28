@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.0.7* Author: Origin1 Technologies <origin1tech@gmail.com>
+* Version: 0.0.8* Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
 */
@@ -349,6 +349,422 @@ angular.module('ai.autoform', [])
     };
 
 }]);
+
+
+angular.module('ai.flash.factory', [])
+
+    .provider('$flash', function $flash() {
+
+        var defaults, get, set;
+
+        // default settings.
+        defaults = {
+            template: 'flash.html',                 // the template for flash message.
+            html: true,                             // when true html flash messages can be used.(requires ngSanitize)
+            errors: true,                           // when true flash is shown automatically on http status errors.
+            errorKey: 'err',
+            validationKey: undefined,               // this is the property contained in the error used for displaying
+                                                    // validation error messages. for example mongoose uses 'errors'.
+                                                    // if undefined validation errors are undefined.
+            excludeErrors: [401, 403, 404],         // exclude errors by status type.           
+            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
+            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
+                          'has occurred, if the ' +
+                          'problem persists ' +
+                          'please contact the ' +
+                          'administrator.',
+            title: true,                            // when true flash error messages use the error name as the title
+                                                    // in the flash message.
+            stack: false,                           // when true stack trace is shown.
+            multiple: false,                        // whether to allow multiple flash messages at same time.
+            type: 'info',                           // the default type of message to show also the css class name.
+            typeError: 'danger',                    // the error type or class name for error messages.
+            animation: false,                       // provide class name for animation.
+            timeout: 3500,                          // timeout to auto remove flashes after period of time..
+                                                    // instead of by timeout.
+            intercept: true,                        // when false flash error interception is disabled.
+            onError: undefined,                     // callback on error before flashed, return false to ignore.
+            suppress: false                         // when true flash error messages are suppressed for one request
+                                                    // only then re-enabled.
+        };
+
+        // set global provider options.
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        // get provider
+        get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
+            function ($rootScope, $q, $templateCache, $http, $timeout, $compile) {
+
+            var flashTemplate, $module;
+ 
+            flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
+                            'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
+                                '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
+                                '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
+                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
+                            '</div>';
+
+            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, flashTemplate);
+
+            function isHtml(str) {
+                return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
+            }
+
+            function isPath(str) {
+                if(!str || !angular.isString(str)) return false;
+                var ext = str.split('.').pop();
+                return ext === 'html' || ext === 'tpl';
+            }
+
+            function findElement(q, element) {
+                return angular.element((element || document).querySelectorAll(q));
+            }
+
+            function loadTemplate(t) {
+                // handle html an strings.
+                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
+                    var defer = $q.defer();
+                    defer.resolve(t);
+                    return defer.promise;
+                } else {
+                    // handle paths.
+                    return $q.when($templateCache.get(t) || $http.get(t))
+                        .then(function (res) {
+                            if (res.data) {
+                                $templateCache.put(t, res.data);
+                                return res.data;
+                            }
+                            return res;
+                        });
+                }
+            }
+            
+            function overflow(body) {
+                var x, y;
+                x = body[0].style.overflow || undefined;
+                y = body[0].style.overflowY || undefined;
+                return {x:x,y:y};
+            }
+
+            function tryParseTimeout(to) {
+                if(undefined === to)
+                    return to;
+                try{
+                   return JSON.parse(to);
+                } catch(ex){
+                    return to;
+                }
+            }
+
+            // The flash factory
+            function ModuleFactory() {
+
+                var flashes = [],          
+                    scope,
+                    body,
+                    overflows,
+                    element,
+                    options;
+                
+                $module = {};
+                options = {};
+
+                // uses timeout to auto remove flash message.
+                function autoRemove(flash) {
+                    clearTimeout(flash.timeoutId);
+                    flash.timeoutId = $timeout(function () {
+                        if(flash.focus) {
+                            clearTimeout(flash.timeoutId);
+                            autoRemove(flash);
+                        } else {
+                            clearTimeout(flash.timeoutId);
+                            remove(flash);
+                        }
+
+                    }, flash.timeout);
+                }
+                
+                // add a new flash message.
+                function add(message, type, title, timeout) {
+                    var flashDefaults = {
+                            title: undefined,
+                            type: options.type,
+                            focus: false,
+                            show: false,
+                            timeout: false
+                        }, flash, tmpTitle;
+                    title = tryParseTimeout(title);
+                    timeout = tryParseTimeout(timeout);
+                    // if title is number assume timeout
+                    if(angular.isNumber(title) || 'boolean' === typeof title){
+                        timeout = title;
+                        title = undefined;
+                    }
+                    if(!options.multiple)
+                        flashes = [];
+                    // if message is not object create Flash.
+                    if(!angular.isObject(message)){
+                        flash = {
+                            message: message,
+                            type: type,
+                            title: title,
+                            timeout: timeout
+                        };
+                    }
+                    // extend object with defaults.
+                    flash = angular.extend({}, angular.copy(flashDefaults), flash);
+                    // set the default timeout if true was passed.
+                    if(flash.timeout === true)
+                        flash.timeout = options.timeout;
+                    if(flash.message) {
+                        flashes.push(flash);
+                        $module.flashes = scope.flashes = flashes;
+                        body.css({ overflow: 'hidden'});
+                        element.addClass('show');
+                        if(flash.timeout)
+                            autoRemove(flash);
+
+                    }
+                }
+                
+                // remove a specific flash message.
+                function remove(flash) {
+                    if(flash && flashes.length) {
+                        flashes.splice(flashes.indexOf(flash), 1);
+                        if(!flashes.length){
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                            if(element)
+                                element.removeClass('show');
+                        }
+                    }
+                    
+                }
+                
+                // remove all flash messages in collection.
+                function removeAll() {
+                    if(flashes.length) {
+                        angular.forEach(flashes, function (flash) {
+                            if(flash.shown === true)
+                                remove(flash);
+                            else
+                                flash.shown = true;
+                        });
+                    }
+                }
+
+                // on flash enter set its focus to true
+                // so it is not removed while being read.
+                function enter(flash) {
+                    flash.focus = true;
+                }
+
+                // on leave set the focus to false
+                // can now be removed.
+                function leave(flash) {
+                    flash.focus = false;
+                }
+
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    $module.options = options = angular.extend(options, obj);
+                }
+                
+                // get overflows and body.
+                body = findElement('body');
+                overflows = overflow(body);
+                
+                function init(_element, _options) {
+                    
+                    element = _element;               
+
+                    // extend options      
+                    $module.scope = scope = _options.scope || $rootScope.$new();
+                    options = angular.extend(defaults, options, _options);
+                    options.onError = options.onError || function () { return true; };
+                    $module.options = scope.options = options;
+
+                        scope.add = add;
+                    scope.remove = remove;
+                    scope.removeAll = removeAll;
+                    scope.flashes = flashes;
+                    scope.leave = leave;
+                    scope.enter = enter;
+                    scope.set = setOptions;
+
+                    $module.add = add;
+                    $module.remove = remove;
+                    $module.removeAll = removeAll;
+
+                    // load the template.
+                    loadTemplate(options.template).then(function (res) {
+                        if(res) {
+                            element.html(res);
+                            $compile(element.contents())(scope);
+                            element.addClass('ai-flash');
+                        }
+                    });
+
+                    // when route changes be sure
+                    // to remove all flashes.
+                    $rootScope.$on('$locationChangeStart', function () {
+                        if(element)
+                            element.removeClass('show');
+                        if(body)
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                        scope.flashes = $module.flashes = flashes = [];
+                    });
+                    
+                    scope.$watch($module.options, function (newValue, oldValue){
+                        if(newValue === oldValue) return;
+                            scope.options = newValue;
+                    });
+                    
+                }
+
+                $module.set = setOptions;
+                $module.init = init;
+                
+                return $module;
+            }
+
+            // $flash requires singleton
+            function getInstance() {
+                if(!$module)
+                    $module = ModuleFactory();
+                return $module;
+            }
+
+            // return $module instance.
+            return getInstance();
+
+        }];
+
+        // return getter/setter.
+        return {
+            $set: set,
+            $get: get
+        };
+
+    })
+
+    .directive('aiFlash', [ '$flash', function ($flash) {
+
+        return {
+            restrict: 'EAC',
+            scope: true,
+            link: function (scope, element, attrs) {
+
+                var $module, defaults, options;
+
+                defaults = {
+                    scope: scope
+                };
+
+                // initialize the directive.
+                function init () {
+                    $module = $flash.init(element, options);
+                }
+
+                options = scope.$eval(attrs.options) || scope.$eval(attrs.aiFlash);
+                options = angular.extend(defaults, options);
+
+                init();
+
+            }
+        };
+    }]);
+
+
+angular.module('ai.flash.interceptor', [])
+    .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+                
+                // get passport here to prevent circular dependency.
+                var flash = $injector.get('$flash'),
+                    excludeErrors = flash.options.excludeErrors || [];
+                
+                // if interception is disabled
+                // don't handle/show message.
+                if(!flash.options.intercept || flash.options.suppress){
+                    flash.options.suppress = false;
+                    return res;
+                }                    
+                
+                function handleFlashError(errObj){
+                    var name, message, stack;
+                    if(flash.options.errorKey && errObj[flash.options.errorKey])
+                        errObj = errObj[flash.options.errorKey];
+                    name = errObj.displayName || errObj.name || flash.options.errorName;
+                    message = errObj.message || flash.options.errorMessage;
+                    stack = errObj.stack || '';
+                    // handle stack trace.
+                    if(stack && flash.options.stack){
+                        if(angular.isArray(stack))
+                            stack = stack.join('<br/>');
+                        if(angular.isString(stack) && /\\n/g.test(stack))
+                            stack = stack.split('\n').join('<br/>');
+                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
+                    }
+                    message = '<strong>Message:</strong> ' + message;
+                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
+                    // finally display the flash message.
+                    if(flash.options.title)
+                        flash.add(message, flash.options.typeError, name);
+                    else
+                        flash.add(message, flash.options.typeError);
+                    return $q.reject(res);
+                }
+                
+                if(res.status && excludeErrors.indexOf(res.status) === -1){
+                    // handle error using flash.
+                    if(!res.data){                        
+                        if(flash.options.title)
+                            flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
+                        else
+                            flash.add(res.statusText, flash.options.typeError || 'flash-danger');
+                        return $q.reject(res);
+                    } else {
+                        var err = res.data;                     
+                        $q.when(flash.options.onError(res, flash)).then(function (result) {
+                            if(result){                                
+                                if(result === true)
+                                    result = err;                             
+                                handleFlashError(result);                                
+                            }                                
+                        });                        
+                    }
+                }
+            },
+            response: function (res) {
+                var flash = $injector.get('$flash');
+                // ensure we turn disable once off.
+                flash.suppress = false;
+                return res;
+            }
+        };
+        
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$flashInterceptor');
+    }]);
+
+// imports above modules.
+angular.module('ai.flash', [
+    'ai.flash.factory',
+    'ai.flash.interceptor'
+]);
 
 angular.module('ai.dropdown', [])
 
@@ -1047,410 +1463,6 @@ angular.module('ai.dropdown', [])
     };
 
 }]);
-
-
-angular.module('ai.flash.factory', [])
-
-    .provider('$flash', function $flash() {
-
-        var defaults, get, set;
-
-        // default settings.
-        defaults = {
-            template: 'flash.html',                 // the template for flash message.
-            html: true,                             // when true html flash messages can be used.(requires ngSanitize)
-            errors: true,                           // when true flash is shown automatically on http status errors.
-            errorKey: 'err',
-            validationKey: undefined,               // this is the property contained in the error used for displaying
-                                                    // validation error messages. for example mongoose uses 'errors'.
-                                                    // if undefined validation errors are undefined.
-            excludeErrors: [401, 403, 404],         // exclude errors by status type.           
-            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
-            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
-                          'has occurred, if the ' +
-                          'problem persists ' +
-                          'please contact the ' +
-                          'administrator.',
-            title: true,                            // when true flash error messages use the error name as the title
-                                                    // in the flash message.
-            stack: false,                           // when true stack trace is shown.
-            multiple: false,                        // whether to allow multiple flash messages at same time.
-            type: 'info',                           // the default type of message to show also the css class name.
-            typeError: 'danger',                    // the error type or class name for error messages.
-            animation: false,                       // provide class name for animation.
-            timeout: 3500,                          // timeout to auto remove flashes after period of time..
-                                                    // instead of by timeout.
-            onError: undefined                      // callback on error before flashed, return false to ignore.
-
-        };
-
-        // set global provider options.
-        set = function (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        // get provider
-        get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
-            function ($rootScope, $q, $templateCache, $http, $timeout, $compile) {
-
-            var flashTemplate, $module;
- 
-            flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
-                            'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
-                                '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
-                                '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
-                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
-                            '</div>';
-
-            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, flashTemplate);
-
-            function isHtml(str) {
-                return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
-            }
-
-            function isPath(str) {
-                if(!str || !angular.isString(str)) return false;
-                var ext = str.split('.').pop();
-                return ext === 'html' || ext === 'tpl';
-            }
-
-            function findElement(q, element) {
-                return angular.element((element || document).querySelectorAll(q));
-            }
-
-            function loadTemplate(t) {
-                // handle html an strings.
-                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
-                    var defer = $q.defer();
-                    defer.resolve(t);
-                    return defer.promise;
-                } else {
-                    // handle paths.
-                    return $q.when($templateCache.get(t) || $http.get(t))
-                        .then(function (res) {
-                            if (res.data) {
-                                $templateCache.put(t, res.data);
-                                return res.data;
-                            }
-                            return res;
-                        });
-                }
-            }
-            
-            function overflow(body) {
-                var x, y;
-                x = body[0].style.overflow || undefined;
-                y = body[0].style.overflowY || undefined;
-                return {x:x,y:y};
-            }
-
-            function tryParseTimeout(to) {
-                if(undefined === to)
-                    return to;
-                try{
-                   return JSON.parse(to);
-                } catch(ex){
-                    return to;
-                }
-            }
-
-            // The flash factory
-            function ModuleFactory() {
-
-                var flashes = [],          
-                    scope,
-                    body,
-                    overflows,
-                    element,
-                    options;
-                
-                $module = {};
-                options = {};
-
-                // uses timeout to auto remove flash message.
-                function autoRemove(flash) {
-                    clearTimeout(flash.timeoutId);
-                    flash.timeoutId = $timeout(function () {
-                        if(flash.focus) {
-                            clearTimeout(flash.timeoutId);
-                            autoRemove(flash);
-                        } else {
-                            clearTimeout(flash.timeoutId);
-                            remove(flash);
-                        }
-
-                    }, flash.timeout);
-                }
-                
-                // add a new flash message.
-                function add(message, type, title, timeout) {
-                    var flashDefaults = {
-                            title: undefined,
-                            type: options.type,
-                            focus: false,
-                            show: false,
-                            timeout: false
-                        }, flash, tmpTitle;
-                    title = tryParseTimeout(title);
-                    timeout = tryParseTimeout(timeout);
-                    // if title is number assume timeout
-                    if(angular.isNumber(title) || 'boolean' === typeof title){
-                        timeout = title;
-                        title = undefined;
-                    }
-                    if(!options.multiple)
-                        flashes = [];
-                    // if message is not object create Flash.
-                    if(!angular.isObject(message)){
-                        flash = {
-                            message: message,
-                            type: type,
-                            title: title,
-                            timeout: timeout
-                        };
-                    }
-                    // extend object with defaults.
-                    flash = angular.extend({}, angular.copy(flashDefaults), flash);
-                    // set the default timeout if true was passed.
-                    if(flash.timeout === true)
-                        flash.timeout = options.timeout;
-                    if(flash.message) {
-                        flashes.push(flash);
-                        $module.flashes = scope.flashes = flashes;
-                        body.css({ overflow: 'hidden'});
-                        element.addClass('show');
-                        if(flash.timeout)
-                            autoRemove(flash);
-
-                    }
-                }
-                
-                // remove a specific flash message.
-                function remove(flash) {
-                    if(flash && flashes.length) {
-                        flashes.splice(flashes.indexOf(flash), 1);
-                        if(!flashes.length){
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                            if(element)
-                                element.removeClass('show');
-                        }
-                    }
-                    
-                }
-                
-                // remove all flash messages in collection.
-                function removeAll() {
-                    if(flashes.length) {
-                        angular.forEach(flashes, function (flash) {
-                            if(flash.shown === true)
-                                remove(flash);
-                            else
-                                flash.shown = true;
-                        });
-                    }
-                }
-
-                // on flash enter set its focus to true
-                // so it is not removed while being read.
-                function enter(flash) {
-                    flash.focus = true;
-                }
-
-                // on leave set the focus to false
-                // can now be removed.
-                function leave(flash) {
-                    flash.focus = false;
-                }
-
-                function setOptions(key, value) {
-                    var obj = key;
-                    if(arguments.length > 1){
-                        obj = {};
-                        obj[key] = value;
-                    }
-                    $module.options = options = angular.extend(options, obj);
-                }
-                
-                // get overflows and body.
-                body = findElement('body');
-                overflows = overflow(body);
-                
-                function init(_element, _options) {
-                    
-                    element = _element;               
-
-                    // extend options      
-                    $module.scope = scope = _options.scope || $rootScope.$new();
-                    $module.options = scope.options = options = angular.extend(defaults, options, _options);
-
-                    scope.add = add;
-                    scope.remove = remove;
-                    scope.removeAll = removeAll;
-                    scope.flashes = flashes;
-                    scope.leave = leave;
-                    scope.enter = enter;
-                    scope.set = setOptions;
-
-                    $module.add = add;
-                    $module.remove = remove;
-                    $module.removeAll = removeAll;
-
-                    // load the template.
-                    loadTemplate(options.template).then(function (res) {
-                        if(res) {
-                            element.html(res);
-                            $compile(element.contents())(scope);
-                            element.addClass('ai-flash');
-                        }
-                    });
-
-                    // when route changes be sure
-                    // to remove all flashes.
-                    $rootScope.$on('$locationChangeStart', function () {
-                        if(element)
-                            element.removeClass('show');
-                        if(body)
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                        scope.flashes = $module.flashes = flashes = [];
-                    });
-                    
-                    scope.$watch($module.options, function (newValue, oldValue){
-                        if(newValue === oldValue) return;
-                            scope.options = newValue;
-                    });
-                    
-                }
-
-                $module.set = setOptions;
-                $module.init = init;
-                
-                return $module;
-            }
-
-            // $flash requires singleton
-            function getInstance() {
-                if(!$module)
-                    $module = ModuleFactory();
-                return $module;
-            }
-
-            // return $module instance.
-            return getInstance();
-
-        }];
-
-        // return getter/setter.
-        return {
-            $set: set,
-            $get: get
-        };
-
-    })
-
-    .directive('aiFlash', [ '$flash', function ($flash) {
-
-        return {
-            restrict: 'EAC',
-            scope: true,
-            link: function (scope, element, attrs) {
-
-                var $module, defaults, options;
-
-                defaults = {
-                    scope: scope
-                };
-
-                // initialize the directive.
-                function init () {
-                    $module = $flash.init(element, options);
-                }
-
-                options = scope.$eval(attrs.options) || scope.$eval(attrs.aiFlash);
-                options = angular.extend(defaults, options);
-
-                init();
-
-            }
-        };
-    }]);
-
-
-angular.module('ai.flash.interceptor', [])
-    .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                
-                // get passport here to prevent circular dependency.
-                var flash = $injector.get('$flash'),
-                    excludeErrors = flash.options.excludeErrors || [];
-                
-                function handleFlashError(errObj){
-                    console.log(errObj);
-                    var name, message, stack;
-                    if(flash.options.errorKey && errObj[flash.options.errorKey])
-                        errObj = errObj[flash.options.errorKey];
-                    name = errObj.displayName || errObj.name || flash.options.errorName;
-                    message = errObj.message || flash.options.errorMessage;
-                    stack = errObj.stack || '';
-                    // handle stack trace.
-                    if(stack && flash.options.stack){
-                        if(angular.isArray(stack))
-                            stack = stack.join('<br/>');
-                        if(angular.isString(stack) && /\\n/g.test(stack))
-                            stack = stack.split('\n').join('<br/>');
-                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
-                    }
-                    message = '<strong>Message:</strong> ' + message;
-                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
-                    // finally display the flash message.
-                    if(flash.options.title)
-                        flash.add(message, flash.options.typeError, name);
-                    else
-                        flash.add(message, flash.options.typeError);
-                    return $q.reject(res);
-                }
-                if(res.status && excludeErrors.indexOf(res.status) === -1){
-                    // handle error using flash.
-                    if(!res.data){                        
-                        if(flash.options.title)
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
-                        else
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger');
-                        return $q.reject(res);
-                    } else {
-                        var err = res.data;
-                        if(flash.options.onError){
-                            $q.when(flash.options.onError(res, flash)).then(function (result) {                                
-                                if(result){
-                                    if(angular.isObject(result)){
-                                        handleFlashError(result);                                        
-                                    } else {
-                                        handleFlashError(err);
-                                    }
-                                }    
-                            });
-                        } else {
-                            handleFlashError(err);
-                        }
-                    }
-                }
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$flashInterceptor');
-    }]);
-
-// imports above modules.
-angular.module('ai.flash', [
-    'ai.flash.factory',
-    'ai.flash.interceptor'
-]);
 
 angular.module('ai.modal', [])
 
@@ -2535,6 +2547,416 @@ angular.module('ai.passport', [
     'ai.passport.interceptor',
     'ai.passport.route'
 ]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         * @param {object} options - the options to be merged with defaults.
+         */
+        set = function (options) {
+            defaults = angular.extend(defaults, options);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
+
+angular.module('ai.tab', [])
+.provider('$tab', function $tab() {
+
+    var defaults = {
+
+        }, get, set;
+
+    set = function set(key, value) {
+        if(arguments.length === 2)
+           defaults[key] = value;
+        if(arguments.length === 1 && angular.isObject(key))
+            defaults = angular.extend(defaults, key);
+    };
+
+    get = [function () {
+
+        function ModuleFactory(element, options){
+
+            var $module = {},
+                scope;
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+
+
+
+            return $module;
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+.directive('aiTab', ['$tab', function ($tab) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $tab(element, options);
+            }
+
+            options = scope.$eval(attrs.aiTab || attrs.options);
+            options = angular.extend(defaults, options);
+
+            init();
+
+        }
+    };
+
+}]);
 angular.module('ai.step', [])
 
 .provider('$step', function $step() {
@@ -3060,416 +3482,6 @@ angular.module('ai.step', [])
             }
 
             options = scope.$eval(attrs.aiStep || attrs.options);
-            options = angular.extend(defaults, options);
-
-            init();
-
-        }
-    };
-
-}]);
-angular.module('ai.storage', [])
-
-    .provider('$storage', function $storage() {
-
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
-        }, get, set;
-
-
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
-        }
-
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
-            }
-            return def;
-        }
-
-        /**
-         * Sets provider defaults.
-         * @param {object} options - the options to be merged with defaults.
-         */
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
-
-angular.module('ai.tab', [])
-.provider('$tab', function $tab() {
-
-    var defaults = {
-
-        }, get, set;
-
-    set = function set(key, value) {
-        if(arguments.length === 2)
-           defaults[key] = value;
-        if(arguments.length === 1 && angular.isObject(key))
-            defaults = angular.extend(defaults, key);
-    };
-
-    get = [function () {
-
-        function ModuleFactory(element, options){
-
-            var $module = {},
-                scope;
-
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
-
-
-
-            return $module;
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-.directive('aiTab', ['$tab', function ($tab) {
-
-    return {
-        restrict: 'AC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $tab(element, options);
-            }
-
-            options = scope.$eval(attrs.aiTab || attrs.options);
             options = angular.extend(defaults, options);
 
             init();

@@ -30,8 +30,10 @@ angular.module('ai.flash.factory', [])
             animation: false,                       // provide class name for animation.
             timeout: 3500,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
-            onError: undefined                      // callback on error before flashed, return false to ignore.
-
+            intercept: true,                        // when false flash error interception is disabled.
+            onError: undefined,                     // callback on error before flashed, return false to ignore.
+            suppress: false                         // when true flash error messages are suppressed for one request
+                                                    // only then re-enabled.
         };
 
         // set global provider options.
@@ -236,9 +238,11 @@ angular.module('ai.flash.factory', [])
 
                     // extend options      
                     $module.scope = scope = _options.scope || $rootScope.$new();
-                    $module.options = scope.options = options = angular.extend(defaults, options, _options);
+                    options = angular.extend(defaults, options, _options);
+                    options.onError = options.onError || function () { return true; };
+                    $module.options = scope.options = options;
 
-                    scope.add = add;
+                        scope.add = add;
                     scope.remove = remove;
                     scope.removeAll = removeAll;
                     scope.flashes = flashes;
@@ -339,6 +343,13 @@ angular.module('ai.flash.interceptor', [])
                 var flash = $injector.get('$flash'),
                     excludeErrors = flash.options.excludeErrors || [];
                 
+                // if interception is disabled
+                // don't handle/show message.
+                if(!flash.options.intercept || flash.options.suppress){
+                    flash.options.suppress = false;
+                    return res;
+                }                    
+                
                 function handleFlashError(errObj){
                     var name, message, stack;
                     if(flash.options.errorKey && errObj[flash.options.errorKey])
@@ -363,6 +374,7 @@ angular.module('ai.flash.interceptor', [])
                         flash.add(message, flash.options.typeError);
                     return $q.reject(res);
                 }
+                
                 if(res.status && excludeErrors.indexOf(res.status) === -1){
                     // handle error using flash.
                     if(!res.data){                        
@@ -372,24 +384,25 @@ angular.module('ai.flash.interceptor', [])
                             flash.add(res.statusText, flash.options.typeError || 'flash-danger');
                         return $q.reject(res);
                     } else {
-                        var err = res.data;
-                        if(flash.options.onError){
-                            $q.when(flash.options.onError(res, flash)).then(function (result) {                                
-                                if(result){
-                                    if(angular.isObject(result)){
-                                        handleFlashError(result);                                        
-                                    } else {
-                                        handleFlashError(err);
-                                    }
-                                }    
-                            });
-                        } else {
-                            handleFlashError(err);
-                        }
+                        var err = res.data;                     
+                        $q.when(flash.options.onError(res, flash)).then(function (result) {
+                            if(result){                                
+                                if(result === true)
+                                    result = err;                             
+                                handleFlashError(result);                                
+                            }                                
+                        });                        
                     }
                 }
+            },
+            response: function (res) {
+                var flash = $injector.get('$flash');
+                // ensure we turn disable once off.
+                flash.suppress = false;
+                return res;
             }
         };
+        
     }])
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.interceptors.push('$flashInterceptor');
