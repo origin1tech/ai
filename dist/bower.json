@@ -1,6 +1,6 @@
 {
   "name": "ai",
-  "version": "0.0.4",
+  "version": "0.0.8",
   "main": [
     "./ai.css",
     "./ai.js"

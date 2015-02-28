@@ -120,6 +120,7 @@ angular.module('ai.flash.factory', [])
                     options;
                 
                 $module = {};
+                options = {};
 
                 // uses timeout to auto remove flash message.
                 function autoRemove(flash) {
@@ -214,7 +215,16 @@ angular.module('ai.flash.factory', [])
                 // can now be removed.
                 function leave(flash) {
                     flash.focus = false;
-                }                 
+                }
+
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    $module.options = options = angular.extend(options, obj);
+                }
                 
                 // get overflows and body.
                 body = findElement('body');
@@ -222,13 +232,11 @@ angular.module('ai.flash.factory', [])
                 
                 function init(_element, _options) {
                     
-                    element = _element;
-                    options = _options;
+                    element = _element;               
 
-                    // extend options
-                    options = options || {};
-                    $module.scope = scope = options.scope || $rootScope.$new();
-                    $module.options = scope.options = options = angular.extend(defaults, options);
+                    // extend options      
+                    $module.scope = scope = _options.scope || $rootScope.$new();
+                    $module.options = scope.options = options = angular.extend(defaults, options, _options);
 
                     scope.add = add;
                     scope.remove = remove;
@@ -236,10 +244,11 @@ angular.module('ai.flash.factory', [])
                     scope.flashes = flashes;
                     scope.leave = leave;
                     scope.enter = enter;
+                    scope.set = setOptions;
 
                     $module.add = add;
                     $module.remove = remove;
-                    $module.removeAll = removeAll;            
+                    $module.removeAll = removeAll;
 
                     // load the template.
                     loadTemplate(options.template).then(function (res) {
@@ -260,8 +269,14 @@ angular.module('ai.flash.factory', [])
                         scope.flashes = $module.flashes = flashes = [];
                     });
                     
-                }                
-            
+                    scope.$watch($module.options, function (newValue, oldValue){
+                        if(newValue === oldValue) return;
+                            scope.options = newValue;
+                    });
+                    
+                }
+
+                $module.set = setOptions;
                 $module.init = init;
                 
                 return $module;

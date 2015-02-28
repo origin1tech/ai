@@ -83,6 +83,7 @@ gulp.task('build-sass', ['clean'], function () {
 gulp.task('build-lib', ['clean'], function () {
     return gulp.src([
             '!./src/common/**/*.js',
+            '!./src/main.js',
             './src/**/*.js'
          ])
         .pipe(plugins.concat('ai.js'))
