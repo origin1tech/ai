@@ -133,7 +133,7 @@ gulp.task('serve', ['build'], function() {
             reload();
         });
         
-    },200);
+    }, 0);
 
 });
 

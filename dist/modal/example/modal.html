@@ -1,0 +1,97 @@
+<h3>{{title}}</h3>
+<hr/>
+<p class="alert alert-warning">
+    The modal extension is a native extension from the ground up. It does not rely on jQuery as Bootstrap modals do.
+    It works natively with Angular's jQlite or pure JavaScript.
+</p>
+<h4>Basic Modal</h4>
+<hr/>
+<!--<div class="form-group">-->
+    <!--<label>Title</label>-->
+    <!--<input type="text" class="form-control" ng-model="modal.title" placeholder="Enter modal title"/>-->
+<!--</div>-->
+<!--<div class="form-group">-->
+    <!--<label>Message</label>-->
+    <!--<input type="text" class="form-control" ng-model="modal.message" placeholder="Enter modal message"/>-->
+<!--</div>-->
+<button class="btn btn-primary" ai-modal options="{ title: 'My Title', content: 'My content message' }">Show Modal</button>
+<button class="btn btn-warning" ng-click="showModal()">Show Instance Modal</button>
+<hr/>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('decimal:markup') }"><a ng-click="showTab('decimal:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('decimal:code') }"><a ng-click="showTab('decimal:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('decimal:options') }"><a ng-click="showTab('decimal:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('decimal:markup') }" ng-show="tabActive('decimal:markup')">
+<pre>
+&lt;button class=&quot;btn btn-primary&quot; ai-modal options=&quot;{ title: 'My Title', content: 'My content message' }&quot;&gt;Show Modal&lt;/button&gt;
+&lt;button class=&quot;btn btn-warning&quot; ng-click=&quot;showModal()&quot;&gt;Show Instance Modal&lt;/button&gt;
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('decimal:code') }" ng-show="tabActive('decimal:code')">
+<pre>
+var modalConf = {
+    title: 'Instance Modal',
+    content: 'I was shown using instance from source code.'
+};
+
+var modal = new $modal(modalConf);
+$scope.showModal = function () {
+    modal.show();
+};
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('decimal:options') }" ng-show="tabActive('decimal:options')">
+<pre>
+var defaults = {
+
+    title: 'Dialog',                      // the default template's title.
+    template: 'ai-modal.html',            // a custom template string.
+    content: null,                        // the default template's text or html body.
+    locals: {},                           // locals that are passed to scope.
+
+    show: false,                          // show the modal on init.
+    container: 'body',                    // the html container to attach the modal to.
+    animation: false,                     // true, comma separated string, false or object { in: 'fadeIn', out: 'fadeOut' } (default: true which is equal to > 'fadeInDownBig,fadeOutUpBig')
+    backdropAnimation: true,              // true, comma separated string, false or object { in: 'fadeIn', out: 'fadeOut' } (default: true which is equal to > 'fadeIn,fadeOut')
+    backdrop: true,                       // when true on backdrop click modal is closed static to disable backdrop click event.
+    backdropCss: 'rgba(51,51,51,0.7)',    // adds 'background:' css style, can use url, rgba, solid color.
+    keyboard: true,                       // when true esc closed modal if backdrop is not equal to 'static'
+    header: true,                         // whether to show the default template's header.
+    footer: true,                         // whether to show the default template's footer.
+
+    /* default template options */
+    closeIcon: '&times;',                 // the text/html to use for the default template's close icon. can pass font awesome or glyphicon if desired.
+    closeText: 'Close',                   // the text to use for the default template's close button.
+    okText: 'Ok',                         // the text to use for the default template's ok button.
+    closeClass: 'btn btn-default',        // the class to use for the default template's close button.
+    okClass: 'btn btn-primary',           // the class to use for the default template's ok button.
+    closeIconClass: 'close',              // the class to add to the close icon.
+
+    /* scope and controller */
+    controller: angular.noop,             // angular controller.
+    controllerAs: null,                   // define controller as.
+    scope: null,                          // pass existing scope.
+
+    /* events */
+    onCloseDestroy: false,                // when true the modal will be destroyed on close. Good when modal is initialized and shown from click event.
+    onClose: null,                        // callback on close.
+    onShow: null,                         // callback on show.
+    onOk: null,                           // callback on ok.
+    onDestroy: null,                      // callback on scope destroy.
+    onBind: null                          // callback when modal is bound.
+
+}
+</pre>
+        </div>
+
+    </div>
+
+</div>
