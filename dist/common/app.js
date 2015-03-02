@@ -51,7 +51,6 @@ define(function () {
                 $routeProvider.when(k, config);
             });
             $loaderProvider.$set('onLoading', function (loader, instances) {
-                console.log('on loading');
                 return true;   
             });
             $locationProvider.html5Mode(true);
