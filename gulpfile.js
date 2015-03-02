@@ -4,6 +4,7 @@ var gulp = require('gulp'),
     es = require('event-stream'),
     fs = require('fs'),
     path = require('path'),
+    url = require('url'),
     argv = process.argv,
     pkg,
     lic,
@@ -47,7 +48,6 @@ function reload () {
 }
 
 gulp.task('clean', function () {
-
     return gulp.src(['./dist/**/*.*'], {read: false})
         .pipe(plugins.rimraf({force: true}));
 });
@@ -61,7 +61,7 @@ gulp.task('build-sass', ['clean'], function () {
 
     taskBundle = gulp.src('./src/ai.scss')
         .pipe(plugins.sass())
-        .pipe(gulp.dest('./dist'))
+        .pipe(gulp.dest('./dist'));
         //.pipe(plugins.cssmin())
         //.pipe(plugins.rename({suffix: '.min'}))
         //.pipe(gulp.dest('./dist'));
@@ -74,9 +74,8 @@ gulp.task('build-sass', ['clean'], function () {
         .pipe(plugins.rename({suffix: '.min'}))
         .pipe(gulp.dest('./dist'));
     tasks.push(taskModules);
-
+    
     return es.concat.apply(null, tasks);
-
 });
 
 // build lib
@@ -114,33 +113,40 @@ gulp.task('jshint', ['clean'],  function() {
     .pipe(plugins.jshint.reporter('jshint-stylish'));
 });
 
+gulp.task('reload', ['build'], reload);
+
 // serve examples.
 gulp.task('serve', ['build'], function() {  
-
     var conf = {
         root: './dist',
-        livereload: watch,
-        fallback: 'dist/index.html'
+        //livereload: true,
+        fallback: 'dist/index.html',
+        middleware: function (conn, options){
+            return [ function (req, res, next) {
+                var isLoader = /\/api\/loader/.test(req.url);             
+                if(isLoader){
+                    var q = url.parse(req.url).query.split('=');
+                    var timeout = parseInt(q[1] || 2000);
+                    setTimeout(function () {
+                        return res.end('done');
+                    }, timeout);
+                } else {
+                    next();
+                }
+            }];
+        }
     };
     setTimeout(function () {
-        
-        plugins.connect.server(conf);
-
-        gulp.watch([
-            './dist/**/*.*'
-        ], {
-            debounceDelay: 400
-        }, function() {
-            reload();
-        });
+        var app = plugins.connect.server(conf);
+        gulp.watch(
+            ['./src/**/*.{js,html,css,svg,png,gif,jpg,jpeg}'],
+            { debounceDelay: 400 }, ['reload']);
         
     }, 0);
-
 });
 
 // build the library.
 gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() {
-
     if(watch) {
         gulp.watch(
             ['./src/**/*.*'],
@@ -148,6 +154,5 @@ gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() 
             ['clean', 'build-sass', 'build-lib', 'copy-lib']
         );
     }
-
 });
 

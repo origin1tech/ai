@@ -1,7 +1,8 @@
 .ai-flash, ai-flash, [ai-flash] {
   z-index: 1060;
   width: 100%;
-  position: absolute; }
+  position: absolute;
+  height: 0; }
   .ai-flash.show, ai-flash.show, [ai-flash].show {
     height: 100%;
     overflow: hidden; }

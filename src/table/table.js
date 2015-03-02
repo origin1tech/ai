@@ -155,12 +155,12 @@ angular.module('ai.table', ['ngSanitize'])
 
         };
 
-        set = function $set(options) {
+        set = function set(options) {
             defaults = angular.extend(defaults, options);
         };
 
         get = ['$rootScope','$http', '$q', '$templateCache', '$compile', '$filter', '$timeout', 
-            function $get($rootScope,$http, $q, $templateCache, $compile, $filter, $timeout) {
+            function get($rootScope,$http, $q, $templateCache, $compile, $filter, $timeout) {
 
             var tableTemplate, actionsTemplate, loaderTemplate,
                 pagerTemplate, nodataTemplate;
@@ -346,8 +346,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                 scope = (options.scope && options.scope.$new()) || $rootScope.$new();
                 //scope = options.scope || $rootScope.$new();
-                //options = scope.options = angular.extend(defaults, options);
-                options = angular.extend({}, defaults, options);
+                options = angular.extend(angular.copy(defaults), options);
 
                 // TEMPLATING
                 function loadTemplate(t) {

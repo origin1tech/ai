@@ -28,7 +28,7 @@ angular.module('ai.widget', [])
         },
         get, set;
 
-    set = function (key, options) {
+    set = function set(key, options) {
         if(angular.isObject(key)){
             options = key;
             key = undefined;
@@ -38,14 +38,14 @@ angular.module('ai.widget', [])
         }
     };
 
-    get = [ function () {
+    get = [ function get() {
 
         // factory allows for globally
         // setting widget options.
         function ModuleFactory(key, options) {
             options = options || {};
             if(!defaults[key]) return options;
-            options = angular.extend(defaults[key], options);
+            options = angular.extend(angular.copy(defaults[key]), options);
             return options;
         }
         return ModuleFactory;

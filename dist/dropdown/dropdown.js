@@ -45,12 +45,17 @@ angular.module('ai.dropdown', [])
 
         }, get, set;
 
-    set = function(value) {
-        angular.extend(defaults, value);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
     get = [ '$templateCache', '$q', '$http', '$compile', '$parse', '$filter',
-        function ( $templateCache, $q, $http, $compile, $parse, $filter) {
+        function get( $templateCache, $q, $http, $compile, $parse, $filter) {
 
          var baseTemplate = '<button type="button" class="btn btn-warning toggle" ng-click="toggle()">' +
                                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +

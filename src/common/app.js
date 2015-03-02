@@ -9,7 +9,6 @@ define(function () {
     var app, tmpAreas, keys, areas, controller;
 
     tmpAreas = {
-        '/register': 'Angular application registration helper',
         '/passport': 'Simplifies handling authentication within Angular app.',
         '/storage': 'Use local storage with auto cookie fallback.',
         '/autoform': 'Handy during dev to quickly create a form.',
@@ -21,7 +20,8 @@ define(function () {
         '/viewer': 'Animated slide transitions for views.',
         '/widget': 'Various widgets - case, nicescroll, redactor, decimal, input mask & compare.',
         '/step': 'Creates form step wizard.',
-        '/tab': 'Creates tab content.'
+        '/tab': 'Creates tab content.',
+        '/loader': 'Shows loading message/spinner on ajax calls.'
     };
 
     // sort areas.
@@ -35,10 +35,10 @@ define(function () {
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
                                  'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal',
                                  'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate',
-                                 'ai.autoform', 'ai.tab']);
+                                 'ai.autoform', 'ai.tab', 'ai.loader']);
 
-    app.config(['$routeProvider', '$locationProvider', '$passportProvider',
-        function ($routeProvider, $locationProvider, $passportProvider) {
+    app.config(['$routeProvider', '$locationProvider', '$passportProvider', '$loaderProvider',
+        function ($routeProvider, $locationProvider, $passportProvider, $loaderProvider) {
             $routeProvider.when('/', {templateUrl: '/home.html', controller: 'Controller', title: 'Ai'});
             angular.forEach(areas, function (v, k) {
                 var config, cap;
@@ -49,6 +49,10 @@ define(function () {
                     controller: 'Controller', title: 'Ai ' + cap
                 };
                 $routeProvider.when(k, config);
+            });
+            $loaderProvider.$set('onLoading', function (loader, instances) {
+                console.log('on loading');
+                return true;   
             });
             $locationProvider.html5Mode(true);
 
@@ -69,8 +73,8 @@ define(function () {
     }]);
 
     controller = [
-        '$rootScope', '$scope', '$route', '$flash', '$step', '$modal', '$storage', '$location',
-        function ($rootScope, $scope, $route, $flash, $step, $modal, $storage, $location) {
+        '$rootScope', '$scope', '$route', '$flash', '$step', '$modal', '$storage', '$location', '$http', '$loader',
+        function ($rootScope, $scope, $route, $flash, $step, $modal, $storage, $location, $http, $loader) {
             var current = $route.current,
                 route = current.$$route,
                 params = current.params,
@@ -90,7 +94,8 @@ define(function () {
                 dropdown:   { active: 'markup' },
                 autoform:   { active: 'markup' },
                 placeholder:{ active: 'markup' },
-                tab:        { active: 'markup' }
+                tab:        { active: 'markup' },
+                loader:     { active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -316,7 +321,23 @@ define(function () {
                     }
                 };
             }
-
+            
+            if (area === 'loader') {           
+                $scope.timeout = 2000;
+                $scope.pageLoader = function (timeout) {
+                    timeout = timeout || 2000;
+                    $http.get('/api/loader?timeout=' + timeout).then(function (res) {                        
+                    });
+                };
+                $scope.customLoader = function (timeout) {
+                    var loaders = $loader();
+                    timeout = timeout || 2000;
+                    loaders.custom.start();
+                    setTimeout(function () {
+                        loaders.custom.stop();
+                    }, timeout);
+                };
+            }
         }
     ];
 

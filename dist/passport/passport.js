@@ -12,8 +12,7 @@ angular.module('ai.passport.factory', [])
                 2: 'manager',
                 3: 'admin',
                 4: 'superadmin'
-            },
-
+            },            
             401: true,                                          // set to false to not handle 401 status codes.
             403: true,                                          // set to false to not handle 403 status codes.
             paranoid: false,                                    // when true, fails if access level is missing.
@@ -30,9 +29,10 @@ angular.module('ai.passport.factory', [])
             logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
             resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
             recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
-            refreshAction: 'get /api/passport/refresh',         // when the page is loaded the user may still be
+            refreshAction: false,                               // when the page is loaded the user may still be
                                                                 // logged in this calls the server to ensure the
                                                                 // active session is reloaded.
+                                                                // ex: 'get /api/passport/refresh'
 
             // success fail actions.
             onLoginSuccess: '/',                                // path or func on success.
@@ -48,11 +48,16 @@ angular.module('ai.passport.factory', [])
                                                                 // separated by a space.
         };
 
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
         };
 
-        get = ['$rootScope', '$location', '$http', '$route', function ($rootScope, $location, $http, $route) {
+        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
 
             var instance;
 
@@ -103,7 +108,7 @@ angular.module('ai.passport.factory', [])
                     defaults.levels = options.levels || defaults.levels;
 
                     // merge the options.
-                    $module.options = angular.extend(defaults, options);
+                    $module.options = angular.extend(angular.copy(defaults), options);
 
                     // normalize/reverse levels map
                     $module.options.roles = reverseMap($module.options.levels);
@@ -168,7 +173,9 @@ angular.module('ai.passport.factory', [])
                     }
                 };               
                 
-                $module.refresh = function refresh() {               
+                $module.refresh = function refresh() {   
+                    if(!$module.options.refreshAction)
+                        return;
                     if(angular.isFunction($module.options.refreshAction)){
                         $module.options.refreshAction.call($module);                            
                     } else {

@@ -52,7 +52,7 @@ var form = angular.module('ai.validate', [])
         angular.extend(defaults, value);
     };
 
-    get = [function () {
+    get = [function get() {
 
 
         function ModuleFactory(options) {

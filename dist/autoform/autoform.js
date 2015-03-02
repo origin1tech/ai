@@ -26,11 +26,16 @@ angular.module('ai.autoform', [])
         },
         get, set;
 
-    set = function (options) {
-        defaults = angular.extend(defaults, options);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
-    get = ['$rootScope', '$compile', function ($rootScope, $compile) {
+    get = ['$rootScope', '$compile', function get($rootScope, $compile) {
 
         // iterate attributes build string.
         function parseAttributes(attrs) {

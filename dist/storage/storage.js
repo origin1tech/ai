@@ -55,10 +55,14 @@ angular.module('ai.storage', [])
 
         /**
          * Sets provider defaults.
-         * @param {object} options - the options to be merged with defaults.
          */
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
         };
 
         /**

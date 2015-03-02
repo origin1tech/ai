@@ -34,12 +34,17 @@ angular.module('ai.step', [])
 
         }, get, set;
 
-    set = function set(obj) {
-        angular.extend(defaults, obj);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
     get = [ '$rootScope', '$templateCache', '$compile', '$http', '$q', '$location',
-        function($rootScope, $templateCache, $compile, $http, $q, $location) {
+        function get($rootScope, $templateCache, $compile, $http, $q, $location) {
 
         var headerTemplate, contentTemplate, actionsTemplate;
 
@@ -127,7 +132,7 @@ angular.module('ai.step', [])
             // extend options
             options = options || {};
             $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(defaults, options);
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
 
             // check if options contain steps.
             if(options.steps){

@@ -1,12 +1,15 @@
 {
   "name": "ai",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "homepage": "https://github.com/origin1tech/ai",
   "authors": [
     "Origin1 Technologies <origin1tech@gmail.com>"
   ],
   "description": "Angular directives, modules and providers.",
-  "main": [ "./dist/ai.css", "./dist/ai.js" ],
+  "main": [
+    "./dist/ai.css",
+    "./dist/ai.js"
+  ],
   "keywords": [
     "Angular",
     "Providers",
@@ -26,5 +29,7 @@
     "gulpfile.js",
     "src",
     "package.json"
-  ]
+  ],
+  "dependencies": {
+  }
 }

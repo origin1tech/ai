@@ -37,11 +37,16 @@ angular.module('ai.autoform', [])
         },
         get, set;
 
-    set = function (options) {
-        defaults = angular.extend(defaults, options);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
-    get = ['$rootScope', '$compile', function ($rootScope, $compile) {
+    get = ['$rootScope', '$compile', function get($rootScope, $compile) {
 
         // iterate attributes build string.
         function parseAttributes(attrs) {
@@ -350,422 +355,6 @@ angular.module('ai.autoform', [])
 
 }]);
 
-
-angular.module('ai.flash.factory', [])
-
-    .provider('$flash', function $flash() {
-
-        var defaults, get, set;
-
-        // default settings.
-        defaults = {
-            template: 'flash.html',                 // the template for flash message.
-            html: true,                             // when true html flash messages can be used.(requires ngSanitize)
-            errors: true,                           // when true flash is shown automatically on http status errors.
-            errorKey: 'err',
-            validationKey: undefined,               // this is the property contained in the error used for displaying
-                                                    // validation error messages. for example mongoose uses 'errors'.
-                                                    // if undefined validation errors are undefined.
-            excludeErrors: [401, 403, 404],         // exclude errors by status type.           
-            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
-            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
-                          'has occurred, if the ' +
-                          'problem persists ' +
-                          'please contact the ' +
-                          'administrator.',
-            title: true,                            // when true flash error messages use the error name as the title
-                                                    // in the flash message.
-            stack: false,                           // when true stack trace is shown.
-            multiple: false,                        // whether to allow multiple flash messages at same time.
-            type: 'info',                           // the default type of message to show also the css class name.
-            typeError: 'danger',                    // the error type or class name for error messages.
-            animation: false,                       // provide class name for animation.
-            timeout: 3500,                          // timeout to auto remove flashes after period of time..
-                                                    // instead of by timeout.
-            intercept: true,                        // when false flash error interception is disabled.
-            onError: undefined,                     // callback on error before flashed, return false to ignore.
-            suppress: false                         // when true flash error messages are suppressed for one request
-                                                    // only then re-enabled.
-        };
-
-        // set global provider options.
-        set = function (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        // get provider
-        get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
-            function ($rootScope, $q, $templateCache, $http, $timeout, $compile) {
-
-            var flashTemplate, $module;
- 
-            flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
-                            'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
-                                '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
-                                '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
-                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
-                            '</div>';
-
-            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, flashTemplate);
-
-            function isHtml(str) {
-                return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
-            }
-
-            function isPath(str) {
-                if(!str || !angular.isString(str)) return false;
-                var ext = str.split('.').pop();
-                return ext === 'html' || ext === 'tpl';
-            }
-
-            function findElement(q, element) {
-                return angular.element((element || document).querySelectorAll(q));
-            }
-
-            function loadTemplate(t) {
-                // handle html an strings.
-                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
-                    var defer = $q.defer();
-                    defer.resolve(t);
-                    return defer.promise;
-                } else {
-                    // handle paths.
-                    return $q.when($templateCache.get(t) || $http.get(t))
-                        .then(function (res) {
-                            if (res.data) {
-                                $templateCache.put(t, res.data);
-                                return res.data;
-                            }
-                            return res;
-                        });
-                }
-            }
-            
-            function overflow(body) {
-                var x, y;
-                x = body[0].style.overflow || undefined;
-                y = body[0].style.overflowY || undefined;
-                return {x:x,y:y};
-            }
-
-            function tryParseTimeout(to) {
-                if(undefined === to)
-                    return to;
-                try{
-                   return JSON.parse(to);
-                } catch(ex){
-                    return to;
-                }
-            }
-
-            // The flash factory
-            function ModuleFactory() {
-
-                var flashes = [],          
-                    scope,
-                    body,
-                    overflows,
-                    element,
-                    options;
-                
-                $module = {};
-                options = {};
-
-                // uses timeout to auto remove flash message.
-                function autoRemove(flash) {
-                    clearTimeout(flash.timeoutId);
-                    flash.timeoutId = $timeout(function () {
-                        if(flash.focus) {
-                            clearTimeout(flash.timeoutId);
-                            autoRemove(flash);
-                        } else {
-                            clearTimeout(flash.timeoutId);
-                            remove(flash);
-                        }
-
-                    }, flash.timeout);
-                }
-                
-                // add a new flash message.
-                function add(message, type, title, timeout) {
-                    var flashDefaults = {
-                            title: undefined,
-                            type: options.type,
-                            focus: false,
-                            show: false,
-                            timeout: false
-                        }, flash, tmpTitle;
-                    title = tryParseTimeout(title);
-                    timeout = tryParseTimeout(timeout);
-                    // if title is number assume timeout
-                    if(angular.isNumber(title) || 'boolean' === typeof title){
-                        timeout = title;
-                        title = undefined;
-                    }
-                    if(!options.multiple)
-                        flashes = [];
-                    // if message is not object create Flash.
-                    if(!angular.isObject(message)){
-                        flash = {
-                            message: message,
-                            type: type,
-                            title: title,
-                            timeout: timeout
-                        };
-                    }
-                    // extend object with defaults.
-                    flash = angular.extend({}, angular.copy(flashDefaults), flash);
-                    // set the default timeout if true was passed.
-                    if(flash.timeout === true)
-                        flash.timeout = options.timeout;
-                    if(flash.message) {
-                        flashes.push(flash);
-                        $module.flashes = scope.flashes = flashes;
-                        body.css({ overflow: 'hidden'});
-                        element.addClass('show');
-                        if(flash.timeout)
-                            autoRemove(flash);
-
-                    }
-                }
-                
-                // remove a specific flash message.
-                function remove(flash) {
-                    if(flash && flashes.length) {
-                        flashes.splice(flashes.indexOf(flash), 1);
-                        if(!flashes.length){
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                            if(element)
-                                element.removeClass('show');
-                        }
-                    }
-                    
-                }
-                
-                // remove all flash messages in collection.
-                function removeAll() {
-                    if(flashes.length) {
-                        angular.forEach(flashes, function (flash) {
-                            if(flash.shown === true)
-                                remove(flash);
-                            else
-                                flash.shown = true;
-                        });
-                    }
-                }
-
-                // on flash enter set its focus to true
-                // so it is not removed while being read.
-                function enter(flash) {
-                    flash.focus = true;
-                }
-
-                // on leave set the focus to false
-                // can now be removed.
-                function leave(flash) {
-                    flash.focus = false;
-                }
-
-                function setOptions(key, value) {
-                    var obj = key;
-                    if(arguments.length > 1){
-                        obj = {};
-                        obj[key] = value;
-                    }
-                    $module.options = options = angular.extend(options, obj);
-                }
-                
-                // get overflows and body.
-                body = findElement('body');
-                overflows = overflow(body);
-                
-                function init(_element, _options) {
-                    
-                    element = _element;               
-
-                    // extend options      
-                    $module.scope = scope = _options.scope || $rootScope.$new();
-                    options = angular.extend(defaults, options, _options);
-                    options.onError = options.onError || function () { return true; };
-                    $module.options = scope.options = options;
-
-                        scope.add = add;
-                    scope.remove = remove;
-                    scope.removeAll = removeAll;
-                    scope.flashes = flashes;
-                    scope.leave = leave;
-                    scope.enter = enter;
-                    scope.set = setOptions;
-
-                    $module.add = add;
-                    $module.remove = remove;
-                    $module.removeAll = removeAll;
-
-                    // load the template.
-                    loadTemplate(options.template).then(function (res) {
-                        if(res) {
-                            element.html(res);
-                            $compile(element.contents())(scope);
-                            element.addClass('ai-flash');
-                        }
-                    });
-
-                    // when route changes be sure
-                    // to remove all flashes.
-                    $rootScope.$on('$locationChangeStart', function () {
-                        if(element)
-                            element.removeClass('show');
-                        if(body)
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                        scope.flashes = $module.flashes = flashes = [];
-                    });
-                    
-                    scope.$watch($module.options, function (newValue, oldValue){
-                        if(newValue === oldValue) return;
-                            scope.options = newValue;
-                    });
-                    
-                }
-
-                $module.set = setOptions;
-                $module.init = init;
-                
-                return $module;
-            }
-
-            // $flash requires singleton
-            function getInstance() {
-                if(!$module)
-                    $module = ModuleFactory();
-                return $module;
-            }
-
-            // return $module instance.
-            return getInstance();
-
-        }];
-
-        // return getter/setter.
-        return {
-            $set: set,
-            $get: get
-        };
-
-    })
-
-    .directive('aiFlash', [ '$flash', function ($flash) {
-
-        return {
-            restrict: 'EAC',
-            scope: true,
-            link: function (scope, element, attrs) {
-
-                var $module, defaults, options;
-
-                defaults = {
-                    scope: scope
-                };
-
-                // initialize the directive.
-                function init () {
-                    $module = $flash.init(element, options);
-                }
-
-                options = scope.$eval(attrs.options) || scope.$eval(attrs.aiFlash);
-                options = angular.extend(defaults, options);
-
-                init();
-
-            }
-        };
-    }]);
-
-
-angular.module('ai.flash.interceptor', [])
-    .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                
-                // get passport here to prevent circular dependency.
-                var flash = $injector.get('$flash'),
-                    excludeErrors = flash.options.excludeErrors || [];
-                
-                // if interception is disabled
-                // don't handle/show message.
-                if(!flash.options.intercept || flash.options.suppress){
-                    flash.options.suppress = false;
-                    return res;
-                }                    
-                
-                function handleFlashError(errObj){
-                    var name, message, stack;
-                    if(flash.options.errorKey && errObj[flash.options.errorKey])
-                        errObj = errObj[flash.options.errorKey];
-                    name = errObj.displayName || errObj.name || flash.options.errorName;
-                    message = errObj.message || flash.options.errorMessage;
-                    stack = errObj.stack || '';
-                    // handle stack trace.
-                    if(stack && flash.options.stack){
-                        if(angular.isArray(stack))
-                            stack = stack.join('<br/>');
-                        if(angular.isString(stack) && /\\n/g.test(stack))
-                            stack = stack.split('\n').join('<br/>');
-                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
-                    }
-                    message = '<strong>Message:</strong> ' + message;
-                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
-                    // finally display the flash message.
-                    if(flash.options.title)
-                        flash.add(message, flash.options.typeError, name);
-                    else
-                        flash.add(message, flash.options.typeError);
-                    return $q.reject(res);
-                }
-                
-                if(res.status && excludeErrors.indexOf(res.status) === -1){
-                    // handle error using flash.
-                    if(!res.data){                        
-                        if(flash.options.title)
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
-                        else
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger');
-                        return $q.reject(res);
-                    } else {
-                        var err = res.data;                     
-                        $q.when(flash.options.onError(res, flash)).then(function (result) {
-                            if(result){                                
-                                if(result === true)
-                                    result = err;                             
-                                handleFlashError(result);                                
-                            }                                
-                        });                        
-                    }
-                }
-            },
-            response: function (res) {
-                var flash = $injector.get('$flash');
-                // ensure we turn disable once off.
-                flash.suppress = false;
-                return res;
-            }
-        };
-        
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$flashInterceptor');
-    }]);
-
-// imports above modules.
-angular.module('ai.flash', [
-    'ai.flash.factory',
-    'ai.flash.interceptor'
-]);
-
 angular.module('ai.dropdown', [])
 
 .provider('$dropdown', function $dropdown(){
@@ -813,12 +402,17 @@ angular.module('ai.dropdown', [])
 
         }, get, set;
 
-    set = function(value) {
-        angular.extend(defaults, value);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
     get = [ '$templateCache', '$q', '$http', '$compile', '$parse', '$filter',
-        function ( $templateCache, $q, $http, $compile, $parse, $filter) {
+        function get( $templateCache, $q, $http, $compile, $parse, $filter) {
 
          var baseTemplate = '<button type="button" class="btn btn-warning toggle" ng-click="toggle()">' +
                                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
@@ -1464,6 +1058,789 @@ angular.module('ai.dropdown', [])
 
 }]);
 
+
+angular.module('ai.flash.factory', [])
+
+    .provider('$flash', function $flash() {
+
+        var defaults, get, set;
+
+        // default settings.
+        defaults = {
+            template: 'ai-flash.html',              // the template for flash message.
+            html: true,                             // when true html flash messages can be used.(requires ngSanitize)
+            errors: true,                           // when true flash is shown automatically on http status errors.
+            errorKey: 'err',
+                                                    // if undefined validation errors are undefined.
+            excludeErrors: [401, 403, 404],         // exclude errors by status type.           
+            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
+            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
+                          'has occurred, if the ' +
+                          'problem persists ' +
+                          'please contact the ' +
+                          'administrator.',
+            title: true,                            // when true flash error messages use the error name as the title
+                                                    // in the flash message.
+            stack: false,                           // when true stack trace is shown.
+            multiple: false,                        // whether to allow multiple flash messages at same time.
+            type: 'info',                           // the default type of message to show also the css class name.
+            typeError: 'danger',                    // the error type or class name for error messages.
+            animation: false,                       // provide class name for animation.
+            timeout: 3500,                          // timeout to auto remove flashes after period of time..
+                                                    // instead of by timeout.
+            intercept: true,                        // when false flash error interception is disabled.
+            onError: undefined                      // callback on error before flashed, return false to ignore.
+        };
+
+        // set global provider options.
+        set = function set(key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        // get provider
+        get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
+            function get($rootScope, $q, $templateCache, $http, $timeout, $compile) {
+
+            var flashTemplate, $module;
+ 
+            flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
+                            'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
+                                '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
+                                '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
+                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
+                            '</div>';
+
+            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, flashTemplate);
+
+            function isHtml(str) {
+                return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
+            }
+
+            function isPath(str) {
+                if(!str || !angular.isString(str)) return false;
+                var ext = str.split('.').pop();
+                return ext === 'html' || ext === 'tpl';
+            }
+
+            function findElement(q, element) {
+                return angular.element((element || document).querySelectorAll(q));
+            }
+
+            function loadTemplate(t) {
+                // handle html an strings.
+                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
+                    var defer = $q.defer();
+                    defer.resolve(t);
+                    return defer.promise;
+                } else {
+                    // handle paths.
+                    return $q.when($templateCache.get(t) || $http.get(t))
+                        .then(function (res) {
+                            if (res.data) {
+                                $templateCache.put(t, res.data);
+                                return res.data;
+                            }
+                            return res;
+                        });
+                }
+            }
+            
+            function overflow(body) {
+                var x, y;
+                x = body[0].style.overflow || undefined;
+                y = body[0].style.overflowY || undefined;
+                return {x:x,y:y};
+            }
+
+            function tryParseTimeout(to) {
+                if(undefined === to)
+                    return to;
+                try{
+                   return JSON.parse(to);
+                } catch(ex){
+                    return to;
+                }
+            }
+
+            // The flash factory
+            function ModuleFactory() {
+
+                var flashes = [],          
+                    scope,
+                    body,
+                    overflows,
+                    element,
+                    options;
+                
+                $module = {};
+                options = {};
+
+                // uses timeout to auto remove flash message.
+                function autoRemove(flash) {
+                    clearTimeout(flash.timeoutId);
+                    flash.timeoutId = $timeout(function () {
+                        if(flash.focus) {
+                            clearTimeout(flash.timeoutId);
+                            autoRemove(flash);
+                        } else {
+                            clearTimeout(flash.timeoutId);
+                            remove(flash);
+                        }
+                    }, flash.timeout);
+                }
+                
+                // add a new flash message.
+                function add(message, type, title, timeout) {
+                    var flashDefaults = {
+                            title: undefined,
+                            type: options.type,
+                            focus: false,
+                            show: false,
+                            timeout: false
+                        }, flash, tmpTitle;
+                    title = tryParseTimeout(title);
+                    timeout = tryParseTimeout(timeout);
+                    // if title is number assume timeout
+                    if(angular.isNumber(title) || 'boolean' === typeof title){
+                        timeout = title;
+                        title = undefined;
+                    }
+                    if(!options.multiple)
+                        flashes = [];
+                    // if message is not object create Flash.
+                    if(!angular.isObject(message)){
+                        flash = {
+                            message: message,
+                            type: type,
+                            title: title,
+                            timeout: timeout
+                        };
+                    }
+                    // extend object with defaults.
+                    flash = angular.extend({}, angular.copy(flashDefaults), flash);
+                    // set the default timeout if true was passed.
+                    if(flash.timeout === true)
+                        flash.timeout = options.timeout;
+                    if(flash.message) {
+                        flashes.push(flash);
+                        $module.flashes = scope.flashes = flashes;
+                        body.css({ overflow: 'hidden'});
+                        element.addClass('show');
+                        if(flash.timeout)
+                            autoRemove(flash);
+
+                    }
+                }
+                
+                // remove a specific flash message.
+                function remove(flash) {
+                    if(flash && flashes.length) {
+                        flashes.splice(flashes.indexOf(flash), 1);
+                        if(!flashes.length){
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                            if(element)
+                                element.removeClass('show');
+                        }
+                    }
+                    
+                }
+                
+                // remove all flash messages in collection.
+                function removeAll() {
+                    if(flashes.length) {
+                        angular.forEach(flashes, function (flash) {
+                            if(flash.shown === true)
+                                remove(flash);
+                            else
+                                flash.shown = true;
+                        });
+                    }
+                }
+
+                // on flash enter set its focus to true
+                // so it is not removed while being read.
+                function enter(flash) {
+                    flash.focus = true;
+                }
+
+                // on leave set the focus to false
+                // can now be removed.
+                function leave(flash) {
+                    flash.focus = false;
+                }
+                
+                function suppress() {
+                    $module.suppressed = false;
+                }
+
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    options = $module.options = scope.options = angular.extend(options, obj);
+                }
+                
+                function destroy() {
+                    if(element)
+                        element.removeClass('show');
+                    if(body)
+                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    scope.flashes = $module.flashes = flashes = [];
+                    scope.$destroy();
+                }
+                
+                // get overflows and body.
+                body = findElement('body');
+                overflows = overflow(body);
+                
+                function init(_element, _options) {
+                    
+                    element = _element;               
+
+                    // extend options      
+                    $module.scope = scope = _options.scope || $rootScope.$new();
+                    options = angular.extend(angular.copy(defaults), options, _options);
+                    options.onError = options.onError || function () { return true; };
+                    $module.options = scope.options = options;
+
+                    scope.add = add;
+                    scope.remove = remove;
+                    scope.removeAll = removeAll;
+                    scope.flashes = flashes;
+                    scope.leave = leave;
+                    scope.enter = enter;
+                    scope.set = setOptions;
+                    scope.suppress = suppress;
+
+                    $module.add = add;
+                    $module.remove = remove;
+                    $module.removeAll = removeAll;
+                    $module.suppress = suppress;
+
+                    // load the template.
+                    loadTemplate(options.template).then(function (template) {
+                        if(template) {
+                            element.html(template);
+                            $compile(element.contents())(scope);
+                            element.addClass('ai-flash');
+                        } else {
+                            console.error('Error loading $flash template.');
+                        }
+                    });
+
+                    // when route changes be sure
+                    // to remove all flashes.
+                    $rootScope.$on('$locationChangeStart', function () {
+                        if(element)
+                            element.removeClass('show');
+                        if(body)
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                        scope.flashes = $module.flashes = flashes = [];
+                    });
+
+                    scope.$watch($module.options, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = newVal;
+                    });
+
+                    scope.$on('destroy', function () {
+                        $module.destroy();
+                    });
+                    
+                }
+
+                $module.set = setOptions;
+                $module.init = init;
+                
+                return $module;
+            }
+
+            // $flash requires singleton
+            function getInstance() {
+                if(!$module)
+                    $module = ModuleFactory();
+                return $module;
+            }
+
+            // return $module instance.
+            return getInstance();
+
+        }];
+
+        // return getter/setter.
+        return {
+            $set: set,
+            $get: get
+        };
+
+    })
+
+    .directive('aiFlash', [ '$flash', function ($flash) {
+
+        return {
+            restrict: 'EAC',
+            scope: true,
+            link: function (scope, element, attrs) {
+
+                var $module, defaults, options;
+
+                defaults = {
+                    scope: scope
+                };
+
+                // initialize the directive.
+                function init () {
+                    $module = $flash.init(element, options);
+                }
+
+                options = scope.$eval(attrs.options) || scope.$eval(attrs.aiFlash);
+                options = angular.extend(defaults, options);
+
+                init();
+
+            }
+        };
+    }]);
+
+
+angular.module('ai.flash.interceptor', [])
+    .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+                
+                // get passport here to prevent circular dependency.
+                var flash = $injector.get('$flash'),
+                    excludeErrors = flash.options.excludeErrors || [];
+                
+                // if interception is disabled
+                // don't handle/show message.
+                if(!flash.options.intercept || flash.suppressed){
+                    flash.suppressed = false;
+                    return res;
+                }                    
+                
+                function handleFlashError(errObj){
+                    var name, message, stack;
+                    if(flash.options.errorKey && errObj[flash.options.errorKey])
+                        errObj = errObj[flash.options.errorKey];
+                    name = errObj.displayName || errObj.name || flash.options.errorName;
+                    message = errObj.message || flash.options.errorMessage;
+                    stack = errObj.stack || '';
+                    // handle stack trace.
+                    if(stack && flash.options.stack){
+                        if(angular.isArray(stack))
+                            stack = stack.join('<br/>');
+                        if(angular.isString(stack) && /\\n/g.test(stack))
+                            stack = stack.split('\n').join('<br/>');
+                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
+                    }
+                    message = '<strong>Message:</strong> ' + message;
+                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
+                    // finally display the flash message.
+                    if(flash.options.title)
+                        flash.add(message, flash.options.typeError, name);
+                    else
+                        flash.add(message, flash.options.typeError);
+                    return $q.reject(res);
+                }
+                
+                if(res.status && excludeErrors.indexOf(res.status) === -1){
+                    // handle error using flash.
+                    if(!res.data){                        
+                        if(flash.options.title)
+                            flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
+                        else
+                            flash.add(res.statusText, flash.options.typeError || 'flash-danger');
+                        return $q.reject(res);
+                    } else {
+                        var err = res.data;                     
+                        $q.when(flash.options.onError(res, flash)).then(function (result) {
+                            if(result){                                
+                                if(result === true)
+                                    result = err;                             
+                                handleFlashError(result);                                
+                            }                                
+                        });                        
+                    }
+                }
+            },
+            response: function (res) {
+                var flash = $injector.get('$flash');
+                // ensure we turn disable once off.
+                flash.suppressed = false;
+                return res || $q.when(res);
+            }
+        };
+        
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$flashInterceptor');
+    }]);
+
+// imports above modules.
+angular.module('ai.flash', [
+    'ai.flash.factory',
+    'ai.flash.interceptor'
+]);
+
+angular.module('ai.loader.factory', [])
+
+    .provider('$loader', function $loader() {
+        
+        var defaults = {
+                name: 'page',                                       // the default page loader name.
+                intercept: true,                                    // when false loader intercepts disabled.
+                template: 'ai-loader.html',                         // the default loader content template. only used
+                                                                    // if content is not detected in the element.
+                message: undefined,                                 // text to display under loader if value.
+                delay: 300,                                         // the delay in ms before loader is shown.
+                onLoading: undefined                                // callback on loader shown, true to show false 
+                                                                    // to suppress. returns module and instances.
+            }, get, set;
+        
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+        
+        get = [ '$q', '$compile', '$templateCache', '$rootScope',  function get($q, $compile, $templateCache, $rootScope) {
+            
+            var loaderTemplate, instances, loaderUri;
+            
+            instances = {};
+            loaderUri = 'data:image/gif;base64,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';
+            loaderTemplate = '<div>' +
+                                '<img src="' + loaderUri + '" />' +
+                                '<div ng-bind="message" ng-show="message" ng-class="{ \'ai-loader-message\': message}"></div>' +
+                             '</div>';
+
+            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, loaderTemplate);
+
+            function isHtml(str) {
+                return /<(svg|br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
+            }
+
+            function isPath(str) {
+                if(!str || !angular.isString(str)) return false;
+                var ext = str.split('.').pop();
+                return ext === 'html' || ext === 'tpl';
+            }
+
+            function findElement(q, element) {
+                return angular.element((element || document).querySelectorAll(q));
+            }
+
+            function loadTemplate(t) {
+                // handle html an strings.
+                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
+                    var defer = $q.defer();
+                    defer.resolve(t);
+                    return defer.promise;
+                } else {
+                    // handle paths.
+                    return $q.when($templateCache.get(t) || $http.get(t))
+                        .then(function (res) {
+                            if (res.data) {
+                                $templateCache.put(t, res.data);
+                                return res.data;
+                            }
+                            return res;
+                        });
+                }
+            }
+
+            function overflow(body) {
+                var x, y;
+                x = body[0].style.overflow || undefined;
+                y = body[0].style.overflowY || undefined;
+                return {x:x,y:y};
+            }
+
+            function ModuleFactory(name, element, options) {
+                
+                var $module = {},
+                    body,
+                    overflows,
+                    htmlContent,
+                    contentTemplate,              
+                    scope;
+
+                // set global name if not passed.
+                if(!angular.isString(name)){
+                    options = element;
+                    element = name;
+                    name = undefined;
+                }
+ 
+                // if no element can't create loader.             
+                if(!element)
+                    throw new Error('Cannot configure loader with element of undefined.');
+
+                options = options || {};
+                scope = $module.scope = options.scope || $rootScope.$new();
+                $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+                $module.element = element;
+
+                if(instances[options.name])
+                    return;
+       
+                body = findElement('body');
+                overflows = overflow(body);
+                htmlContent = element.html();           
+                contentTemplate = options.template;
+                
+                if(htmlContent && htmlContent.length){
+                    contentTemplate = htmlContent;
+                    // remove element contents
+                    // we'll add it back later.
+                    element.empty();
+                }
+                
+                // start the loader.
+                function start() {                
+                    if(!$module.loading && !$module.disabled){
+                        $module.loading = true;        
+                        if(angular.isFunction(options.onLoading)){
+                            $q.when(options.onLoading($module, instances)).then(function(res) {
+                                if(res){
+                                    $module.loading = true;
+                                    body.css({ overflow: 'hidden'});
+                                    element.addClass('show');
+                                }
+                            });                            
+                        } else {
+                            $module.loading = true;
+                            body.css({ overflow: 'hidden'});
+                            element.addClass('show');
+                        }
+                    }
+                }
+                
+                // stop the loader.
+                function stop() {                   
+                    body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    if(element)
+                        element.removeClass('show'); 
+                    $module.loading = false;
+                    $module.suppressed = false;
+                }  
+                
+                // suppresses once.
+                function suppress() {                    
+                    $module.suppressed = true;
+                }
+                
+                // disable the loader
+                function disable() {
+                    $module.disabled = true;    
+                }
+
+                // enable the loader
+                function enable() {
+                    $module.disabled = false;
+                }
+                
+                // set/update options.
+                // does not support live templates.
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    options = $module.options = scope.options = angular.extend(options, obj); 
+                    scope.message = options.message;
+                }
+
+                function destroy() {              
+                    var idx = instances.indexOf($module);
+                    if (idx !== -1)
+                        instances.splice(idx, 1);
+                    scope.$destroy();                    
+                }
+                
+                function init() {
+                    
+                    $module.start = scope.start = start;
+                    $module.stop = scope.stop = stop;
+                    $module.set = scope.set = setOptions;
+                    $module.suppress = scope.suppress = suppress;
+                    $module.enable = scope.enable = enable;
+                    $module.disable = scope.disable = disable;
+                    scope.message = options.message;                   
+               
+                    loadTemplate(contentTemplate).then(function (template) {
+                        if(template) {
+                            element.html(template);
+                            $compile(element.contents())(scope);
+                            if(options.name === 'page')
+                                element.addClass('ai-loader-page');
+                        } else {
+                            console.error('Error loading $loader template.');
+                        }
+                    });
+
+                    // remove loader on location/route change.
+                    $rootScope.$on('$locationChangeStart', function () {
+                        if(element)
+                            element.removeClass('show');
+                        if(body)
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    });
+
+                    scope.$watch($module.options, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = newVal;
+                    });
+
+                    scope.$on('destroy', function () {
+                        $module.destroy();
+                    });
+                    
+                }
+                
+                init();
+                
+                return $module;
+            }
+            
+            function getLoader(name, element, options) {
+                var instance;
+                if(!arguments.length)
+                    return instances;
+                else if(arguments.length === 1)
+                    return instances[name];
+                else
+                    instance = new ModuleFactory(name, element, options);
+                if(instance)
+                    instances[instance.options.name] = instance;
+                return instance;
+            }      
+            
+            return getLoader;
+
+        }];
+        
+        return { 
+            $get: get,
+            $set: set            
+        };
+        
+    })
+    
+    .directive('aiLoader', [ '$loader', function ($loader) {
+    
+        return {
+            restrict: 'EAC',
+            scope: true,
+            link: function (scope, element, attrs) {
+
+                var $module, defaults, options, watchKey;
+
+                defaults = {
+                    scope: scope
+                };
+
+                // initialize the directive.
+                function init () {
+                    $module = $loader(element, options);
+                }
+
+                options = scope.$eval(attrs.aiLoader) || scope.$eval(attrs.options);
+                options = angular.extend(defaults, options);
+                
+                watchKey = attrs.aiLoader ? 'aiLoader' : 'options';
+                scope.$watch(attrs[watchKey], function (newVal, oldVal) {
+                    if(newVal === oldVal) return;
+                    $module.set(newVal);
+                });
+
+                init();
+                
+            }
+            
+        };
+        
+    }]);
+
+angular.module('ai.loader.interceptor', [])
+    .factory('$loaderInterceptor', [ '$q', '$injector', '$timeout', function ($q, $injector, $timeout) {
+        
+        function getLoaders() {
+            return $injector.get('$loader')();
+        }
+
+        // prevents loader from immediately showing
+        // set options.delay.
+        function delayLoader(_loader) {
+            if(_loader.options.delay === 0){
+                _loader.start();                
+            } else {
+                clearTimeout(_loader.timeoutId);
+                _loader.timeoutId = $timeout(function () {
+                        _loader.start();
+                }, _loader.options.delay);
+            }
+        }
+        
+        function startLoaders() {
+            var loaders = getLoaders();            
+            angular.forEach(loaders, function (_loader) {
+                if(_loader.options.intercept){                    
+                    if(!_loader.suppressed){
+                        delayLoader(_loader);
+                    }
+                }
+            });                
+        }
+        
+        function stopLoaders(){
+            var loaders = getLoaders();
+            angular.forEach(loaders, function (_loader) {     
+                _loader.loading = false;
+                _loader.stop();
+            });
+        }
+        
+        return {
+            request: function (req) {      
+                startLoaders();
+                return req || $q.when(req);
+            },
+            response: function (res) {        
+                stopLoaders();
+                return res || $q.when(res);
+            },
+            responseError: function (res){   
+                stopLoaders();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$loaderInterceptor');
+    }]);
+
+// imports above modules.
+angular.module('ai.loader', [
+    'ai.loader.factory',
+    'ai.loader.interceptor'
+]);
+
+   
+
+
 angular.module('ai.modal', [])
 
 .provider('$modal', function $modal() {
@@ -1471,8 +1848,8 @@ angular.module('ai.modal', [])
     var defaults = {
 
             title: 'Dialog',                      // the default template's title.
-            template: 'modal.tpl.html',           // a custom template string.
-            content: null,                        // the default template's text or html body.
+            template: 'ai-modal.html',            // a custom template string.
+            content: undefined,                   // the default template's text or html body.
             locals: {},                           // locals that are passed to scope.
 
             show: false,                          // show the modal on init.
@@ -1495,26 +1872,31 @@ angular.module('ai.modal', [])
 
             /* scope and controller */
             controller: angular.noop,             // angular controller.
-            controllerAs: null,                   // define controller as.
-            scope: null,                          // pass existing scope.
+            controllerAs: undefined,              // define controller as.
+            scope: undefined,                     // pass existing scope.
 
             /* events */
             onCloseDestroy: false,                // when true the modal will be destroyed on close. Good when modal is initialized and shown from click event.
-            onClose: null,                        // callback on close.
-            onShow: null,                         // callback on show.
-            onOk: null,                           // callback on ok.
-            onDestroy: null,                      // callback on scope destroy.
-            onBind: null                          // callback when modal is bound.
+            onClose: undefined,                   // callback on close.
+            onShow: undefined,                    // callback on show.
+            onOk: undefined,                      // callback on ok.
+            onDestroy: undefined,                 // callback on scope destroy.
+            onBind: undefined                     // callback when modal is bound.
 
         }, get, set;
 
-    set = function set(value) {
-        angular.extend(defaults, value);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
     get = ['$rootScope', '$http', '$q', '$compile', '$controller', '$templateCache', '$timeout', '$document',
            '$animate', '$window', '$injector',
-        function ($rootScope, $http, $q, $compile, $controller, $templateCache, $timeout, $document, $animate,
+        function get($rootScope, $http, $q, $compile, $controller, $templateCache, $timeout, $document, $animate,
                   $window, $injector) {
 
 
@@ -1576,14 +1958,13 @@ angular.module('ai.modal', [])
 
             function ModuleFactory(options) {
 
-                var self, ctrl, isDefault, closing,
+                var self, ctrl, closing,
                     scope, element, opts,
                     backdrop, initializing, dialog,
                     _requestAnimationFrame, _cancelAnimationFrame,
                     lastAnimation;
 
-                    self = this;
-
+                self = this;
                 initializing = false;
 
                 _requestAnimationFrame =
@@ -1599,12 +1980,7 @@ angular.module('ai.modal', [])
 
                 // gets the html content for the modal */
                 function getTemplate() {
-
                     if (!opts.template) throw new Error('ai-modal requires a template but was not specified.');
-
-                    // var to note using default built in template
-                    isDefault = opts.template === 'modal.tpl.html';
-
                     return loadTemplate(opts.template);
                 }
 
@@ -1701,48 +2077,34 @@ angular.module('ai.modal', [])
 
                 // show the modal
                 function show() {
-
                     /* prevents flicker on reinit */
                     var check = setInterval(function () {
-
                         if (!initializing) {
                             clearInterval(check);
                             scope.$apply(function () {
                                 ready();
                             });
                         }
-
                     }, 10);
-
                     function ready() {
-
                         scope.visibility = 1;
-
                         if (opts.animation.in) {
-
                             if (lastAnimation)
                                 _cancelAnimationFrame(lastAnimation);
-
                             lastAnimation = _requestAnimationFrame(function () {
-
                                 if (opts.backdropAnimation.in)
                                 //backdrop.addClass(opts.backdropAnimation.in);
                                     $animate.setClass(backdrop, opts.backdropAnimation.in, opts.backdropAnimation.out, function () {
-
                                     });
-
                                 if (opts.animation.in)
                                     $animate.setClass(dialog, opts.animation.in, opts.animation.out, function () {
                                         showComplete();
                                     });
-
                             });
-
                         } else {
                             showComplete();
                         }
                     }
-
                 }
 
                 // modal has been shown
@@ -1835,7 +2197,7 @@ angular.module('ai.modal', [])
                     if (idx !== -1)
                         instances.splice(idx, 1);
 
-                    if (opts.onDestroy && angular.isFunction(opts.onDestroy))
+                    if (angular.isFunction(opts.onDestroy))
                         opts.onDestroy(self, scope);
 
                     scope.$destroy();
@@ -2108,48 +2470,34 @@ angular.module('ai.modal', [])
         restrict: 'AE',
         link: function (scope, element, attrs) {
 
-            var $module, options;
-
-            options = { };
+            var $module;
 
            function bindEvents() {
-
                 element.unbind('click');
-
                 // add click event
                 element.on('click', function () {
                     scope.$apply(function () {
                         $module.show();
                     });
                 });
-
             }
 
             function init() {
-
                 var tmpOpt = attrs.aiModal || attrs.options;
-                scope.options = options = scope.$eval(tmpOpt);
-
+                scope.options = scope.$eval(tmpOpt);
                 if (!$module)
                     $module = new $modal(scope.options);
-
                 // check if additional css styles
                 if (scope.options.cssClass)
                     element.addClass(scope.options.cssClass);
-
                 // unbind/bind jqlite events
                 bindEvents();
-
             }
 
             scope.$watch(attrs.aiModal, function (newVal, oldVal) {
-
                 if (newVal === oldVal) return;
-
                 if (angular.isObject(newVal)) {
-
                     angular.extend(scope.options, scope.$eval(newVal));
-
                     if ($module) {
                         $module.destroy();
                         $module = null;
@@ -2158,29 +2506,11 @@ angular.module('ai.modal', [])
                         init();
                     }
                 }
-
             }, true);
 
             scope.$on('destroy', function () {
                 $module.destroy();
             });
-
-            // get data dash attributes model will override these
-            //angular.forEach(defaults, function (v, k) {
-            //
-            //    if (attrs[k]) {
-            //
-            //        var val = attrs[k],
-            //            isBool = /^(true|false)$/i.test(val) || false,
-            //            isInt = parseInt(val) || undefined;
-            //
-            //        // convert bools/ints
-            //        if (isBool) val = JSON.parse(val);
-            //        else if (isInt) val = isInt;
-            //        dataOptions[k] = val;
-            //    }
-            //
-            //});
 
             init();
 
@@ -2205,8 +2535,7 @@ angular.module('ai.passport.factory', [])
                 2: 'manager',
                 3: 'admin',
                 4: 'superadmin'
-            },
-
+            },            
             401: true,                                          // set to false to not handle 401 status codes.
             403: true,                                          // set to false to not handle 403 status codes.
             paranoid: false,                                    // when true, fails if access level is missing.
@@ -2223,9 +2552,10 @@ angular.module('ai.passport.factory', [])
             logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
             resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
             recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
-            refreshAction: 'get /api/passport/refresh',         // when the page is loaded the user may still be
+            refreshAction: false,                               // when the page is loaded the user may still be
                                                                 // logged in this calls the server to ensure the
                                                                 // active session is reloaded.
+                                                                // ex: 'get /api/passport/refresh'
 
             // success fail actions.
             onLoginSuccess: '/',                                // path or func on success.
@@ -2241,11 +2571,16 @@ angular.module('ai.passport.factory', [])
                                                                 // separated by a space.
         };
 
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
         };
 
-        get = ['$rootScope', '$location', '$http', '$route', function ($rootScope, $location, $http, $route) {
+        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
 
             var instance;
 
@@ -2296,7 +2631,7 @@ angular.module('ai.passport.factory', [])
                     defaults.levels = options.levels || defaults.levels;
 
                     // merge the options.
-                    $module.options = angular.extend(defaults, options);
+                    $module.options = angular.extend(angular.copy(defaults), options);
 
                     // normalize/reverse levels map
                     $module.options.roles = reverseMap($module.options.levels);
@@ -2361,7 +2696,9 @@ angular.module('ai.passport.factory', [])
                     }
                 };               
                 
-                $module.refresh = function refresh() {               
+                $module.refresh = function refresh() {   
+                    if(!$module.options.refreshAction)
+                        return;
                     if(angular.isFunction($module.options.refreshAction)){
                         $module.options.refreshAction.call($module);                            
                     } else {
@@ -2547,416 +2884,6 @@ angular.module('ai.passport', [
     'ai.passport.interceptor',
     'ai.passport.route'
 ]);
-angular.module('ai.storage', [])
-
-    .provider('$storage', function $storage() {
-
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
-        }, get, set;
-
-
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
-        }
-
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
-            }
-            return def;
-        }
-
-        /**
-         * Sets provider defaults.
-         * @param {object} options - the options to be merged with defaults.
-         */
-        set = function (options) {
-            defaults = angular.extend(defaults, options);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
-
-angular.module('ai.tab', [])
-.provider('$tab', function $tab() {
-
-    var defaults = {
-
-        }, get, set;
-
-    set = function set(key, value) {
-        if(arguments.length === 2)
-           defaults[key] = value;
-        if(arguments.length === 1 && angular.isObject(key))
-            defaults = angular.extend(defaults, key);
-    };
-
-    get = [function () {
-
-        function ModuleFactory(element, options){
-
-            var $module = {},
-                scope;
-
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
-
-
-
-            return $module;
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-.directive('aiTab', ['$tab', function ($tab) {
-
-    return {
-        restrict: 'AC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $tab(element, options);
-            }
-
-            options = scope.$eval(attrs.aiTab || attrs.options);
-            options = angular.extend(defaults, options);
-
-            init();
-
-        }
-    };
-
-}]);
 angular.module('ai.step', [])
 
 .provider('$step', function $step() {
@@ -2993,12 +2920,17 @@ angular.module('ai.step', [])
 
         }, get, set;
 
-    set = function set(obj) {
-        angular.extend(defaults, obj);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
     get = [ '$rootScope', '$templateCache', '$compile', '$http', '$q', '$location',
-        function($rootScope, $templateCache, $compile, $http, $q, $location) {
+        function get($rootScope, $templateCache, $compile, $http, $q, $location) {
 
         var headerTemplate, contentTemplate, actionsTemplate;
 
@@ -3086,7 +3018,7 @@ angular.module('ai.step', [])
             // extend options
             options = options || {};
             $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(defaults, options);
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
 
             // check if options contain steps.
             if(options.steps){
@@ -3490,6 +3422,355 @@ angular.module('ai.step', [])
     };
 
 }]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         */
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
+
 
 angular.module('ai.table', ['ngSanitize'])
 
@@ -3647,12 +3928,12 @@ angular.module('ai.table', ['ngSanitize'])
 
         };
 
-        set = function $set(options) {
+        set = function set(options) {
             defaults = angular.extend(defaults, options);
         };
 
         get = ['$rootScope','$http', '$q', '$templateCache', '$compile', '$filter', '$timeout', 
-            function $get($rootScope,$http, $q, $templateCache, $compile, $filter, $timeout) {
+            function get($rootScope,$http, $q, $templateCache, $compile, $filter, $timeout) {
 
             var tableTemplate, actionsTemplate, loaderTemplate,
                 pagerTemplate, nodataTemplate;
@@ -3838,8 +4119,7 @@ angular.module('ai.table', ['ngSanitize'])
 
                 scope = (options.scope && options.scope.$new()) || $rootScope.$new();
                 //scope = options.scope || $rootScope.$new();
-                //options = scope.options = angular.extend(defaults, options);
-                options = angular.extend({}, defaults, options);
+                options = angular.extend(angular.copy(defaults), options);
 
                 // TEMPLATING
                 function loadTemplate(t) {
@@ -5430,7 +5710,7 @@ var form = angular.module('ai.validate', [])
         angular.extend(defaults, value);
     };
 
-    get = [function () {
+    get = [function get() {
 
 
         function ModuleFactory(options) {
@@ -6264,6 +6544,73 @@ var form = angular.module('ai.validate', [])
 
 
 
+angular.module('ai.tab', [])
+.provider('$tab', function $tab() {
+
+    var defaults = {
+
+        }, get, set;
+
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
+    };
+
+    get = [function get() {
+
+        function ModuleFactory(element, options){
+
+            var $module = {},
+                scope;
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+
+
+
+            return $module;
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+.directive('aiTab', ['$tab', function ($tab) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $tab(element, options);
+            }
+
+            options = scope.$eval(attrs.aiTab || attrs.options);
+            options = angular.extend(defaults, options);
+
+            init();
+
+        }
+    };
+
+}]);
 angular.module('ai.viewer', [])
 
     .provider('$viewer', function $viewer() {
@@ -6275,11 +6622,11 @@ angular.module('ai.viewer', [])
             },
             get, set;
 
-        set = function $set(options) {
+        set = function set(options) {
             defaults = angular.extend(defaults, options);
         };
 
-        get = ['$rootScope', '$compile', '$location', function $get($rootScope, $compile, $location) {
+        get = ['$rootScope', '$compile', '$location', function get($rootScope, $compile, $location) {
 
             var prevRoutes = [],
                 initialized = false,
@@ -6316,7 +6663,7 @@ angular.module('ai.viewer', [])
                     scope;
 
                 scope = options.scope || $rootScope.$new();
-                options = scope.options = angular.extend(defaults, options);
+                options = scope.options = angular.extend(angular.copy(defaults), options);
 
                 view = angular.element(options.template);
                 view.addClass(options.viewCss);
@@ -6436,7 +6783,7 @@ angular.module('ai.widget', [])
         },
         get, set;
 
-    set = function (key, options) {
+    set = function set(key, options) {
         if(angular.isObject(key)){
             options = key;
             key = undefined;
@@ -6446,14 +6793,14 @@ angular.module('ai.widget', [])
         }
     };
 
-    get = [ function () {
+    get = [ function get() {
 
         // factory allows for globally
         // setting widget options.
         function ModuleFactory(key, options) {
             options = options || {};
             if(!defaults[key]) return options;
-            options = angular.extend(defaults[key], options);
+            options = angular.extend(angular.copy(defaults[key]), options);
             return options;
         }
         return ModuleFactory;

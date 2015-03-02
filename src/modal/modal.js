@@ -5,8 +5,8 @@ angular.module('ai.modal', [])
     var defaults = {
 
             title: 'Dialog',                      // the default template's title.
-            template: 'modal.tpl.html',           // a custom template string.
-            content: null,                        // the default template's text or html body.
+            template: 'ai-modal.html',            // a custom template string.
+            content: undefined,                   // the default template's text or html body.
             locals: {},                           // locals that are passed to scope.
 
             show: false,                          // show the modal on init.
@@ -29,26 +29,31 @@ angular.module('ai.modal', [])
 
             /* scope and controller */
             controller: angular.noop,             // angular controller.
-            controllerAs: null,                   // define controller as.
-            scope: null,                          // pass existing scope.
+            controllerAs: undefined,              // define controller as.
+            scope: undefined,                     // pass existing scope.
 
             /* events */
             onCloseDestroy: false,                // when true the modal will be destroyed on close. Good when modal is initialized and shown from click event.
-            onClose: null,                        // callback on close.
-            onShow: null,                         // callback on show.
-            onOk: null,                           // callback on ok.
-            onDestroy: null,                      // callback on scope destroy.
-            onBind: null                          // callback when modal is bound.
+            onClose: undefined,                   // callback on close.
+            onShow: undefined,                    // callback on show.
+            onOk: undefined,                      // callback on ok.
+            onDestroy: undefined,                 // callback on scope destroy.
+            onBind: undefined                     // callback when modal is bound.
 
         }, get, set;
 
-    set = function set(value) {
-        angular.extend(defaults, value);
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
     get = ['$rootScope', '$http', '$q', '$compile', '$controller', '$templateCache', '$timeout', '$document',
            '$animate', '$window', '$injector',
-        function ($rootScope, $http, $q, $compile, $controller, $templateCache, $timeout, $document, $animate,
+        function get($rootScope, $http, $q, $compile, $controller, $templateCache, $timeout, $document, $animate,
                   $window, $injector) {
 
 
@@ -110,14 +115,13 @@ angular.module('ai.modal', [])
 
             function ModuleFactory(options) {
 
-                var self, ctrl, isDefault, closing,
+                var self, ctrl, closing,
                     scope, element, opts,
                     backdrop, initializing, dialog,
                     _requestAnimationFrame, _cancelAnimationFrame,
                     lastAnimation;
 
-                    self = this;
-
+                self = this;
                 initializing = false;
 
                 _requestAnimationFrame =
@@ -133,12 +137,7 @@ angular.module('ai.modal', [])
 
                 // gets the html content for the modal */
                 function getTemplate() {
-
                     if (!opts.template) throw new Error('ai-modal requires a template but was not specified.');
-
-                    // var to note using default built in template
-                    isDefault = opts.template === 'modal.tpl.html';
-
                     return loadTemplate(opts.template);
                 }
 
@@ -235,48 +234,34 @@ angular.module('ai.modal', [])
 
                 // show the modal
                 function show() {
-
                     /* prevents flicker on reinit */
                     var check = setInterval(function () {
-
                         if (!initializing) {
                             clearInterval(check);
                             scope.$apply(function () {
                                 ready();
                             });
                         }
-
                     }, 10);
-
                     function ready() {
-
                         scope.visibility = 1;
-
                         if (opts.animation.in) {
-
                             if (lastAnimation)
                                 _cancelAnimationFrame(lastAnimation);
-
                             lastAnimation = _requestAnimationFrame(function () {
-
                                 if (opts.backdropAnimation.in)
                                 //backdrop.addClass(opts.backdropAnimation.in);
                                     $animate.setClass(backdrop, opts.backdropAnimation.in, opts.backdropAnimation.out, function () {
-
                                     });
-
                                 if (opts.animation.in)
                                     $animate.setClass(dialog, opts.animation.in, opts.animation.out, function () {
                                         showComplete();
                                     });
-
                             });
-
                         } else {
                             showComplete();
                         }
                     }
-
                 }
 
                 // modal has been shown
@@ -369,7 +354,7 @@ angular.module('ai.modal', [])
                     if (idx !== -1)
                         instances.splice(idx, 1);
 
-                    if (opts.onDestroy && angular.isFunction(opts.onDestroy))
+                    if (angular.isFunction(opts.onDestroy))
                         opts.onDestroy(self, scope);
 
                     scope.$destroy();
@@ -642,48 +627,34 @@ angular.module('ai.modal', [])
         restrict: 'AE',
         link: function (scope, element, attrs) {
 
-            var $module, options;
-
-            options = { };
+            var $module;
 
            function bindEvents() {
-
                 element.unbind('click');
-
                 // add click event
                 element.on('click', function () {
                     scope.$apply(function () {
                         $module.show();
                     });
                 });
-
             }
 
             function init() {
-
                 var tmpOpt = attrs.aiModal || attrs.options;
-                scope.options = options = scope.$eval(tmpOpt);
-
+                scope.options = scope.$eval(tmpOpt);
                 if (!$module)
                     $module = new $modal(scope.options);
-
                 // check if additional css styles
                 if (scope.options.cssClass)
                     element.addClass(scope.options.cssClass);
-
                 // unbind/bind jqlite events
                 bindEvents();
-
             }
 
             scope.$watch(attrs.aiModal, function (newVal, oldVal) {
-
                 if (newVal === oldVal) return;
-
                 if (angular.isObject(newVal)) {
-
                     angular.extend(scope.options, scope.$eval(newVal));
-
                     if ($module) {
                         $module.destroy();
                         $module = null;
@@ -692,29 +663,11 @@ angular.module('ai.modal', [])
                         init();
                     }
                 }
-
             }, true);
 
             scope.$on('destroy', function () {
                 $module.destroy();
             });
-
-            // get data dash attributes model will override these
-            //angular.forEach(defaults, function (v, k) {
-            //
-            //    if (attrs[k]) {
-            //
-            //        var val = attrs[k],
-            //            isBool = /^(true|false)$/i.test(val) || false,
-            //            isInt = parseInt(val) || undefined;
-            //
-            //        // convert bools/ints
-            //        if (isBool) val = JSON.parse(val);
-            //        else if (isInt) val = isInt;
-            //        dataOptions[k] = val;
-            //    }
-            //
-            //});
 
             init();
 

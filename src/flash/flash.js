@@ -7,12 +7,10 @@ angular.module('ai.flash.factory', [])
 
         // default settings.
         defaults = {
-            template: 'flash.html',                 // the template for flash message.
+            template: 'ai-flash.html',              // the template for flash message.
             html: true,                             // when true html flash messages can be used.(requires ngSanitize)
             errors: true,                           // when true flash is shown automatically on http status errors.
             errorKey: 'err',
-            validationKey: undefined,               // this is the property contained in the error used for displaying
-                                                    // validation error messages. for example mongoose uses 'errors'.
                                                     // if undefined validation errors are undefined.
             excludeErrors: [401, 403, 404],         // exclude errors by status type.           
             errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
@@ -31,13 +29,11 @@ angular.module('ai.flash.factory', [])
             timeout: 3500,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
             intercept: true,                        // when false flash error interception is disabled.
-            onError: undefined,                     // callback on error before flashed, return false to ignore.
-            suppress: false                         // when true flash error messages are suppressed for one request
-                                                    // only then re-enabled.
+            onError: undefined                      // callback on error before flashed, return false to ignore.
         };
 
         // set global provider options.
-        set = function (key, value) {
+        set = function set(key, value) {
             var obj = key;
             if(arguments.length > 1){
                 obj = {};
@@ -48,7 +44,7 @@ angular.module('ai.flash.factory', [])
 
         // get provider
         get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
-            function ($rootScope, $q, $templateCache, $http, $timeout, $compile) {
+            function get($rootScope, $q, $templateCache, $http, $timeout, $compile) {
 
             var flashTemplate, $module;
  
@@ -135,7 +131,6 @@ angular.module('ai.flash.factory', [])
                             clearTimeout(flash.timeoutId);
                             remove(flash);
                         }
-
                     }, flash.timeout);
                 }
                 
@@ -218,6 +213,10 @@ angular.module('ai.flash.factory', [])
                 function leave(flash) {
                     flash.focus = false;
                 }
+                
+                function suppress() {
+                    $module.suppressed = false;
+                }
 
                 function setOptions(key, value) {
                     var obj = key;
@@ -225,7 +224,16 @@ angular.module('ai.flash.factory', [])
                         obj = {};
                         obj[key] = value;
                     }
-                    $module.options = options = angular.extend(options, obj);
+                    options = $module.options = scope.options = angular.extend(options, obj);
+                }
+                
+                function destroy() {
+                    if(element)
+                        element.removeClass('show');
+                    if(body)
+                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    scope.flashes = $module.flashes = flashes = [];
+                    scope.$destroy();
                 }
                 
                 // get overflows and body.
@@ -238,28 +246,32 @@ angular.module('ai.flash.factory', [])
 
                     // extend options      
                     $module.scope = scope = _options.scope || $rootScope.$new();
-                    options = angular.extend(defaults, options, _options);
+                    options = angular.extend(angular.copy(defaults), options, _options);
                     options.onError = options.onError || function () { return true; };
                     $module.options = scope.options = options;
 
-                        scope.add = add;
+                    scope.add = add;
                     scope.remove = remove;
                     scope.removeAll = removeAll;
                     scope.flashes = flashes;
                     scope.leave = leave;
                     scope.enter = enter;
                     scope.set = setOptions;
+                    scope.suppress = suppress;
 
                     $module.add = add;
                     $module.remove = remove;
                     $module.removeAll = removeAll;
+                    $module.suppress = suppress;
 
                     // load the template.
-                    loadTemplate(options.template).then(function (res) {
-                        if(res) {
-                            element.html(res);
+                    loadTemplate(options.template).then(function (template) {
+                        if(template) {
+                            element.html(template);
                             $compile(element.contents())(scope);
                             element.addClass('ai-flash');
+                        } else {
+                            console.error('Error loading $flash template.');
                         }
                     });
 
@@ -272,10 +284,14 @@ angular.module('ai.flash.factory', [])
                             body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
                         scope.flashes = $module.flashes = flashes = [];
                     });
-                    
-                    scope.$watch($module.options, function (newValue, oldValue){
-                        if(newValue === oldValue) return;
-                            scope.options = newValue;
+
+                    scope.$watch($module.options, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = newVal;
+                    });
+
+                    scope.$on('destroy', function () {
+                        $module.destroy();
                     });
                     
                 }
@@ -345,8 +361,8 @@ angular.module('ai.flash.interceptor', [])
                 
                 // if interception is disabled
                 // don't handle/show message.
-                if(!flash.options.intercept || flash.options.suppress){
-                    flash.options.suppress = false;
+                if(!flash.options.intercept || flash.suppressed){
+                    flash.suppressed = false;
                     return res;
                 }                    
                 
@@ -398,8 +414,8 @@ angular.module('ai.flash.interceptor', [])
             response: function (res) {
                 var flash = $injector.get('$flash');
                 // ensure we turn disable once off.
-                flash.suppress = false;
-                return res;
+                flash.suppressed = false;
+                return res || $q.when(res);
             }
         };
         

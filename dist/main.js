@@ -10,7 +10,8 @@ require([
     'passport/passport',
     'dropdown/dropdown',
     'autoform/autoform',
-    'tab/tab'
+    'tab/tab',
+    'loader/loader'
 ], function () {
     require(['common/app'], function () {
         

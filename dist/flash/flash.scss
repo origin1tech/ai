@@ -36,9 +36,10 @@ $flash-danger-border-color:                   darken(adjust-hue($flash-danger-bg
   z-index: $flash-zindex;
   width: 100%;
   position: absolute;
+  height: 0;
   &.show {
     height: 100%;
-    overflow:hidden;
+    overflow: hidden;
   }
 }
 

@@ -9,11 +9,11 @@ angular.module('ai.viewer', [])
             },
             get, set;
 
-        set = function $set(options) {
+        set = function set(options) {
             defaults = angular.extend(defaults, options);
         };
 
-        get = ['$rootScope', '$compile', '$location', function $get($rootScope, $compile, $location) {
+        get = ['$rootScope', '$compile', '$location', function get($rootScope, $compile, $location) {
 
             var prevRoutes = [],
                 initialized = false,
@@ -50,7 +50,7 @@ angular.module('ai.viewer', [])
                     scope;
 
                 scope = options.scope || $rootScope.$new();
-                options = scope.options = angular.extend(defaults, options);
+                options = scope.options = angular.extend(angular.copy(defaults), options);
 
                 view = angular.element(options.template);
                 view.addClass(options.viewCss);

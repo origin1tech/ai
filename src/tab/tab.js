@@ -6,13 +6,15 @@ angular.module('ai.tab', [])
         }, get, set;
 
     set = function set(key, value) {
-        if(arguments.length === 2)
-           defaults[key] = value;
-        if(arguments.length === 1 && angular.isObject(key))
-            defaults = angular.extend(defaults, key);
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
     };
 
-    get = [function () {
+    get = [function get() {
 
         function ModuleFactory(element, options){
 
