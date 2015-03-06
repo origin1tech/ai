@@ -81,7 +81,7 @@ you want to use or take priority.
 ###Documentation
 
 As with all documentation there's only so much time in the day, so the documentation is somewhat limited. That said
-most if not all the options for each module is documented. You should also consider viewing the source as there are
+most if not all the options for each module are documented in source. You should consider viewing the source as there are
 likely additional notes to assist you. 
 
 View the documentation by running the following then open your browser to http://127.0.0.1:8080:
