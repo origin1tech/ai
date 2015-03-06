@@ -41,7 +41,7 @@ To add Ai to you project simply add references to your html page.
 </body>
 ```
 
-**Wiring up ai to your Angular app**
+**Wiring up Ai to your Angular app**
 
 ```js
 angular.module('app', ['ai']);
@@ -54,6 +54,8 @@ might be the "ai.flash" module. The below would tell ai.flash to show the stack 
 angular.module('app', ['ai'])
 .config(function($flashProvider) {
     $flashProvider.$set('stack', true);
+    // or
+    // $flashProvider.$set({ stack: true });
 });
 ```
 
