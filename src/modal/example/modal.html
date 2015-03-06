@@ -1,19 +1,14 @@
 <h3>{{title}}</h3>
 <hr/>
+<p class="alert alert-danger">
+    This module is currently being refactored/redeveloped.
+</p>
 <p class="alert alert-warning">
     The modal extension is a native extension from the ground up. It does not rely on jQuery as Bootstrap modals do.
     It works natively with Angular's jQlite or pure JavaScript.
 </p>
 <h4>Basic Modal</h4>
 <hr/>
-<!--<div class="form-group">-->
-    <!--<label>Title</label>-->
-    <!--<input type="text" class="form-control" ng-model="modal.title" placeholder="Enter modal title"/>-->
-<!--</div>-->
-<!--<div class="form-group">-->
-    <!--<label>Message</label>-->
-    <!--<input type="text" class="form-control" ng-model="modal.message" placeholder="Enter modal message"/>-->
-<!--</div>-->
 <button class="btn btn-primary" ai-modal options="{ title: 'My Title', content: 'My content message' }">Show Modal</button>
 <button class="btn btn-warning" ng-click="showModal()">Show Instance Modal</button>
 <hr/>

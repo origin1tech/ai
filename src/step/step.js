@@ -1,4 +1,4 @@
-angular.module('ai.step', [])
+angular.module('ai.step', ['ai.helpers'])
 
 .provider('$step', function $step() {
 
@@ -7,7 +7,7 @@ angular.module('ai.step', [])
             key: '$id',                     // the primary key for the collection of steps.
             start: 0,                       // the starting index of the step wizard.
             title: 'true',                  // when true title is auto generated if not set in step object.
-            continue: true,                 // when true if called step is disabled continue to next enabled.
+            continue: undefined,            // when true if called step is disabled continue to next enabled.
             breadcrumb: false,              // when true only header is shown, used as breadcrumb.
                                             // breadcrumb mode looks for property 'href' to navigate to.
 
@@ -19,18 +19,18 @@ angular.module('ai.step', [])
 
                                             // hide/show buttons, disable/enable header click events.
 
-            showNumber: true,               // when true step number show next to title.
-            showNext: true,                 // when true next button is created.
-            showPrev: true,                 // when true prev button is created.
-            showSubmit: true,               // when true submit button is created.
-            headTo: true,                   // when true header can be clicked to navigate.
+            showNumber: undefined,          // when true step number show next to title.
+            showNext: undefined,            // when true next button is created.
+            showPrev: undefined,            // when true prev button is created.
+            showSubmit: undefined,          // when true submit button is created.
+            headTo: undefined,              // when true header can be clicked to navigate.
 
                                             // all events are called with $module context except onload which passes it.
 
             onBeforeChange: undefined,      // callback event fired before changing steps.
             onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
             onSubmit: undefined,            // callback on submit returns ({ active }, event)
-            onLoad: undefined               // callback on load returns ($module)
+            onReady: undefined               // callback on load returns ($module)
 
         }, get, set;
 
@@ -43,8 +43,7 @@ angular.module('ai.step', [])
         defaults = angular.extend(defaults, obj);
     };
 
-    get = [ '$rootScope', '$templateCache', '$compile', '$http', '$q', '$location',
-        function get($rootScope, $templateCache, $compile, $http, $q, $location) {
+    get = [ '$q', '$rootScope', '$location', '$helpers', function get($q, $rootScope, $location, $helpers) {
 
         var headerTemplate, contentTemplate, actionsTemplate;
 
@@ -52,7 +51,7 @@ angular.module('ai.step', [])
                             '<ul>' +
                                 '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
                                 'ng-class="{ active: step.active, disabled: !step.enabled, ' +
-                                'clickable: options.headTo && step.enabled, nonum: !options.showNumber }">' +
+                                'clickable: options.headTo !== false && step.enabled, nonum: !options.showNumber === false }">' +
                                     '<span class="title">{{step.title}}</span>' +
                                     '<span class="number">{{step.$number}}</span>' +
                                 '</li>' +
@@ -64,56 +63,19 @@ angular.module('ai.step', [])
                           '</div>';
 
         actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
-                            '<hr/><button ng-show="options.showPrev" ng-disabled="isFirst()" class="btn btn-warning" ' +
+                            '<hr/><button ng-show="options.showPrev !== false" ng-disabled="isFirst()" class="btn btn-warning" ' +
                                 'ng-click="prev($event)">Previous</button> ' +
-                            '<button ng-show="options.showNext" ng-disabled="isLast()" class="btn btn-primary" ' +
+                            '<button ng-show="options.showNext !== false" ng-disabled="isLast()" class="btn btn-primary" ' +
                                 'ng-click="next($event)">Next</button> ' +
-                            '<button ng-show="isLast() && options.showSubmit" class="btn btn-success submit" ' +
+                            '<button ng-show="isLast() && options.showSubmit !== false" class="btn btn-success submit" ' +
                                 'ng-click="submit($event)">Submit</button>' +
                           '</div>';
 
-        $templateCache.get(defaults.header) || $templateCache.put(defaults.header, headerTemplate);
-        $templateCache.get(defaults.content) || $templateCache.put(defaults.content, contentTemplate);
-        $templateCache.get(defaults.actions) || $templateCache.put(defaults.actions, actionsTemplate);
+        $helpers.getPutTemplate(defaults.header, headerTemplate);
+        $helpers.getPutTemplate(defaults.content, contentTemplate);
+        $helpers.getPutTemplate(defaults.actions, actionsTemplate);
 
-        function isHtml(str) {
-            return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
-        }
-
-        function isPath(str) {
-            if(!str || !angular.isString(str)) return false;
-            var ext = str.split('.').pop();
-            return ext === 'html' || ext === 'tpl';
-        }
-
-        function isElement(elem) {
-                return !!(elem && elem[0] && (elem[0] instanceof HTMLElement));
-            }
-
-        function findElement(q, element) {
-            return angular.element(element || document).querySelectorAll(q);
-        }
-
-        function loadTemplate(t) {
-            // handle html an strings.
-            if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
-                var defer = $q.defer();
-                defer.resolve(t);
-                return defer.promise;
-            } else {
-                // handle paths.
-                return $q.when($templateCache.get(t) || $http.get(t))
-                    .then(function (res) {
-                        if (res.data) {
-                            $templateCache.put(t, res.data);
-                            return res.data;
-                        }
-                        return res;
-                    });
-            }
-        }
-
-        function ModuleFactory(element, options) {
+        function ModuleFactory(element, options, attrs) {
 
             var $module = {},
                 steps = [],
@@ -124,27 +86,23 @@ angular.module('ai.step', [])
                 _previous;
 
             // shift args if needed.
-            if(!isElement(element) && angular.isObject(element)){
+            if(!angular.isElement(element) && angular.isObject(element)){
+                attrs = options;
                 options = element;
                 element = undefined;
-            }
+            }            
 
+            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
             // extend options
             options = options || {};
             $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
 
             // check if options contain steps.
             if(options.steps){
                 _steps = options.steps;
                 delete options.steps;
-            }
-
-            // Private Methods.
-
-            // trim string
-            function trim(str) {
-                return str.replace(/^\s+/, '').replace(/\s+$/, '');
             }
 
             // clears active step.
@@ -222,7 +180,7 @@ angular.module('ai.step', [])
                 function done() {
 
                     if(nextActive) {
-                        if(!nextActive.enabled && options.continue){
+                        if(!nextActive.enabled && options.continue !== false){
 
                             var i, altActive;
                             if(reverse) {
@@ -288,9 +246,9 @@ angular.module('ai.step', [])
                 obj.$index = nextIdx;
                 obj.$number = nextIdx +1;
                 // simple string wrap in span.
-                if(!isHtml(obj.content) && !isPath(obj.content))
+                if(!$helpers.isHtml(obj.content) && !$helpers.isPath(obj.content))
                     obj.content = '<span>' + obj.content + '</span>';
-                contentTemplates.push(loadTemplate(obj.content));
+                contentTemplates.push($helpers.loadTemplate(obj.content));
                 $rootScope.$broadcast('step:add', obj);
                 steps.push(obj);
             }
@@ -311,7 +269,7 @@ angular.module('ai.step', [])
 
             // on header click.
             function headTo(e, idx) {
-                if(!options.headTo) return;
+                if(options.headTo === false) return;
                 var step = steps[idx];
                 if(!options.breadcrumb && step.content) {
                     to(idx, null, e);
@@ -384,7 +342,7 @@ angular.module('ai.step', [])
                 if(_steps) {
                     // convert string to array.
                     if(angular.isString(_steps))
-                        _steps = trim(_steps).split(',');
+                        _steps = $helpers.trim(_steps).split(',');
                     // convert object to array.
                     if(angular.isObject(_steps)){
                         var tmpArr = [];
@@ -406,7 +364,7 @@ angular.module('ai.step', [])
                     }
                     angular.forEach(_steps, function (v) {
                         if(angular.isString(v))
-                            v = trim(v);
+                            v = $helpers.trim(v);
                         add(v);
                     });
                 }
@@ -420,13 +378,13 @@ angular.module('ai.step', [])
                 contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
 
                 if(options.header)
-                    templates.push(loadTemplate(options.header || ''));
+                    templates.push($helpers.loadTemplate(options.header || ''));
 
                 if(options.content)
-                    templates.push(loadTemplate(options.content || ''));
+                    templates.push($helpers.loadTemplate(options.content || ''));
 
                 if(options.actions)
-                    templates.push(loadTemplate(options.actions || ''));
+                    templates.push($helpers.loadTemplate(options.actions || ''));
 
                 templates = templates.concat(contentTemplates);
 
@@ -464,7 +422,7 @@ angular.module('ai.step', [])
                         template += map.actions;
 
                         element.html(template);
-                        $compile(element.contents())(scope);
+                        $helpers.compile(scope, element.contents());
                     }
 
                 });
@@ -487,8 +445,8 @@ angular.module('ai.step', [])
                 $module.hasPrev = scope.hasPrev = hasPrev;
                 $module.steps = scope.steps = steps;
 
-                if(angular.isFunction(options.onLoad))
-                    options.onLoad($module);
+                if(angular.isFunction(options.onReady))
+                    options.onReady($module);
 
                 return $module;
 
@@ -524,10 +482,10 @@ angular.module('ai.step', [])
             };
 
             function init() {
-                $module = $step(element, options);
+                $module = $step(element, options, attrs);
             }
 
-            options = scope.$eval(attrs.aiStep || attrs.options);
+            options = scope.$eval(attrs.aiStep || attrs.aiStepOptions);
             options = angular.extend(defaults, options);
 
             init();

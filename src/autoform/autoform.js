@@ -1,14 +1,14 @@
-angular.module('ai.autoform', [])
+angular.module('ai.autoform', ['ai.helpers'  ])
 
 .provider('$autoform', function $autoform() {
 
     var defaults = {
 
             prefix: 'model',           // value to prepend to models.
-            labels: true,              // when true labels are created.
+            source: undefined,         // the source data for the form.
+            labels: undefined,         // when true labels are created.
             type: 'text',              // the default type for elements.
             addClass: false,           // specify class to be added to form for styling.
-            placeholders: true,        // when true placeholders are created for text elements.
             textareaAt: 35,            // if value is greater than this use textarea.
 
             datetimeExp:               // date time expression
@@ -35,7 +35,7 @@ angular.module('ai.autoform', [])
         defaults = angular.extend(defaults, obj);
     };
 
-    get = ['$rootScope', '$compile', function get($rootScope, $compile) {
+    get = ['$rootScope', '$helpers',   function get($rootScope, $helpers) {
 
         // iterate attributes build string.
         function parseAttributes(attrs) {
@@ -49,14 +49,7 @@ angular.module('ai.autoform', [])
             return result.join(' ');
         }
 
-        // tests if value is boolean.
-        function isBoolean(value) {
-            if(typeof value === 'boolean')
-                return true;
-            return !!(value == 'true' || value == 'false');
-        }
-
-        // tests if array contains value.
+        // simple array contains.
         function contains(arr, value){
             return arr.indexOf(value) !== -1;
         }
@@ -83,7 +76,7 @@ angular.module('ai.autoform', [])
 
         // parse the element type.
         function parseType(value, options) {
-            if(isBoolean(value))
+            if($helpers.isBoolean(value))
                 return 'checkbox';
             if(options.phoneExp.test(value))
                 return 'tel';
@@ -100,26 +93,35 @@ angular.module('ai.autoform', [])
             var radAttrs = attrs,
                 radios = '';
             angular.forEach(values, function (v) {
-                var radOpts = '\t\t<label class="checkbox-inline"><input {{ATTRS}}/>' +
-                    ' {{NAME}}</label>\n\t</div>';
-                radios += (tab(3) + radOpts
+                var radOpts = '<label class="radio-inline"><input {{ATTRS}}/>' +
+                    ' {{NAME}}</label>';
+                radios += (radOpts
                     .replace('{{ATTRS}}', trim(radAttrs + ' value="' + v + '"')))
                     .replace('{{NAME}}', v);
             });
+
             return radios;
         }
 
-        function ModuleFactory(element, options) {
+        function ModuleFactory(element, options, attrs) {
 
             var $module = {},
                 template = '',
                 scope,
                 elements;
+ 
+            // parse out relevant options
+            // from attributes.
+            if(attrs)
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
             options = options || {};
             $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
             elements = options.elements || {};
+
+            if(angular.isString(options.source))
+                options.source = scope.$eval(options.source);
 
             // initialize the module.
             function init() {
@@ -136,18 +138,19 @@ angular.module('ai.autoform', [])
                         attrs,
                         tmpValue,
                         el;
+                    
                     attrs = elem.attributes = elem.attributes || {};
 
                     // set type
-                    var origType = attrs.type || elem.type;
-                    attrs.type = origType;
+                    attrs.type = elem.type || attrs.type;
 
                     // normalize name attribute.
                     attrs.name = attrs.name || k;
 
                     // set value.
                     attrs.value = v || attrs.value || elem.value;
-                    attrs.type = parseType(attrs.value, options);
+                    if(attrs.type === undefined)
+                        attrs.type = parseType(attrs.value, options);
 
                     // set default class value.
                     attrs.class = attrs.class || '';
@@ -183,7 +186,7 @@ angular.module('ai.autoform', [])
                         attrs.type = 'textarea';
 
                     // add default class for inputs/selects.
-                    if(!contains(['textarea', 'checkbox', 'radio'], attrs.type))
+                    if(!contains(['checkbox', 'radio'], attrs.type))
                         attrs.class = trim(attrs.class.replace('form-control', '') + ' form-control');
 
                     // store value temporarily.
@@ -210,21 +213,24 @@ angular.module('ai.autoform', [])
                     var group = '';
 
                     // create opening group markup.
-                    if(attrs.type !== 'checkbox')
-                        group += (tab(1) + '<div class="form-group">');
-                    else
-                        group += (tab(1) + '<div class="checkbox">');
+                    
+                    if(attrs.type !== 'checkbox'){
+                        group += '<div class="form-group">';
+                    } else {
+                        group += '<div class="checkbox">';
+                    }
 
                     // generate labels.
                     if(attrs.type !== 'radio') {
-                        var label = (tab(2) + '<label{{FOR}}>');
-                        if(attrs.type !== 'checkbox')
+                        var label = '<label{{FOR}}>';
+                        if(attrs.type !== 'checkbox') {
                             label = label.replace('{{FOR}}', ' for="' + k + '"') + capName + '</label>';
-                        else   
-                            label = label.replace('{{FOR}}', ' class="checkbox"');
+                        } else {
+                            label = label.replace('{{FOR}}', '');
+                        }
 
                         // labels are required for checkboxes.
-                        if(options.labels || attrs.type === 'checkbox')
+                        if(options.labels !== false || attrs.type === 'checkbox')
                             group += label;
                     }
 
@@ -241,7 +247,7 @@ angular.module('ai.autoform', [])
                                 isKeyVal = !angular.isArray(elem.values);
                             el = '<select {{ATTRS}}>{{OPTIONS}}</select>';
                             angular.forEach(elem.values, function (v,k) {
-                                var opt = (tab(4) + '<option {{VALUE}}>{{TEXT}}</option>');
+                                var opt = '<option {{VALUE}}>{{TEXT}}</option>';
                                 if(isKeyVal)
                                     opt = (opt.replace('{{VALUE}}', k).replace('{{TEXT}}', v));
                                 else
@@ -254,7 +260,7 @@ angular.module('ai.autoform', [])
                         if(attrs.type === 'radio'){
 
                             group += generateRadios(elem.values, attrsStr);
-
+                            group += '</div>';
                         }
 
                     } else {
@@ -263,18 +269,18 @@ angular.module('ai.autoform', [])
 
                     // add attribute string.
                     if(el) {
-                        el = (tab(3) + el.replace('{{ATTRS}}', attrsStr));
+                        el = el.replace('{{ATTRS}}', attrsStr);
                         // add element to group.
                         group += el;
                     }
 
                     // close label if radio or checkbox.
                     if(attrs.type === 'checkbox')
-                        group += (tab(2) + capName + '</label>');
+                        group += capName + '</label>';
                     
                     // close markup group.
-                    //if(!contains(['radio', 'checkbox'], attrs.type))
-                        group += (tab(1) + '</div>');
+                    if(!contains(['radio'], attrs.type))
+                        group += '</div>';
                     
                     // add to the collection.
                     groups.push(group);
@@ -290,7 +296,7 @@ angular.module('ai.autoform', [])
                 wrapper.append(form);
 
                 scope.model = options.source;
-                $compile(wrapper.contents())(scope);
+                $helpers.compile(scope, wrapper.contents());
 
                 return $module;
 
@@ -316,7 +322,6 @@ angular.module('ai.autoform', [])
     return {
         restrict: 'AC',
         scope: true,
-        //priority: -1,
         link: function (scope, element, attrs) {
 
             var defaults, options, $module;
@@ -327,15 +332,14 @@ angular.module('ai.autoform', [])
 
             function init() {
                 // create the directive.
-                $module = $autoform(element, options);
+                $module = $autoform(element, options, attrs);
             }
 
             // get options and model.
-            options = angular.extend(defaults, scope.$eval(attrs.aiAutoform || attrs.options));
+            options = angular.extend(defaults, scope.$eval(attrs.aiAutoform || attrs.aiAutoformOptions || attrs.aiFormOptions));
 
             // define the source.
-            options.source = options.source || scope.$eval(attrs.source);
-
+            //options.source = options.source || scope.$eval(attrs.source);
             init();
 
         }

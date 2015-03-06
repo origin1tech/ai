@@ -2,7 +2,7 @@ $dropdown-min-width:              150px;
 
 $dropdown-caret-top:              45%;
 $dropdown-caret-right:            18px;
-$dropdown-caret-border-color:     #777;
+$dropdown-caret-border-color:     #333;
 
 $dropdown-wrapper-zindex:         1060;
 
@@ -19,11 +19,6 @@ $dropdown-link-hover-color:       #eee;
 $dropdown-list-max-height:        250px;
 $dropdown-list-margin:            4px -4px;
 
-//$caret-border-color       the color of the dropdown icon/caret
-//$items-bg-color           the list items background color.
-//$items-border-color       the border color of the list items.
-//$items-border-radius      the bottom border radius of the items list.
-
 @mixin ai-dropdown-mixin($caret-border-color, $items-bg-color, $items-border-color,
                          $items-border-radius, $link-active-color, $link-hover-color) {
   
@@ -38,11 +33,11 @@ $dropdown-list-margin:            4px -4px;
     }
   }
 
-  .wrapper, .ai-items-wrapper {
+  .ai-dropdown-wrapper {
     z-index: $dropdown-wrapper-zindex;
   }
 
-  .items, .ai-dropdown-items {
+  .ai-dropdown-items {
     
     border: 1px solid $items-border-color;
     padding: $dropdown-items-padding;
@@ -70,12 +65,12 @@ $dropdown-list-margin:            4px -4px;
 
   }
 
-  .items > ul, .ai-dropdown-items > ul {
+  .ai-dropdown-items > ul {
     margin: $dropdown-list-margin;
     max-height: $dropdown-list-max-height;
   }
 
-  .items > div, .ai-dropdown-items > div {
+  .ai-dropdown-items > div {
     margin: $dropdown-list-margin;
     max-height: $dropdown-list-max-height;
   }
@@ -90,7 +85,6 @@ $dropdown-list-margin:            4px -4px;
                              $dropdown-link-active-color, $dropdown-link-hover-color);
 
   position: relative;
-  //min-width: 150px;
   vertical-align: middle;
   width: 100%;
   display: block;
@@ -101,12 +95,21 @@ $dropdown-list-margin:            4px -4px;
   }
 
   // toggles list.
-  .toggle, .ai-dropdown-toggle {
+  .ai-dropdown-toggle {
 
     width: inherit;
     min-width: inherit;
     position: relative;
     text-align: left;
+    
+    &.expanded, .btn {
+      -webkit-border-bottom-left-radius: 0;
+      -webkit-border-bottom-right-radius: 0;
+      -moz-border-radius-bottomleft: 0;
+      -moz-border-radius-bottomright: 0;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
 
     .selected {
       display: inline-block;
@@ -125,12 +128,10 @@ $dropdown-list-margin:            4px -4px;
       top: 45%;
 
       &.down {
-        //border-color:  #777 transparent transparent transparent;
         border-width: 5px 4px 0 4px;
       }
 
       &.up {
-        //border-color:  transparent transparent #777 transparent;
         border-width: 0 4px 5px 4px;
       }
 
@@ -139,7 +140,7 @@ $dropdown-list-margin:            4px -4px;
   }
 
   // search input.
-  .search, .ai-dropdown-search {
+  .ai-dropdown-search {
     &:focus {
       border: 1px solid #ccc;
       box-shadow: none;
@@ -147,29 +148,20 @@ $dropdown-list-margin:            4px -4px;
   }
 
   // used to prevent needing static height
-  .wrapper, .ai-items-wrapper {
+  .ai-dropdown-wrapper {
     position: relative;
     min-width: inherit;
     width: inherit;
-    //z-index: 1060;
   }
 
   // contains all list items
-  .items, .ai-dropdown-items {
+  .ai-dropdown-items {
 
     position: absolute;
     width: inherit;
     min-width: inherit;
     top: -1px;
     left: 0;
-    //border: 1px solid rgba(0,0,0,.15);
-    //padding: 4px;
-    //background-color: #fff;
-
-//    -webkit-border-bottom-right-radius: 4px;
-//    -webkit-border-bottom-left-radius: 4px;
-//    border-bottom-right-radius: 4px;
-//    border-bottom-left-radius: 4px;
 
     &.shadow {
       -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
@@ -190,32 +182,23 @@ $dropdown-list-margin:            4px -4px;
 
       a {
         display: block;
-        //padding: 1px 8px;
         white-space: nowrap;
         text-decoration: none;
 
       }
-
-//      &.active, &:hover {
-//        background-color: #eee;
-//      }
 
     }
 
   }
 
   // base element list.
-  .items > ul, .ai-dropdown-items > ul {
-      //margin: 4px -4px;
-      //max-height: 250px;
+  .ai-dropdown-items > ul {
       overflow-x: hidden;
       overflow-y: auto;
   }
 
   // group element list.
-  .items > div, .ai-dropdown-items > div {
-    //margin: 4px -4px;
-    //max-height: 250px;
+  .ai-dropdown-items > div {
     overflow-x: hidden;
     overflow-y: auto;
 

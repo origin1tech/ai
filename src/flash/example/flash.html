@@ -83,29 +83,24 @@ angular.module('myModule', [])
            <pre>
 var defaults = {
     template: 'ai-flash.html',              // the template for flash message.
-    html: true,                             // when true html flash messages can be used.(requires ngSanitize)
-    errors: true,                           // when true flash is shown automatically on http status errors.
     errorKey: 'err',
                                             // if undefined validation errors are undefined.
-    excludeErrors: [401, 403, 404],         // exclude errors by status type.
+    excludeErrors: [401, 403, 404],         // exclude errors by status type.           
     errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
     errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
                   'has occurred, if the ' +
                   'problem persists ' +
                   'please contact the ' +
                   'administrator.',
-    title: true,                            // when true flash error messages use the error name as the title
+    title: undefined,                       // when true flash error messages use the error name as the title
                                             // in the flash message.
     stack: false,                           // when true stack trace is shown.
     multiple: false,                        // whether to allow multiple flash messages at same time.
     type: 'info',                           // the default type of message to show also the css class name.
     typeError: 'danger',                    // the error type or class name for error messages.
-    animation: false,                       // provide class name for animation.
     timeout: 3500,                          // timeout to auto remove flashes after period of time..
                                             // instead of by timeout.
-    intercept: true,                        // when false flash error interception is disabled.
-    suppress: false,                        // when true flash error messages are suppressed for one request
-                                            // only then re-enabled.
+    intercept: undefined,                   // when false flash error interception is disabled.
     onError: undefined                      // callback on error before flashed, return false to ignore.
 
 };

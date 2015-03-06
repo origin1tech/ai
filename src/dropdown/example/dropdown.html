@@ -11,17 +11,17 @@
 
     <div class="form-group">
         <label style="display: block;">Basic List (block 100% width)</label>
-        <input type="text" class="form-control" ai-dropdown ng-model="ddSimpleSel" options="ddSimple" />
+        <input type="text" class="form-control" ai-dropdown ng-model="ddSimpleSel" ai-dropdown-options="ddSimple" />
     </div>
 
     <div class="form-group">
         <label style="display: block;">List by Group (centered)</label>
-        <input type="text" class="form-control" ai-dropdown ng-model="ddAdvSel" options="ddAdv" />
+        <input type="text" class="form-control" ai-dropdown ng-model="ddAdvSel" ai-dropdown-options="ddAdv" />
     </div>
 
     <div class="form-group">
         <label style="display: block;">Remote Source (w/ validation)</label>
-        <input type="text" class="form-control" ai-dropdown ng-model="ddRemoteSel" options="ddRemote" required/>
+        <input type="text" class="form-control" ai-dropdown ng-model="ddRemoteSel" ai-dropdown-options="ddRemote" required/>
     </div>
 
     <ai-validate-summary></ai-validate-summary>
@@ -45,17 +45,17 @@
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;Basic List&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddSimpleSel&quot; options=&quot;ddSimple&quot; /&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddSimpleSel&quot; ai-dropdown-options=&quot;ddSimple&quot; /&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;List by Group&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddAdvSel&quot; options=&quot;ddAdv&quot; /&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddAdvSel&quot; ai-dropdown-options=&quot;ddAdv&quot; /&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;Remote Source&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddRemoteSel&quot; options=&quot;ddRemote&quot; required/&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddRemoteSel&quot; ai-dropdown-options=&quot;ddRemote&quot; required/&gt;
     &lt;/div&gt;
 
     &lt;ai-validate-summary&gt;&lt;/ai-validate-summary&gt;
@@ -106,10 +106,11 @@ var defaults = {
     text: 'text',                           // property to use for text values.
     value: 'value',                         // property to use for model values default is text.
     display: false,                         // alt property to use for display values.
-    capitalize: true,                       // if true display is capitalized. (group is cap also if used).
-    searchable: true,                       // indicates that the dropdown is searchable.
+    capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
+    searchable: undefined,                  // indicates that the dropdown is searchable.
     placeholder: 'Please Select',           // placeholder text shown on null value.
-    allowNull: true,                        // when true user can select placeholder/null value.
+    btnClass: 'btn-default',                // the class to add to the button which triggers dropdown.
+    allowNull: undefined,                   // when true user can select placeholder/null value.
     inline: false,                          // positions element inline.
     shadow: true,                           // when true adds shadow to bottom of list.
 
@@ -130,19 +131,18 @@ var defaults = {
     groupKey: false,                        // the parent primary key to find children by.
     groupDisplay: false,                    // used to display the group name.
 
-    selectClose: true,                      // if true list is closed after selection.
-    selectClear: false,                     // after selecting value clear item.
-    closeClear: true,                       // when searchable and on toggle close clear query filter.
-    blurClose: true,                        // when true list is closed on blur event.
+    selectClose: undefined,                 // if not false list is closed after selection.
+    selectClear: undefined,                 // after selecting value clear item.
+    closeClear: undefined,                  // when searchable and on toggle close clear query filter.
+    blurClose: undefined,                   // when true list is closed on blur event.
 
                                             // all callbacks are returned with $module context.
     onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
     onSelected: false,                      // callback on select. injects(selected, ngModel, event).
     onFilter: false,                        // callback on filter. injects (filter, event).
     onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
-    onLoad: false                           // callback on directive loaded. returns
-
-    }
+    onReady: false                           // callback on directive loaded. returns
+}
 </pre>
         </div>
 

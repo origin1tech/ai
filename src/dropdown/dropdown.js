@@ -1,4 +1,4 @@
-angular.module('ai.dropdown', [])
+angular.module('ai.dropdown', ['ai.helpers'])
 
 .provider('$dropdown', function $dropdown(){
 
@@ -7,10 +7,11 @@ angular.module('ai.dropdown', [])
             text: 'text',                           // property to use for text values.
             value: 'value',                         // property to use for model values default is text.
             display: false,                         // alt property to use for display values.
-            capitalize: true,                       // if true display is capitalized. (group is cap also if used).
-            searchable: true,                       // indicates that the dropdown is searchable.
+            capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
+            searchable: undefined,                  // indicates that the dropdown is searchable.
             placeholder: 'Please Select',           // placeholder text shown on null value.
-            allowNull: true,                        // when true user can select placeholder/null value.
+            btnClass: 'btn-default',                // the class to add to the button which triggers dropdown.
+            allowNull: undefined,                   // when true user can select placeholder/null value.
             inline: false,                          // positions element inline.
             shadow: true,                           // when true adds shadow to bottom of list.
 
@@ -31,17 +32,17 @@ angular.module('ai.dropdown', [])
             groupKey: false,                        // the parent primary key to find children by.
             groupDisplay: false,                    // used to display the group name.
 
-            selectClose: true,                      // if true list is closed after selection.
-            selectClear: false,                     // after selecting value clear item.
-            closeClear: true,                       // when searchable and on toggle close clear query filter.
-            blurClose: true,                        // when true list is closed on blur event.
+            selectClose: undefined,                 // if not false list is closed after selection.
+            selectClear: undefined,                 // after selecting value clear item.
+            closeClear: undefined,                  // when searchable and on toggle close clear query filter.
+            blurClose: undefined,                   // when true list is closed on blur event.
 
                                                     // all callbacks are returned with $module context.
             onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
             onSelected: false,                      // callback on select. injects(selected, ngModel, event).
             onFilter: false,                        // callback on filter. injects (filter, event).
             onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
-            onLoad: false                           // callback on directive loaded. returns
+            onReady: false                           // callback on directive loaded. returns
 
         }, get, set;
 
@@ -54,15 +55,14 @@ angular.module('ai.dropdown', [])
         defaults = angular.extend(defaults, obj);
     };
 
-    get = [ '$templateCache', '$q', '$http', '$compile', '$parse', '$filter',
-        function get( $templateCache, $q, $http, $compile, $parse, $filter) {
+    get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
 
-         var baseTemplate = '<button type="button" class="btn btn-warning toggle" ng-click="toggle()">' +
+         var baseTemplate = '<button type="button" class="btn ai-dropdown-toggle" ng-click="toggle()" ng-class="{expanded: expanded}">' +
                                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
                                 '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
                             '</button>' +
-                            '<div class="wrapper">' +
-                                '<div class="items" ng-show="expanded">' +
+                            '<div class="ai-dropdown-wrapper">' +
+                                '<div class="ai-dropdown-items" ng-show="expanded">' +
                                 '</div>' +
                             '</div>';
 
@@ -88,72 +88,17 @@ angular.module('ai.dropdown', [])
                                 '</div>';
 
 
-        var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="search form-control" placeholder="search"/>';
-
-        $templateCache.get(defaults.template) || $templateCache.put(defaults.template, baseTemplate);
-        $templateCache.get(defaults.itemTemplate) || $templateCache.put(defaults.itemTemplate, itemTemplate);
-        $templateCache.get(defaults.itemGroupTemplate) || $templateCache.put(defaults.itemGroupTemplate, itemGroupTemplate);
-        $templateCache.get(defaults.searchTemplate) || $templateCache.put(defaults.searchTemplate, searchTemplate);
-
-        // check if is HTML
-        function isHtml(str) {
-            return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
-        }
-
-        // check if is path.
-        function isPath(str) {
-            if(!str || !angular.isString(str)) return false;
-            var ext = str.split('.').pop();
-            return ext === 'html' || ext === 'tpl';
-        }
-
-        // trim string.
-        function trim(str) {
-            return str.replace(/^\s+/, '').replace(/\s+$/, '');
-        }
-
-        // check if is HTMLElement.
-        function isElement(elem) {
-            if(elem instanceof HTMLElement)
-                return true;
-            return !!(elem && elem[0] && (elem[0] instanceof HTMLElement));
-        }
-
-        // find an element.
-        function findElement(q, element, single) {
-            var selector = 'querySelectorAll';
-            if(single)
-                selector = 'querySelector';
-            if(isElement(element))
-                return element[selector](q);
-            return angular.element(element || document)[selector](q);
-
-        }
-
-        // load template using promise.
-        function loadTemplate(t) {
-            // handle html an strings.
-            if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
-                var defer = $q.defer();
-                defer.resolve(t);
-                return defer.promise;
-            } else {
-                // handle paths.
-                return $q.when($templateCache.get(t) || $http.get(t))
-                    .then(function (res) {
-                        if (res.data) {
-                            $templateCache.put(t, res.data);
-                            return res.data;
-                        }
-                        return res;
-                    });
-            }
-        }
+        var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="ai-dropdown-search form-control" placeholder="search"/>';
+        
+        $helpers.getPutTemplate(defaults.template, baseTemplate);
+        $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
+        $helpers.getPutTemplate(defaults.itemGroupTemplate, itemGroupTemplate);
+        $helpers.getPutTemplate(defaults.searchTemplate, searchTemplate);
 
         // module factory.
-        function ModuleFactory(element, options) {
+        function ModuleFactory(element, options, attrs) {
 
-            if((!element && !isElement(element)) || !options.source)
+            if((!element && !$helpers.isElement(element)) || !options.source)
                 return;
 
             var $module = {},
@@ -164,9 +109,14 @@ angular.module('ai.dropdown', [])
                 items,
                 nullItem;
 
+            // parse out relevant options
+            // from attributes.
+
+            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
             options = options || {};
             $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
 
             nullItem = { text: options.placeholder, value: '', display: options.placeholder };
 
@@ -178,10 +128,10 @@ angular.module('ai.dropdown', [])
                     display;
                 // if string split to array.
                 if(angular.isString(data))
-                    data = trim(data).split(',');
-                if(options.allowNull && angular.isArray(_collection))
+                    data = $helpers.trim(data).split(',');
+                if(options.allowNull !== false && angular.isArray(_collection))
                     _collection.push(nullItem);
-                if(options.allowNull && angular.isObject(_collection))
+                if(options.allowNull !== false && angular.isObject(_collection))
                     _collection._placeholder = {
                         key: 'placeholder',
                         display: false,
@@ -190,8 +140,8 @@ angular.module('ai.dropdown', [])
                     };
                 angular.forEach(data, function (v,k) {
                     if(angular.isString(v)) {
-                        display = v = trim(v);
-                        if(options.capitalize)
+                        display = v = $helpers.trim(v);
+                        if(options.capitalize !== false)
                             display = v.charAt(0).toUpperCase() + v.slice(1);
                         // simple string just push to collection.
                         _collection.push({ text: v, value: v, display: display });
@@ -203,14 +153,14 @@ angular.module('ai.dropdown', [])
                         item.text = item.text.charAt(0).toUpperCase() + item.text.slice(1);
                         item.value = v[options.value] || item.text;
                         item.display = v[displayKey];
-                        if(options.capitalize)
+                        if(options.capitalize !== false)
                             item.display =  item.display.charAt(0).toUpperCase() + item.display.slice(1);
                         if(!options.groupKey) {
                             _collection.push(item);
                         } else {
                             var groupKey = v[options.groupKey],
                                 groupDisplay = v[options.groupDisplay || options.groupKey];
-                            if(options.capitalize)
+                            if(options.capitalize !== false)
                                 groupDisplay = groupDisplay.charAt(0).toUpperCase() + groupDisplay.slice(1);
                             _collection[groupKey] = _collection[groupKey] ||
                                 { key: groupKey, display: groupDisplay, hidden: false };
@@ -232,18 +182,12 @@ angular.module('ai.dropdown', [])
                 return params;
             }
 
-            // loosely check if value is url
-            function isUrl(value) {
-                value = value || options.source;
-                return angular.isString(value) && value.indexOf('/') !== -1;
-            }
-
             // load data using promise.
             function loadData(q) {
-                if(isUrl()){
+                if($helpers.isUrl(options.source)){
                     var method = options.method,
                         params = buildParams(options.params, q);
-                    return $q.when($http[method](options.source, params))
+                    return $q.when($http[method](options.source, { params: params }))
                         .then(function(res) {
                             return normalizeData(res.data);
                         });
@@ -332,7 +276,7 @@ angular.module('ai.dropdown', [])
                         model.$setTouched(true);
                 }
                 // if on select close toggle list.
-                if(options.selectClose && !suppress)
+                if(options.selectClose !== false && !suppress)
                     toggle();
                 // clear the filter.
                 clearFilter();
@@ -345,7 +289,7 @@ angular.module('ai.dropdown', [])
             function toggle(event) {
                 scope.expanded =! scope.expanded;
                 $module.expanded = scope.expanded;
-                if(!scope.expanded && options.closeClear)
+                if(!scope.expanded && options.closeClear === true)
                     clearFilter();
                 if(scope.expanded)
                     dropdown[0].focus();
@@ -353,7 +297,7 @@ angular.module('ai.dropdown', [])
                 if(angular.isFunction(options.onToggled))
                     options.onToggled.call($module, scope.expanded, event);
                 // closing so clear filter.
-                if(options.searchable && !scope.expanded && angular.isFunction(options.closeClear))
+                if(options.searchable !== false && !scope.expanded && angular.isFunction(options.closeClear))
                     $module.q = scope.q = undefined;
             }
 
@@ -422,14 +366,14 @@ angular.module('ai.dropdown', [])
                     $module.items = scope.items = res;
 
                     // add template promises to queue.
-                    promises.push(loadTemplate(options.template || ''));
-                    promises.push(loadTemplate(options.searchTemplate || ''));
+                    promises.push($helpers.loadTemplate(options.template || ''));
+                    promises.push($helpers.loadTemplate(options.searchTemplate || ''));
 
                     // add group or base items template.
                     if(options.groupKey)
-                        promises.push(loadTemplate(options.itemGroupTemplate || ''));
+                        promises.push($helpers.loadTemplate(options.itemGroupTemplate || ''));
                     else
-                        promises.push(loadTemplate(options.itemTemplate || ''));
+                        promises.push($helpers.loadTemplate(options.itemTemplate || ''));
 
                     // build the templates.
                     $q.all(promises).then(function(res) {
@@ -462,7 +406,7 @@ angular.module('ai.dropdown', [])
                             dropdown = dropdown.replace('{{ATTRS}}', visAttrs);
 
                             // compile with parent scope for ng-attrs.
-                            dropdown = angular.element($compile(dropdown)(scope.$parent));
+                            dropdown = angular.element($helpers.compile(scope.$parent, dropdown));
 
                             // add primary class for styling.
                             dropdown.addClass('ai-dropdown');
@@ -489,14 +433,14 @@ angular.module('ai.dropdown', [])
                             dropdown.html(res[0]);
 
                             // get the items container.
-                            items = findElement('.items', dropdown[0], true);
+                            items = $helpers.findElement('.ai-dropdown-items', dropdown[0], true);
                             items = angular.element(items);
 
                             if(options.shadow)
                                 items.addClass('shadow');
 
                             // add items and search if required.
-                            if(options.searchable)
+                            if(options.searchable !== false)
                                 itemsHtml += res[1];
 
                             // add items template.
@@ -504,19 +448,20 @@ angular.module('ai.dropdown', [])
                             items.html(itemsHtml);
 
                             // get reference to button.
-                            button = findElement('button.toggle', dropdown[0], true);
+                            button = $helpers.findElement('button:first-child', dropdown[0], true);
                             button = angular.element(button);
+                            button.addClass(options.btnClass);
 
-                            if(options.blurClose) {
+                            if(options.blurClose !== false) {
                                 // find search input
                                 // add listener if blurClose
-                                search = findElement('input', dropdown[0], true);
+                                search = $helpers.findElement('input', dropdown[0], true);
                                 if(search){
                                     search = angular.element(search);
                                     search.on('blur', function (e) {
                                         e.preventDefault();
                                         if(!e.relatedTarget && scope.expanded){
-                                            scope.$apply(function () {
+                                            scope.$digest(function () {
                                                 toggle(e);
                                             });
                                         }
@@ -527,7 +472,7 @@ angular.module('ai.dropdown', [])
                                 dropdown.on('blur', function (e) {
                                     e.preventDefault();
                                     if(!e.relatedTarget && scope.expanded){
-                                        scope.$apply(function () {
+                                        scope.$digest(function () {
                                             toggle(e);
                                         });
                                     }
@@ -548,11 +493,11 @@ angular.module('ai.dropdown', [])
                                 parseDisabled(vis.ngDisabled);
 
                             // compile the contents.
-                            $compile(dropdown.contents())(scope);
+                            $helpers.compile(scope, dropdown.contents());
 
                             // if onload callback.
-                            if(angular.isFunction(options.onLoad))
-                                options.onLoad.call($module);
+                            if(angular.isFunction(options.onReady))
+                                options.onReady.call($module);
 
                         }
 
@@ -653,7 +598,7 @@ angular.module('ai.dropdown', [])
                 element.css({ display: 'none'});
 
                 // instantiate the module.
-                $module = $dropdown(element, options);
+                $module = $dropdown(element, options, attrs);
 
                 // we need to monitor ngDisabled if exists
                 // as it may change all other attrs
@@ -684,7 +629,7 @@ angular.module('ai.dropdown', [])
                 return console.error('Invalid element, ai-dropdown requires an input element with ng-model.');
 
             // get options and model.
-            options = scope.$eval(attrs.aiDropdown || attrs.options);
+            options = scope.$eval(attrs.aiDropdown || attrs.aiDropdownOptions);
             options = angular.extend(defaults, options);
 
             // define the source & model data.

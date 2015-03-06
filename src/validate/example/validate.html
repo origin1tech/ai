@@ -133,7 +133,7 @@ var defaults = {
     messageTitlecase: true,                                             // when validation messages are show convert to title case (useful when ng-model
                                                                         // properties are lower case).
     novalidate: true,                                                   // when true adds html5 novalidate tag.
-    onBind: null,                                                       // callback called after the form is initialized returns the form object.
+    onReady: null,                                                      // callback called after the form is initialized returns the form object.
     validators: {
         'required': '{{name}} is required.',
         'minlength': '{{name}} must be at least {{value}} characters in length.',

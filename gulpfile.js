@@ -6,19 +6,22 @@ var gulp = require('gulp'),
     path = require('path'),
     url = require('url'),
     argv = process.argv,
+    major, 
+    minor,
     pkg,
     lic,
     watch;
 
 // check if should live reload and watch.
 watch = (argv.indexOf('--nowatch') === -1 && argv.indexOf('-n') === -1);
-
+minor = argv.indexOf('--minor') !== -1;
+major = argv.indexOf('--major') !== -1;
 pkg = require('./package.json');
 
 lic ='\n/**\n' +
 '* @license\n' +
 '* Ai: <http://github.com/origin1tech/ai>\n' +
-'* Version: ' + pkg.version.replace('*', '') +
+'* Version: ' + pkg.version + '\n' +
 '* Author: Origin1 Technologies <origin1tech@gmail.com>\n' +
 '* Copyright: 2014 Origin1 Technologies\n' +
 '* Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>\n' +
@@ -43,7 +46,8 @@ function jshintNotify() {
 
 // reload server util
 function reload () {
-    gulp.src('./src/**/*.{js,html,css,svg,png,gif,jpg,jpeg}')
+    if(!watch) return;
+    gulp.src('./src/**/*.*')
         .pipe(plugins.connect.reload());
 }
 
@@ -80,9 +84,11 @@ gulp.task('build-sass', ['clean'], function () {
 
 // build lib
 gulp.task('build-lib', ['clean'], function () {
+
     return gulp.src([
-            '!./src/common/**/*.js',
-            '!./src/main.js',
+            '!./src/app.js',
+            './src/ai.js',
+            './src/helpers.js',
             './src/**/*.js'
          ])
         .pipe(plugins.concat('ai.js'))
@@ -97,13 +103,12 @@ gulp.task('build-lib', ['clean'], function () {
 // copy lib
 gulp.task('copy-lib', ['clean'], function () {
     gulp.src([
-        '!./src/**/_*.scss',
         './src/**/*.*'
     ])
     .pipe(gulp.dest('./dist'));
 });
 
-// run jshint
+// Note: favor linting in IDE.
 gulp.task('jshint', ['clean'],  function() {
   return gulp.src(['./src/**/*.js'])
     .pipe(plumber())
@@ -115,15 +120,26 @@ gulp.task('jshint', ['clean'],  function() {
 
 gulp.task('reload', ['build'], reload);
 
+// build the library.
+gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() {
+    if(watch) {
+        gulp.watch(
+            ['./src/**/*.*'],
+            {debounceDelay: 400},
+            ['clean', 'build-sass', 'build-lib', 'copy-lib']
+        );
+    }
+});
+
 // serve examples.
 gulp.task('serve', ['build'], function() {  
     var conf = {
         root: './dist',
-        //livereload: true,
+        livereload: true,
         fallback: 'dist/index.html',
         middleware: function (conn, options){
             return [ function (req, res, next) {
-                var isLoader = /\/api\/loader/.test(req.url);             
+                var isLoader = /\/api\/loader/.test(req.url);
                 if(isLoader){
                     var q = url.parse(req.url).query.split('=');
                     var timeout = parseInt(q[1] || 2000);
@@ -137,22 +153,16 @@ gulp.task('serve', ['build'], function() {
         }
     };
     setTimeout(function () {
-        var app = plugins.connect.server(conf);
-        gulp.watch(
-            ['./src/**/*.{js,html,css,svg,png,gif,jpg,jpeg}'],
-            { debounceDelay: 400 }, ['reload']);
-        
+        var app = plugins.connect.server(conf);        
     }, 0);
 });
 
-// build the library.
-gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() {
-    if(watch) {
-        gulp.watch(
-            ['./src/**/*.*'],
-            {debounceDelay: 400},
-            ['clean', 'build-sass', 'build-lib', 'copy-lib']
-        );
-    }
+gulp.task('bump', function () {
+ 
+    gulp.src(['./package.json', './bower.json'])
+        .pipe(plugins.bump())
+        .pipe(gulp.dest('./'));
+
 });
+
 

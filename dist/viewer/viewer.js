@@ -1,4 +1,4 @@
-angular.module('ai.viewer', [])
+angular.module('ai.viewer', ['ai.helpers'])
 
     .provider('$viewer', function $viewer() {
 
@@ -13,7 +13,7 @@ angular.module('ai.viewer', [])
             defaults = angular.extend(defaults, options);
         };
 
-        get = ['$rootScope', '$compile', '$location', function get($rootScope, $compile, $location) {
+        get = ['$rootScope', '$helpers', '$location', function get($rootScope, $helprs, $location) {
 
             var prevRoutes = [],
                 initialized = false,
@@ -43,14 +43,17 @@ angular.module('ai.viewer', [])
 
             });
 
-            function ModuleFactory(element, options) {
+            function ModuleFactory(element, options, attrs) {
 
                 var $module = {},
                     view,
                     scope;
 
+                if(attrs)
+                    attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
                 scope = options.scope || $rootScope.$new();
-                options = scope.options = angular.extend(angular.copy(defaults), options);
+                options = scope.options = angular.extend({}, defaults, options);
 
                 view = angular.element(options.template);
                 view.addClass(options.viewCss);
@@ -59,7 +62,7 @@ angular.module('ai.viewer', [])
                 if(scope.options.animate)
                     view.attr('ng-class', 'state');
 
-                view = $compile(view)(scope);
+                view = $helpers.compile(scope, view);
 
                 element.append(view);
 
@@ -111,7 +114,7 @@ angular.module('ai.viewer', [])
 
                 function init() {
 
-                    $module = $viewer(element, options);
+                    $module = $viewer(element, options, attrs);
 
                     // listen for route change and update state when animation is enabled.
                     $rootScope.$on('$routeChangeSuccess', function () {
@@ -131,7 +134,7 @@ angular.module('ai.viewer', [])
 
                 }
 
-                options = attrs.aiViewer || attrs.options;
+                options = attrs.aiViewer || attrs.aiViewerOptions;
                 options = angular.extend(defaults, scope.$eval(options));
 
                 init();

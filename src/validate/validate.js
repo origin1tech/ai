@@ -1,4 +1,4 @@
-var form = angular.module('ai.validate', [])
+var form = angular.module('ai.validate', ['ai.helpers'])
 .provider('$validate', function $validate() {
 
     var defaults = {
@@ -17,15 +17,15 @@ var form = angular.module('ai.validate', [])
                                                                                 // for example if you have a directive "myValidator" which in markup would be my-validator
 
             validateOnDirty: false,                                             // validation is throw when message is dirty and has error.
-            validateOnTouched: true,                                            // validation is thrown when has error and has lost focus e.g. been touched.
-            validateOnSubmit: true,                                             // throw validation on form submission.
-            validateOnDirtyEmpty: true,                                         // when validate on dirty is true then dirty validation events fire even if model value is undefined/null.
-            pristineOnReset: true,                                              // when form is reset return to pristine state.
+            validateOnTouched: undefined,                                       // validation is thrown when has error and has lost focus e.g. been touched.
+            validateOnSubmit: undefined,                                        // throw validation on form submission.
+            validateOnDirtyEmpty: undefined,                                    // when validate on dirty is true then dirty validation events fire even if model value is undefined/null.
+            pristineOnReset: undefined,                                         // when form is reset return to pristine state.
 
-            messageTitlecase: true,                                             // when validation messages are show convert to title case (useful when ng-model properties are lower case).
+            messageTitlecase: undefined,                                        // when validation messages are show convert to title case (useful when ng-model properties are lower case).
             novalidate: true,                                                   // when true adds html5 novalidate tag.
           
-            onLoad: null,                                                       // callback called after the form is initialized returns the form object.
+            onReady: null,                                                       // callback called after the form is initialized returns the form object.
 
             validators: {
                 'required': '{{name}} is required.',
@@ -52,10 +52,10 @@ var form = angular.module('ai.validate', [])
         angular.extend(defaults, value);
     };
 
-    get = [function get() {
+    get = [ '$helpers', function get($helpers) {
 
 
-        function ModuleFactory(options) {
+        function ModuleFactory(options, attrs) {
 
             var $module = {};
             options = options || {};
@@ -64,8 +64,11 @@ var form = angular.module('ai.validate', [])
                 options._validators = options.validators;
                 delete options.validators;
             }
+
+           attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
             options._validators = options._validators || {};
-            $module.options = angular.extend(defaults, options);
+            $module.options = angular.extend({}, defaults, attrs, options);
 
             return $module;
         }
@@ -86,7 +89,7 @@ var form = angular.module('ai.validate', [])
 
 })
 
-.controller('AiValidateFormController', ['$scope', '$compile', '$timeout', function ($scope, $compile, $timeout) {
+.controller('AiValidateFormController', ['$scope', '$helpers', '$timeout', function ($scope, $helpers, $timeout) {
 
     var form, defaultTemplate, tooltipTemplate, summaryTemplate,
         resetting, submitting,  initializing;
@@ -126,7 +129,7 @@ var form = angular.module('ai.validate', [])
         if(summary) {
             summaryTemplate = $scope.options.summaryTemplate || summaryTemplate;
             summaryTemplate = summaryTemplate.replace(/{{form}}/g, $scope.formName);
-            form.summaryElement = $compile(summaryTemplate)($scope);
+            form.summaryElement = $helpers.compile($scope, summaryTemplate);
             summary.replaceWith(form.summaryElement);
         }
 
@@ -259,7 +262,7 @@ var form = angular.module('ai.validate', [])
     function attachEvents() {
 
         // apply scope for form submission
-        if ($scope.options.validateOnSubmit) {
+        if ($scope.options.validateOnSubmit !== false) {
             $scope.formElement.on('submit', function () {
                 $scope.$apply(function () {
                     $scope.submitForm();
@@ -267,7 +270,7 @@ var form = angular.module('ai.validate', [])
             });
         }
 
-        if ($scope.options.pristineOnReset) {
+        if ($scope.options.pristineOnReset !== false) {
             $scope.formElement.on('reset', function () {
                 $scope.$apply(function () {
                     $scope.resetForm();
@@ -322,7 +325,7 @@ var form = angular.module('ai.validate', [])
         valMsg = cust || def;
 
         // check if title case is enabled
-        if($scope.options.messageTitlecase)
+        if($scope.options.messageTitlecase !== false)
             name = getTitlecase(name);
 
         // check if expression is a function
@@ -366,16 +369,16 @@ var form = angular.module('ai.validate', [])
 
         if ($scope.options.validateOnDirty) {
 
-            if(!$scope.options.validateOnDirtyEmpty)
+            if($scope.options.validateOnDirtyEmpty === false)
                 valTemplate += ' && {{form}}.{{name}}.$dirty && {{form}}.requireValue("' + name + '")';
             else
                 valTemplate += ' && {{form}}.{{name}}.$dirty';
         }
 
-        if($scope.options.validateOnTouched)
+        if($scope.options.validateOnTouched !== false)
             valTemplate += ' && {{form}}.{{name}}.$touched';
 
-        if ($scope.options.validateOnSubmit)
+        if ($scope.options.validateOnSubmit !== false)
             valTemplate += ' || {{form}}.submitted && {{form}}.{{name}}.$error.{{attr}}';
 
 
@@ -432,7 +435,7 @@ var form = angular.module('ai.validate', [])
         else
             input.after(valElem);
 
-        valElem = $compile(valElem)($scope);
+        valElem = $helpers.compile($scope, valElem);
 
         if(form.tooltipEnabled){
             var pos = $scope.options.template.split(' ').pop() || 'top';
@@ -480,7 +483,7 @@ var form = angular.module('ai.validate', [])
         findSummary();
 
         // add validation function to require value on dirty if enabled
-        if(!$scope.options.validateOnDirtyEmpty)
+        if($scope.options.validateOnDirtyEmpty === false)
             form.requireValue = onDirtyRequireValue;
 
         // nothing to do if no inputs exists
@@ -549,7 +552,7 @@ var form = angular.module('ai.validate', [])
         });
 
         // callback when bind is complete maybe should call this bound
-        if($scope.options.onLoad) $scope.options.onLoad(form, $scope);
+        if($scope.options.onReady) $scope.options.onReady(form, $scope);
 
         initializing = false;
 
@@ -809,8 +812,8 @@ var form = angular.module('ai.validate', [])
                 scope.parentScope = scope.$parent;
 
                 // extend options.
-                options = attrs.aiValidateForm || attrs.options;
-                $module = factory(scope.$eval(options));
+                options = attrs.aiValidateForm || attrs.aiValidateOptions || attrs.aiValidateFormOptions;
+                $module = factory(scope.$eval(options), attrs);
                 scope.options = $module.options;
 
                 // add the validation element types to scope options.
@@ -822,7 +825,7 @@ var form = angular.module('ai.validate', [])
                 // watch for option changes.
                 scope.$watch(
                     function () {
-                        return attrs.aiValidateForm || attrs.options;
+                        return attrs.aiValidateForm || attrs.aiValidateOptions || attrs.aiValidateFormOptions;
                     },
                     function (newVal, oldVal) {
                         if(newVal === oldVal) return;

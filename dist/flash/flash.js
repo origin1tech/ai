@@ -1,5 +1,5 @@
 
-angular.module('ai.flash.factory', [])
+angular.module('ai.flash.factory', ['ai.helpers'])
 
     .provider('$flash', function $flash() {
 
@@ -8,8 +8,6 @@ angular.module('ai.flash.factory', [])
         // default settings.
         defaults = {
             template: 'ai-flash.html',              // the template for flash message.
-            html: true,                             // when true html flash messages can be used.(requires ngSanitize)
-            errors: true,                           // when true flash is shown automatically on http status errors.
             errorKey: 'err',
                                                     // if undefined validation errors are undefined.
             excludeErrors: [401, 403, 404],         // exclude errors by status type.           
@@ -19,16 +17,15 @@ angular.module('ai.flash.factory', [])
                           'problem persists ' +
                           'please contact the ' +
                           'administrator.',
-            title: true,                            // when true flash error messages use the error name as the title
+            title: undefined,                       // when true flash error messages use the error name as the title
                                                     // in the flash message.
             stack: false,                           // when true stack trace is shown.
             multiple: false,                        // whether to allow multiple flash messages at same time.
             type: 'info',                           // the default type of message to show also the css class name.
             typeError: 'danger',                    // the error type or class name for error messages.
-            animation: false,                       // provide class name for animation.
             timeout: 3500,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
-            intercept: true,                        // when false flash error interception is disabled.
+            intercept: undefined,                   // when false flash error interception is disabled.
             onError: undefined                      // callback on error before flashed, return false to ignore.
         };
 
@@ -43,8 +40,8 @@ angular.module('ai.flash.factory', [])
         };
 
         // get provider
-        get = ['$rootScope', '$q', '$templateCache', '$http', '$timeout', '$compile',
-            function get($rootScope, $q, $templateCache, $http, $timeout, $compile) {
+        get = ['$rootScope', '$timeout', '$helpers',
+            function get($rootScope, $timeout, $helpers) {
 
             var flashTemplate, $module;
  
@@ -55,47 +52,7 @@ angular.module('ai.flash.factory', [])
                                 '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
                             '</div>';
 
-            $templateCache.get(defaults.template) || $templateCache.put(defaults.template, flashTemplate);
-
-            function isHtml(str) {
-                return /<(br|basefont|hr|input|source|frame|param|area|meta|!--|col|link|option|base|img|wbr|!DOCTYPE).*?>|<(a|abbr|acronym|address|applet|article|aside|audio|b|bdi|bdo|big|blockquote|body|button|canvas|caption|center|cite|code|colgroup|command|datalist|dd|del|details|dfn|dialog|dir|div|dl|dt|em|embed|fieldset|figcaption|figure|font|footer|form|frameset|head|header|hgroup|h1|h2|h3|h4|h5|h6|html|i|iframe|ins|kbd|keygen|label|legend|li|map|mark|menu|meter|nav|noframes|noscript|object|ol|optgroup|output|p|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|small|span|strike|strong|style|sub|summary|sup|table|tbody|td|textarea|tfoot|th|thead|time|title|tr|track|tt|u|ul|var|video).*?<\/\2>/.test(str);
-            }
-
-            function isPath(str) {
-                if(!str || !angular.isString(str)) return false;
-                var ext = str.split('.').pop();
-                return ext === 'html' || ext === 'tpl';
-            }
-
-            function findElement(q, element) {
-                return angular.element((element || document).querySelectorAll(q));
-            }
-
-            function loadTemplate(t) {
-                // handle html an strings.
-                if ((isHtml(t) && !isPath(t)) || (angular.isString(t) && t.length === 0)) {
-                    var defer = $q.defer();
-                    defer.resolve(t);
-                    return defer.promise;
-                } else {
-                    // handle paths.
-                    return $q.when($templateCache.get(t) || $http.get(t))
-                        .then(function (res) {
-                            if (res.data) {
-                                $templateCache.put(t, res.data);
-                                return res.data;
-                            }
-                            return res;
-                        });
-                }
-            }
-            
-            function overflow(body) {
-                var x, y;
-                x = body[0].style.overflow || undefined;
-                y = body[0].style.overflowY || undefined;
-                return {x:x,y:y};
-            }
+            $helpers.getPutTemplate(defaults.template, flashTemplate);
 
             function tryParseTimeout(to) {
                 if(undefined === to)
@@ -142,7 +99,7 @@ angular.module('ai.flash.factory', [])
                             focus: false,
                             show: false,
                             timeout: false
-                        }, flash, tmpTitle;
+                        }, flash = {}, tmpTitle;
                     title = tryParseTimeout(title);
                     timeout = tryParseTimeout(timeout);
                     // if title is number assume timeout
@@ -156,13 +113,13 @@ angular.module('ai.flash.factory', [])
                     if(!angular.isObject(message)){
                         flash = {
                             message: message,
-                            type: type,
-                            title: title,
-                            timeout: timeout
+                            type: type || options.type,
+                            title: title || options.title,
+                            timeout: timeout || options.timeout
                         };
                     }
                     // extend object with defaults.
-                    flash = angular.extend({}, angular.copy(flashDefaults), flash);
+                    flash = angular.extend({}, flashDefaults, flash);
                     // set the default timeout if true was passed.
                     if(flash.timeout === true)
                         flash.timeout = options.timeout;
@@ -237,16 +194,20 @@ angular.module('ai.flash.factory', [])
                 }
                 
                 // get overflows and body.
-                body = findElement('body');
-                overflows = overflow(body);
+                body = $helpers.findElement('body');
+                overflows = $helpers.getOverflow();
                 
-                function init(_element, _options) {
+                function init(_element, _options, attrs) {
                     
-                    element = _element;               
+                    element = _element;
 
+                    // parse out relevant options
+                    // from attributes.
+                   attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+                    
                     // extend options      
                     $module.scope = scope = _options.scope || $rootScope.$new();
-                    options = angular.extend(angular.copy(defaults), options, _options);
+                    options = angular.extend({}, defaults, attrs, options, _options);
                     options.onError = options.onError || function () { return true; };
                     $module.options = scope.options = options;
 
@@ -265,10 +226,10 @@ angular.module('ai.flash.factory', [])
                     $module.suppress = suppress;
 
                     // load the template.
-                    loadTemplate(options.template).then(function (template) {
+                    $helpers.loadTemplate(options.template).then(function (template) {
                         if(template) {
                             element.html(template);
-                            $compile(element.contents())(scope);
+                            $helpers.compile(scope, element.contents());
                             element.addClass('ai-flash');
                         } else {
                             console.error('Error loading $flash template.');
@@ -337,10 +298,10 @@ angular.module('ai.flash.factory', [])
 
                 // initialize the directive.
                 function init () {
-                    $module = $flash.init(element, options);
+                    $module = $flash.init(element, options, attrs);
                 }
 
-                options = scope.$eval(attrs.options) || scope.$eval(attrs.aiFlash);
+                options = scope.$eval(attrs.aiFlash) || scope.$eval(attrs.aiFlashOptions);
                 options = angular.extend(defaults, options);
 
                 init();
@@ -361,7 +322,7 @@ angular.module('ai.flash.interceptor', [])
                 
                 // if interception is disabled
                 // don't handle/show message.
-                if(!flash.options.intercept || flash.suppressed){
+                if(flash.options.intercept === false || flash.suppressed){
                     flash.suppressed = false;
                     return res;
                 }                    
@@ -384,7 +345,7 @@ angular.module('ai.flash.interceptor', [])
                     message = '<strong>Message:</strong> ' + message;
                     message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
                     // finally display the flash message.
-                    if(flash.options.title)
+                    if(flash.options.title !== false)
                         flash.add(message, flash.options.typeError, name);
                     else
                         flash.add(message, flash.options.typeError);
@@ -394,7 +355,7 @@ angular.module('ai.flash.interceptor', [])
                 if(res.status && excludeErrors.indexOf(res.status) === -1){
                     // handle error using flash.
                     if(!res.data){                        
-                        if(flash.options.title)
+                        if(flash.options.title !== false)
                             flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
                         else
                             flash.add(res.statusText, flash.options.typeError || 'flash-danger');

@@ -1,15 +1,25 @@
-/**
- * NOTE this file is only used for examples
- * and documentation and is not part of
- * the Ai library.
- */
-
-define(function () {
+require([
+    'helpers',
+    'step/step',
+    'table/table',
+    'widget/widget',
+    'flash/flash',
+    'modal/modal',
+    'validate/validate',
+    'viewer/viewer',
+    'storage/storage',
+    'passport/passport',
+    'dropdown/dropdown',
+    'autoform/autoform',
+    'tab/tab',
+    'loader/loader'
+    //'ai'
+], function () {
 
     var app, tmpAreas, keys, areas, controller;
 
     tmpAreas = {
-        '/passport': 'Simplifies handling authentication within Angular app.',
+        //'/passport': 'Simplifies handling authentication within Angular app.',
         '/storage': 'Use local storage with auto cookie fallback.',
         '/autoform': 'Handy during dev to quickly create a form.',
         '/dropdown': 'Advanced customizable dropdown directive.',
@@ -17,10 +27,10 @@ define(function () {
         '/modal': 'Native modal dialog.',
         '/table': 'Bind local or remote data to table/grid.',
         '/validate': 'Form validation with auto model binding.',
-        '/viewer': 'Animated slide transitions for views.',
-        '/widget': 'Various widgets - case, nicescroll, redactor, decimal, input mask & compare.',
+        //'/viewer': 'Animated slide transitions for views.',
+        '/widget': 'Various widgets - casing, number, compare, placeholder',
         '/step': 'Creates form step wizard.',
-        '/tab': 'Creates tab content.',
+        //'/tab': 'Creates tab content.',
         '/loader': 'Shows loading message/spinner on ajax calls.'
     };
 
@@ -33,9 +43,9 @@ define(function () {
     });
 
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
-                                 'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal',
-                                 'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate',
-                                 'ai.autoform', 'ai.tab', 'ai.loader']);
+        'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal',
+        'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate',
+        'ai.autoform', 'ai.tab', 'ai.loader']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider', '$loaderProvider',
         function ($routeProvider, $locationProvider, $passportProvider, $loaderProvider) {
@@ -51,7 +61,7 @@ define(function () {
                 $routeProvider.when(k, config);
             });
             $loaderProvider.$set('onLoading', function (loader, instances) {
-                return true;   
+                return true;
             });
             $locationProvider.html5Mode(true);
 
@@ -130,7 +140,7 @@ define(function () {
                     {name: 'Micah Barry', email: 'barry4u@hotmail.com'},
                     {name: 'Alex Angle', email: 'alex.angle@mail.com'}
                 ];
-                
+
                 $scope.tbl = {
                     source: angular.copy(tblSrc),
                     orderBy: ['-name'],
@@ -140,7 +150,7 @@ define(function () {
                     hover: true,
                     goto: false
                 };
-                
+
                 $scope.tblAdv = {
                     orderBy: ['-name'],
                     selectable: true,
@@ -164,7 +174,6 @@ define(function () {
                 };
                 $scope.validateFormConf = {
                     onLoad: function (form, ctrl) {
-                        console.log(form);
                     },
                     validators: {
                         phone: {
@@ -182,7 +191,6 @@ define(function () {
             if (area === 'widget') {
                 $scope.decimal = 25;
                 $scope.case = 'timothy';
-
             }
 
             if (area === 'flash') {
@@ -210,11 +218,10 @@ define(function () {
                         finish: {content: '/step/example/step-finish.html'}
                     },
                     onBeforeChange: function (steps, e) {
-                        console.log(steps, e);
                         return true;
                     },
-                    onLoad: function ($module) {
-                        $module.steps[1].enabled = false;
+                    onReady: function ($module) {
+                        //$module.steps[1].enabled = false;
                     }
                 };
 
@@ -317,18 +324,20 @@ define(function () {
                     elements: {
                         email: { type: 'email' },
                         age: { type: 'radio', values: [19,20,21,22,23,24,25] }
-                    }
+                    },
+                    source: $scope.autoSource
+
                 };
             }
-            
-            if (area === 'loader') {           
+
+            if (area === 'loader') {
                 $scope.timeout = 2000;
                 $scope.pageLoader = function (timeout) {
                     timeout = timeout || 2000;
-                    $http.get('/api/loader?timeout=' + timeout).then(function (res) {                        
+                    $http.get('/api/loader?timeout=' + timeout).then(function (res) {
                     });
                 };
-                $scope.customLoader = function (timeout) {
+                $scope.customLoader = function (timeout) {                   
                     var loaders = $loader();
                     timeout = timeout || 2000;
                     loaders.custom.start();
@@ -349,8 +358,9 @@ define(function () {
         };
     });
 
-    angular.element(document).ready(function () {
+    //angular.element(document).ready(function () {
         angular.bootstrap(document, ['app']);
-    });
+    //});
+
 
 });

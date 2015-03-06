@@ -9,7 +9,7 @@
 <hr/>
 
 <div>
-    <ai-step options="stepOptions" ></ai-step>
+    <ai-step ai-step-options="stepOptions"></ai-step>
 </div>
 
 <hr/>
@@ -56,7 +56,7 @@ $scope.userSteps = {
         // on change index, step & event returned.
     },
 
-    onLoad: function (_module){
+    onReady: function (_module){
        // on load the module is returned.
     },
 
@@ -107,7 +107,7 @@ var defaults = {
     key: '$id',                     // the primary key for the collection of steps.
     start: 0,                       // the starting index of the step wizard.
     title: 'true',                  // when true title is auto generated if not set in step object.
-    continue: true,                 // when true if called step is disabled continue to next enabled.
+    continue: undefined,            // when true if called step is disabled continue to next enabled.
     breadcrumb: false,              // when true only header is shown, used as breadcrumb.
                                     // breadcrumb mode looks for property 'href' to navigate to.
 
@@ -119,14 +119,15 @@ var defaults = {
 
                                     // hide/show buttons, disable/enable header click events.
 
-    showNumber: true,               // when true step number show next to title.
-    showNext: true,                 // when true next button is created.
-    showPrev: true,                 // when true prev button is created.
-    showSubmit: true,               // when true submit button is created.
-    headTo: true,                   // when true header can be clicked to navigate.
+    showNumber: undefined,          // when true step number show next to title.
+    showNext: undefined,            // when true next button is created.
+    showPrev: undefined,            // when true prev button is created.
+    showSubmit: undefined,          // when true submit button is created.
+    headTo: undefined,              // when true header can be clicked to navigate.
 
                                     // all events are called with $module context except onload which passes it.
 
+    onBeforeChange: undefined,      // callback event fired before changing steps.
     onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
     onSubmit: undefined,            // callback on submit returns ({ active }, event)
     onLoad: undefined               // callback on load returns ($module)

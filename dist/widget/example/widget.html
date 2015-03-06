@@ -11,10 +11,10 @@
     Or set options for a specific widget.
     $widgetProvider.set('decimal', { // your decimal options });
 </pre>
-<h4>Decimal</h4>
+<h4>Number</h4>
 <div class="form-group">
-    <input class="form-control" type="text" ai-decimal ng-model="decimal"/>
-    <span style="display:block;">Any numeric value is forced to two decimal places.</span>
+    <input class="form-control" type="text" ai-number ng-model="decimal" />
+    <span style="display:block;">Any numeric value is forced to specified decimal places.</span>
 </div>
 <div class="tabpanel">
 
@@ -28,7 +28,7 @@
 
         <div ng-class="{ active: tabActive('decimal:markup') }" ng-show="tabActive('decimal:markup')">
             <pre>
-&lt;input class=&quot;form-control&quot; type=&quot;text&quot; ai-decimal ng-model=&quot;decimal&quot;/&gt;
+&lt;input class=&quot;form-control&quot; type=&quot;text&quot; ai-number ng-model=&quot;decimal&quot;/&gt;
             </pre>
         </div>
 
@@ -40,7 +40,8 @@
 
         <div ng-class="{ active: tabActive('decimal:options') }" ng-show="tabActive('decimal:options')">
             <pre>
- decimal: {
+ number: {
+    defaultValue:                   // a default value to use when undefined.
     places: 2                       // default decimal places.
 }
             </pre>

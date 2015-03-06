@@ -1,4 +1,4 @@
-angular.module('ai.tab', [])
+angular.module('ai.tab', ['ai.helpers'])
 .provider('$tab', function $tab() {
 
     var defaults = {
@@ -14,17 +14,19 @@ angular.module('ai.tab', [])
         defaults = angular.extend(defaults, obj);
     };
 
-    get = [function get() {
+    get = [ '$helpers', function get($helpers) {
 
-        function ModuleFactory(element, options){
+        function ModuleFactory(element, options, attrs){
 
             var $module = {},
                 scope;
 
+            if(attrs)
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
             options = options || {};
             $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend(angular.copy(defaults), options);
-
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
 
 
             return $module;
@@ -53,10 +55,10 @@ angular.module('ai.tab', [])
             };
 
             function init() {
-                $module = $tab(element, options);
+                $module = $tab(element, options, attrs);
             }
 
-            options = scope.$eval(attrs.aiTab || attrs.options);
+            options = scope.$eval(attrs.aiTab || attrs.aiTabOptions);
             options = angular.extend(defaults, options);
 
             init();

@@ -62,7 +62,7 @@ angular.module('ai.storage', [])
                 obj = {};
                 obj[key] = value;
             }
-            defaults = angular.extend(defaults, obj);
+            defaults = angular.extend({}, defaults, obj);
         };
 
         /**

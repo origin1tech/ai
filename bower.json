@@ -1,6 +1,6 @@
 {
   "name": "ai",
-  "version": "0.0.9",
+  "version": "0.1.2",
   "homepage": "https://github.com/origin1tech/ai",
   "authors": [
     "Origin1 Technologies <origin1tech@gmail.com>"
@@ -24,12 +24,13 @@
     "**/.*",
     "node_modules",
     "bower_components",
+    "nbproject",
+    "idea",
     "test",
     "tests",
     "gulpfile.js",
     "src",
     "package.json"
   ],
-  "dependencies": {
-  }
+  "dependencies": {}
 }

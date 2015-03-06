@@ -38,3 +38,12 @@ input.ng-invalid.ng-dirty:not(:focus), select.ng-invalid.ng-dirty:not(:focus), t
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
   -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
   transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }
+
+form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-invalid:not(:focus), form.ng-submitted textarea.ng-invalid:not(:focus) {
+  outline: 0;
+  border-color: rgba(255, 1, 1, 0.8);
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
+  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }

@@ -6,7 +6,8 @@ angular.module('ai.passport.factory', [])
         var defaults, get, set;
 
         defaults = {
-            levels: {
+            rootName: 'Passport',                               // the name to use on rootscope for passport.
+            levels: {                                           // security levels to string name map.
                 0: '*',
                 1: 'user',
                 2: 'manager',
