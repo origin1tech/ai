@@ -137,6 +137,7 @@ gulp.task('serve', ['build'], function() {
         root: './dist',
         livereload: true,
         fallback: 'dist/index.html',
+        // quick hack for demo the loader.
         middleware: function (conn, options){
             return [ function (req, res, next) {
                 var isLoader = /\/api\/loader/.test(req.url);
