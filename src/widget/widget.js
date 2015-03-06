@@ -454,13 +454,18 @@ angular.module('ai.widget', [])
         restrict: 'AC',
         link: function(scope, element, attrs) {
 
-            var placeholder;
+            var placeholder, isNative;
 
             function init() {
 
                 var label = '<label>{{NAME}}</label>',
                     ts = new Date().getTime(),
                     prev;
+
+                placeholder = capitalize(placeholder);
+                
+                if(!isNative && placeholder)
+                    element.attr('placeholder', placeholder);
 
                 // since angular doesn't support .index()
                 // set attr so we can find it when iterating.
@@ -472,7 +477,6 @@ angular.module('ai.widget', [])
                     placeholder = placeholder.split('.');
                     placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
                 }
-                placeholder = capitalize(placeholder);
 
                 if(!placeholderSupported() && prev) {
                     label = label.replace('{{NAME}}', placeholder);
@@ -482,6 +486,7 @@ angular.module('ai.widget', [])
 
             }
 
+            isNative = element.attr('placeholder');
             placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
 
             init();

@@ -1,6 +1,7 @@
 var gulp = require('gulp'),
     plugins = require('gulp-load-plugins')(),
     concat = require('gulp-concat-util'),
+    del = require('del'),
     es = require('event-stream'),
     fs = require('fs'),
     path = require('path'),
@@ -51,9 +52,12 @@ function reload () {
         .pipe(plugins.connect.reload());
 }
 
-gulp.task('clean', function () {
-    return gulp.src(['./dist/**/*.*'], {read: false})
-        .pipe(plugins.rimraf({force: true}));
+gulp.task('clean', function (cb) {
+
+    del([
+        './dist/**/*.*'
+    ], cb);
+    
 });
 
 // build sass
@@ -158,6 +162,7 @@ gulp.task('serve', ['build'], function() {
     }, 0);
 });
 
+// bumps the version for package/bower.
 gulp.task('bump', function () {
  
     gulp.src(['./package.json', './bower.json'])

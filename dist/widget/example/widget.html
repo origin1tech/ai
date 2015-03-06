@@ -153,7 +153,7 @@ compare: {
 
 <h4>Placeholder</h4>
 <div class="form-group">
-    <input class="form-control" placeholder="username" ai-placeholder />
+    <input class="form-control" ai-placeholder="username"  />
     <span>This widget automatically falls back to labels when placeholders are not supported.</span>
 </div>
 <div class="tabpanel">
@@ -167,15 +167,21 @@ compare: {
     <div class="tab-content">
 
         <div ng-class="{ active: tabActive('placeholder:markup') }" ng-show="tabActive('placeholder:markup')">
-
+<pre>
+&lt;input type=&quot;text&quot; ai-placeholder=&quot;First Name&quot;/&gt;  
+</pre>
         </div>
 
         <div ng-class="{ active: tabActive('placeholder:code') }" ng-show="tabActive('placeholder:code')">
-
+<pre>
+No code required.
+</pre>
         </div>
 
         <div ng-class="{ active: tabActive('placeholder:options') }" ng-show="tabActive('placeholder:options')">
-
+<pre>
+ai-placeholder does not require any options.
+</pre>
         </div>
 
     </div>

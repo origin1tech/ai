@@ -24,7 +24,7 @@ require([
         '/autoform': 'Handy during dev to quickly create a form.',
         '/dropdown': 'Advanced customizable dropdown directive.',
         '/flash': 'Allows for showing flash/popup messages.',
-        '/modal': 'Native modal dialog.',
+        //'/modal': 'Native modal dialog.',
         '/table': 'Bind local or remote data to table/grid.',
         '/validate': 'Form validation with auto model binding.',
         //'/viewer': 'Animated slide transitions for views.',
