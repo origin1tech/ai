@@ -6,16 +6,16 @@ A library of directive widgets/providers for creating an intuitive ui experience
 
 The Ai library contains the following: 
 
-+dropdown - a dropdown/select element that filters data from an object, an array or server endpoint.
-+flash - a utily for displaying flash messages or alerts, also intercepts http errors when enabled.
-+loader - simple directive to show a "page loading" image, svg and/or text.
-+step - a step wizard for stepping through forms culminating at a submit action.
-+storage - module that enables you to easily top into localstorage but falls back to cookies if not supported.
-+table - grid like table directive that supports batch loading, server side order, filtering and much more.
-+validate - auto-magically created validation messages or summary for forms.
-+widget - the widget modules contains following widgets: case(forces text case), number(force number with decimal places), 
+-dropdown - a dropdown/select element that filters data from an object, an array or server endpoint.
+-flash - a utily for displaying flash messages or alerts, also intercepts http errors when enabled.
+-loader - simple directive to show a "page loading" image, svg and/or text.
+-step - a step wizard for stepping through forms culminating at a submit action.
+-storage - module that enables you to easily top into localstorage but falls back to cookies if not supported.
+-table - grid like table directive that supports batch loading, server side order, filtering and much more.
+-validate - auto-magically created validation messages or summary for forms.
+-widget - the widget modules contains following widgets: case(forces text case), number(force number with decimal places), 
           compare(compares two values for equality), and placeholder(if browser doesn't support placeholder, adds label).
-+autoform - extremely dirty not remotely complete directive for prototyping a form quickly.
+-autoform - extremely dirty not remotely complete directive for prototyping a form quickly.
 
 These modules have been pulled from several active projects, having striped away the opinionated syntax for the given
 project. In short if you find bugs let us know or better yet create a PR!!!
