@@ -38,7 +38,7 @@ modules to your liking using Gulp.
 
 ###Documentation
 
-As will all documentation there's only so much time in the day. So the documenation is somewhat limited. That said
+As with all documentation there's only so much time in the day, so the documentation is somewhat limited. That said
 most if not all the options for each module is documented. You should also consider viewing the source as there are
 likely additional notes to assist you. You can view the documentation by running the following and opening your browser
 to http://127.0.0.1:8080:
