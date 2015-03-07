@@ -181,7 +181,11 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                         obj = {};
                         obj[key] = value;
                     }
-                    options = $module.options = scope.options = angular.extend(options, obj);
+                    $module = $module || {};
+                    scope = scope || {};
+                    options = $module.options = angular.extend(options, obj);
+                    if(scope)
+                        scope.options = options;
                 }
                 
                 function destroy() {
