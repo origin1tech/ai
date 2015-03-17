@@ -1,0 +1,49 @@
+.ai-validate-message {
+  color: darkred;
+  font-size: 98%;
+  display: block;
+  margin-top: 4px;
+  margin-left: 2px; }
+  .ai-validate-message.focus {
+    display: none !important; }
+  .ai-validate-message.ai-summary {
+    display: none !important; }
+
+.ai-validate-summary {
+  margin: 0 0 20px 0;
+  font-size: 85%;
+  list-style: none;
+  padding: 8px;
+  background-color: #ffbebe;
+  border-radius: 4px;
+  color: #ff0b0b;
+  border: 1px solid #ff7272; }
+  .ai-validate-summary li {
+    margin-top: 3px; }
+
+.ai-validate-input:focus {
+  outline: 0;
+  border-color: rgba(82, 168, 236, 0.8);
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
+  -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
+  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
+  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }
+
+input.ng-invalid.ng-dirty:not(:focus), select.ng-invalid.ng-dirty:not(:focus), textarea.ng-invalid.ng-dirty:not(:focus) {
+  outline: 0;
+  border-color: rgba(255, 1, 1, 0.8);
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
+  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }
+
+form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-invalid:not(:focus), form.ng-submitted textarea.ng-invalid:not(:focus) {
+  outline: 0;
+  border-color: rgba(255, 1, 1, 0.8);
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
+  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
+  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }

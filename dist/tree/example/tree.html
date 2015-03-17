@@ -1,0 +1,70 @@
+<h3>{{title}}</h3>
+<hr/>
+<p class="alert alert-warning">
+    Treeview creates an expandable tree component based on an array passed to your ngModel. When a node is selected
+    the node, the model itself and the event are returned. There is no limit to the depth of children however caution
+    should be take when several node levels are used due to the number of watchers created in the treeview.
+</p>
+<h4>Tree Module</h4>
+<hr/>
+<div class="row">
+    <div class="form-group col-md-12">
+     <ai-tree ng-model="tree.model" ai-tree-options="tree"></ai-tree>
+    </div>
+</div>
+<hr/>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('tree:markup') }"><a ng-click="showTab('tree:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('tree:code') }"><a ng-click="showTab('tree:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('tree:options') }"><a ng-click="showTab('tree:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div ng-class="{ active: tabActive('tree:markup') }" ng-show="tabActive('tree:markup')">
+            <pre>
+&lt;ai-tree ng-model=&quot;tree.model&quot; ai-tree-options=&quot;tree&quot;&gt;&lt;/ai-tree&gt;
+            </pre>
+        </div>
+        <div ng-class="{ active: tabActive('tree:code') }" ng-show="tabActive('tree:code')">
+            <pre>
+$scope.tree = {
+    onSelect: function (node, model, event) {
+        // node: the selected node.
+        // model: the tree model loaded.
+        // event: the JavaScript click event.
+    },
+    onToggle: function (node, model, event) {
+        // node: the selected node.
+        // model: the tree model loaded.
+        // event: the JavaScript click event.
+    },
+    onReady: function (tree){
+        // tree: the top level scope for the tree.
+    }
+}
+            </pre>
+        </div>
+        <div ng-class="{ active: tabActive('tree:options') }" ng-show="tabActive('tree:options')">
+           <pre>
+var defaults = {
+    template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
+    labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
+    label: 'label',                             // the property used for display.
+    value: 'value',                             // the property used for value.
+    children: 'children',                       // the property used for child elements.
+    active: 'active',                           // the property used to indicated the element is checked or active.
+    method: 'get',                              // when and endpoint is specified in model.
+    params: {},                                 // params to be passed when model is an endpoint.
+    icon: true,                                 // when NOT false icon is displayed left of label.
+    expanded: false,                            // when true tree loads with all nodes expanded.
+    expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
+    onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
+    onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
+    onReady: undefined                          // callback when loaded.
+}
+           </pre>
+        </div>
+    </div>
+</div>

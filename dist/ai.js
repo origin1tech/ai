@@ -1618,6 +1618,1539 @@ angular.module('ai.flash', [
     'ai.flash.interceptor'
 ]);
 
+angular.module('ai.loader.factory', ['ai.helpers'])
+
+    .provider('$loader', function $loader() {
+        
+        var defaults = {
+                name: 'page',                                       // the default page loader name.
+                intercept: undefined,                               // when false loader intercepts disabled.
+                template: 'ai-loader.html',                         // the default loader content template. only used
+                                                                    // if content is not detected in the element.
+                message: undefined,                                 // text to display under loader if value.
+                delay: 300,                                         // the delay in ms before loader is shown.  
+                overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
+                                                                    // then toggled back to original body overflow.
+                                                                    // default loader is set to hidden.
+                onLoading: undefined                                // callback on loader shown, true to show false 
+                                                                    // to suppress. returns module and instances.
+            }, get, set;
+        
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = [ '$q', '$rootScope', '$helpers',  function get($q, $rootScope, $helpers) {
+            
+            var loaderTemplate, instances, loaderUri;
+            
+            instances = {};
+            loaderUri = 'data:image/gif;base64,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';
+            loaderTemplate = '<div>' +
+                                '<img src="' + loaderUri + '" />' +
+                                '<div ng-bind="message" ng-show="message" class="ai-loader-message">test</div>' +
+                            '</div>';
+            
+            $helpers.getPutTemplate(defaults.template, loaderTemplate);
+
+            function ModuleFactory(name, element, options, attrs) {
+                
+                var $module = {},
+                    body,
+                    overflows,
+                    htmlContent,
+                    contentTemplate,              
+                    scope;
+
+                // set global name if not passed.
+                if(!angular.isString(name)){
+                    attrs = options;
+                    options = element;
+                    element = name;
+                    name = undefined;
+                }
+ 
+                // if no element can't create loader.             
+                if(!element)
+                    return console.error('Cannot configure loader with element of undefined.');
+
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                options = options || {};
+                scope = $module.scope = options.scope || $rootScope.$new();
+                options = $module.options = scope.options = angular.extend({}, defaults, attrs, options);
+                $module.element = scope.element = element;
+                
+                if(options.name === 'page')
+                    options.overflow = $module.options.overflow = scope.options.overflow = 'hidden';
+
+                if(instances[options.name]){
+                    $module = undefined;
+                    return $module;
+                }                  
+       
+                body = $helpers.findElement('body');
+                overflows = $helpers.getOverflow();
+                htmlContent = element.html();           
+                contentTemplate = options.template;                
+                
+                if(htmlContent && htmlContent.length){
+                    contentTemplate = htmlContent;
+                    // remove element contents
+                    // we'll add it back later.
+                    element.empty();
+                }
+                
+                // start the loader.
+                function start() {                
+                    if(!$module.loading && !$module.disabled){
+                        $module.loading = true;        
+                        if(angular.isFunction(options.onLoading)){
+                            $q.when(options.onLoading($module, instances)).then(function(res) {
+                                if(res){
+                                    $module.loading = true;
+                                    if(options.overflow)
+                                        body.css({ overflow: 'hidden'});
+                                    element.addClass('show');
+                                }
+                            });                            
+                        } else {
+                            $module.loading = true;
+                            if(options.overflow)
+                                body.css({ overflow: 'hidden'});
+                            element.addClass('show');
+                        }
+                    }
+                }
+                
+                // stop the loader.
+                function stop() {    
+                    if(options.overflow)
+                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    if(element)
+                        element.removeClass('show'); 
+                    $module.loading = false;
+                    $module.suppressed = false;
+                }  
+                
+                // suppresses once.
+                function suppress() {                    
+                    $module.suppressed = true;
+                }
+                
+                // disable the loader
+                function disable() {
+                    $module.disabled = true;    
+                }
+
+                // enable the loader
+                function enable() {
+                    $module.disabled = false;
+                }
+                
+                // set/update options.
+                // does not support live templates.
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    options = $module.options = scope.options = angular.extend(options, obj); 
+                    scope.message = options.message;
+                }
+
+                function destroy() {              
+                    delete instances[$module.options.name];
+                    scope.$destroy();                    
+                }
+                
+                function init() {
+                    
+                    $module.start = scope.start = start;
+                    $module.stop = scope.stop = stop;
+                    $module.set = scope.set = setOptions;
+                    $module.suppress = scope.suppress = suppress;
+                    $module.enable = scope.enable = enable;
+                    $module.disable = scope.disable = disable;
+                    scope.message = options.message;                   
+               
+                    $helpers.loadTemplate(contentTemplate).then(function (template) {
+                        if(template) {
+                            element.html(template);
+                            $helpers.compile(scope, element.contents());
+                            if(options.name === 'page')
+                                element.addClass('ai-loader-page');
+                        } else {
+                            console.error('Error loading $loader template.');
+                        }
+                    });
+
+                    // remove loader on location/route change.
+                    $rootScope.$on('$locationChangeStart', function () {
+                        if(element)
+                            element.removeClass('show');
+                        if(body && options.overflow)
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    });
+
+                    scope.$watch($module.options, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = newVal;
+                    });
+
+                    scope.$on('destroy', function () {
+                        $module.destroy();
+                    });
+                    
+                }
+                
+                init();
+                
+                return $module;
+            }
+            
+            function getLoader(name, element, options) {
+                var instance;
+                if(!arguments.length)
+                    return instances;
+                else if(arguments.length === 1)
+                    return instances[name];
+                else
+                    instance = ModuleFactory(name, element, options);
+                if(instance)
+                    instances[instance.options.name] = instance;
+                return instance;
+            }      
+            
+            return getLoader;
+
+        }];
+        
+        return { 
+            $get: get,
+            $set: set            
+        };
+        
+    })
+    
+    .directive('aiLoader', [ '$loader', function ($loader) {
+    
+        return {
+            restrict: 'EAC',
+            link: function (scope, element, attrs) {
+
+                var $module, defaults, options, watchKey, validKeys;
+
+                defaults = {
+                    scope: scope
+                };
+                
+                validKeys = ['name', 'template', 'intercept', 'message', 'delay', 'overflow', 'onLoading'];
+
+                // initialize the directive.
+                function init () {
+                    $module = $loader(element, options, attrs);
+                }
+
+                options = scope.$eval(attrs.aiLoader) || scope.$eval(attrs.aiLoaderOptions);
+                options = angular.extend(defaults, options);
+                
+                watchKey = attrs.aiLoader ? 'aiLoader' : 'aiLoaderOptions';
+                scope.$watch(attrs[watchKey], function (newVal, oldVal) {
+                    if(newVal === oldVal) return;
+                    $module.set(newVal);
+                });
+
+                init();
+                
+            }
+            
+        };
+        
+    }]);
+
+angular.module('ai.loader.interceptor', [])
+    .factory('$loaderInterceptor', [ '$q', '$injector', '$timeout', function ($q, $injector, $timeout) {
+        
+        function getLoaders() {
+            return $injector.get('$loader')();
+        }
+
+        // prevents loader from immediately showing
+        // set options.delay.
+        function delayLoader(_loader) {
+            if(_loader.options.delay === 0){
+                _loader.start();                
+            } else {
+                clearTimeout(_loader.timeoutId);
+                _loader.timeoutId = $timeout(function () {
+                        _loader.start();
+                }, _loader.options.delay);
+            }
+        }
+        
+        function startLoaders() {
+            var loaders = getLoaders();            
+            angular.forEach(loaders, function (_loader) {
+                if(_loader.options.intercept !== false){
+                    if(!_loader.suppressed){
+                        delayLoader(_loader);
+                    }
+                }
+            });                
+        }
+        
+        function stopLoaders(){
+            var loaders = getLoaders();
+            angular.forEach(loaders, function (_loader) {     
+                _loader.loading = false;
+                _loader.stop();
+            });
+        }
+        
+        return {
+            request: function (req) {      
+                startLoaders();
+                return req || $q.when(req);
+            },
+            response: function (res) {        
+                stopLoaders();
+                return res || $q.when(res);
+            },
+            responseError: function (res){   
+                stopLoaders();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$loaderInterceptor');
+    }]);
+
+// imports above modules.
+angular.module('ai.loader', [
+    'ai.loader.factory',
+    'ai.loader.interceptor'
+]);
+
+   
+
+
+angular.module('ai.step', ['ai.helpers'])
+
+.provider('$step', function $step() {
+
+    var defaults = {
+
+            key: '$id',                     // the primary key for the collection of steps.
+            start: 0,                       // the starting index of the step wizard.
+            title: 'true',                  // when true title is auto generated if not set in step object.
+            continue: undefined,            // when true if called step is disabled continue to next enabled.
+            breadcrumb: false,              // when true only header is shown, used as breadcrumb.
+                                            // breadcrumb mode looks for property 'href' to navigate to.
+
+                                            // html templates, can be html or path to template.
+
+            header: 'step-header.tpl.html',   // the header template when using directive.
+            content: 'step-content.tpl.html', // the content template to use when using directive.
+            actions: 'step-actions.tpl.html', // the actions template when using directive.
+
+                                            // hide/show buttons, disable/enable header click events.
+
+            showNumber: undefined,          // when true step number show next to title.
+            showNext: undefined,            // when true next button is created.
+            showPrev: undefined,            // when true prev button is created.
+            showSubmit: undefined,          // when true submit button is created.
+            headTo: undefined,              // when true header can be clicked to navigate.
+
+                                            // all events are called with $module context except onload which passes it.
+
+            onBeforeChange: undefined,      // callback event fired before changing steps.
+            onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
+            onSubmit: undefined,            // callback on submit returns ({ active }, event)
+            onReady: undefined               // callback on load returns ($module)
+
+        }, get, set;
+
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
+    };
+
+    get = [ '$q', '$rootScope', '$location', '$helpers', function get($q, $rootScope, $location, $helpers) {
+
+        var headerTemplate, contentTemplate, actionsTemplate;
+
+        headerTemplate = '<div class="ai-step-header" ng-show="steps.length">' +
+                            '<ul>' +
+                                '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
+                                'ng-class="{ active: step.active, disabled: !step.enabled, ' +
+                                'clickable: options.headTo !== false && step.enabled, nonum: !options.showNumber === false }">' +
+                                    '<span class="title">{{step.title}}</span>' +
+                                    '<span class="number">{{step.$number}}</span>' +
+                                '</li>' +
+                            '</ul>' +
+                         '</div>';
+
+        contentTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-content" ng-show="steps.length">' +
+                            '<div ng-show="isActive($index)" ng-repeat="step in steps" ng-bind-html="step.content"></div>' +
+                          '</div>';
+
+        actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
+                            '<hr/><button ng-show="options.showPrev !== false" ng-disabled="isFirst()" class="btn btn-warning" ' +
+                                'ng-click="prev($event)">Previous</button> ' +
+                            '<button ng-show="options.showNext !== false" ng-disabled="isLast()" class="btn btn-primary" ' +
+                                'ng-click="next($event)">Next</button> ' +
+                            '<button ng-show="isLast() && options.showSubmit !== false" class="btn btn-success submit" ' +
+                                'ng-click="submit($event)">Submit</button>' +
+                          '</div>';
+
+        $helpers.getPutTemplate(defaults.header, headerTemplate);
+        $helpers.getPutTemplate(defaults.content, contentTemplate);
+        $helpers.getPutTemplate(defaults.actions, actionsTemplate);
+
+        function ModuleFactory(element, options, attrs) {
+
+            var $module = {},
+                steps = [],
+                templates =[],
+                contentTemplates = [],
+                _steps,
+                scope,
+                _previous;
+
+            // shift args if needed.
+            if(!angular.isElement(element) && angular.isObject(element)){
+                attrs = options;
+                options = element;
+                element = undefined;
+            }            
+
+            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
+            // extend options
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
+
+            // check if options contain steps.
+            if(options.steps){
+                _steps = options.steps;
+                delete options.steps;
+            }
+
+            // clears active step.
+            function clear() {
+                angular.forEach(steps, function (v) {
+                    v.active = false;
+                });
+            }
+
+            // Public API
+
+            // get step by key/value, index or step.
+            function find(key, value, first) {
+                if(angular.isNumber(key) && !value){
+                    return steps[key];
+                } else {
+                    if(!value){
+                        value = key;
+                        key = options.key;
+                    }
+                    var result = steps.filter(function (v) {
+                        if(v[key])
+                            return v[key] === value;
+                        return false;
+                    });
+                    if(result && first)
+                        return result[0];
+                    return result;
+                }
+            }
+
+            // get the index of a step.
+            function indexOf(step) {
+                if(!step)
+                    return -1;
+                return steps.indexOf(step);
+            }
+
+            // getter/setter for active step.
+            function active(key, value) {
+                if(!key) {
+                    return steps.filter(function (v) {
+                        return v.active === true;
+                    })[0];
+                } else {
+                    var step = find(key, value, true);
+                    if(step && step.enabled){
+                        clear();
+                        step.active = true;
+                    }
+                }
+            }
+
+            // go to a specific step index or object.
+            function to(key, reverse, e) {
+                var curActive = active(),
+                    nextActive,
+                    nextIdx;
+                if(angular.isNumber(key)){
+                    nextIdx = key;
+                    nextActive = steps[key];
+                }
+                if(angular.isObject(key)){
+                    nextIdx = indexOf(key);
+                    nextActive = key;
+                }
+
+                if(angular.isFunction(options.onBeforeChange)){
+                    $q.when(options.onBeforeChange({ active: curActive, next: nextActive }, e))
+                        .then(function(res) {
+                            if(res) done();
+                        });
+                }
+
+                function done() {
+
+                    if(nextActive) {
+                        if(!nextActive.enabled && options.continue !== false){
+
+                            var i, altActive;
+                            if(reverse) {
+                                for(i = nextIdx -1; i >= 0; i-- )  {
+                                    altActive = steps[i];
+                                    if(altActive.enabled){
+                                        nextActive = altActive;
+                                        nextIdx = i;
+                                    }
+                                }
+                            } else {
+                                for(i = nextIdx; i < steps.length; i++ )  {
+                                    altActive = steps[i];
+                                    if(altActive.enabled){
+                                        nextActive = altActive;
+                                        nextIdx = i;
+                                    }
+                                }
+                            }
+                        }
+
+
+                        if(nextActive.enabled) {
+                            clear();
+                            nextActive.active = true;
+                            _previous = nextActive;
+                        }
+
+                        // callback on change.
+                        if(angular.isFunction(options.onChange))
+                            options.onChange.call($module, { previous: curActive, active: nextActive }, e);
+
+                    }
+
+                }
+
+            }
+
+            // adds a new step
+            function add(name, obj) {
+                if(!name && !obj) return;
+                var nextIdx = steps.length,
+                    nameOnly;
+                if(angular.isObject(name)){
+                    obj = name;
+                    name = undefined;
+                }
+                nameOnly = !obj;
+                if(nameOnly){
+                    obj = {};
+                    obj.content = name;
+                }
+                // must have name or defined key in object.
+                if(!name && !obj[options.key]) return;
+                obj.enabled = obj.enabled !== undefined ? obj.enabled : true;
+                obj.active = nextIdx === options.start;
+                obj[options.key] = obj[options.key] || name;
+                obj.content = obj.content || name;
+                if(options.title){
+                    obj.title = obj.title || 'Step';
+                    obj.title = obj.title.charAt(0).toUpperCase() + obj.title.slice(1);
+                }
+                obj.$index = nextIdx;
+                obj.$number = nextIdx +1;
+                // simple string wrap in span.
+                if(!$helpers.isHtml(obj.content) && !$helpers.isPath(obj.content))
+                    obj.content = '<span>' + obj.content + '</span>';
+                contentTemplates.push($helpers.loadTemplate(obj.content));
+                $rootScope.$broadcast('step:add', obj);
+                steps.push(obj);
+            }
+
+            // go to next step;
+            function next(e) {
+                var cur = active();
+                if(cur)
+                    to(cur.$index + 1, null, e);
+            }
+
+            // go to previous step.
+            function prev(e) {
+                var cur = active();
+                if(cur)
+                    to(cur.$index - 1, true, e);
+            }
+
+            // on header click.
+            function headTo(e, idx) {
+                if(options.headTo === false) return;
+                var step = steps[idx];
+                if(!options.breadcrumb && step.content) {
+                    to(idx, null, e);
+                } else {
+                    // breadcrumb mode navigate
+                    // to href if provided.
+                    if(step && step.href && step.enabled)
+                        $location.path(step.href);
+                }
+            }
+
+            // submit button for last step.
+            function submit(e) {
+                if(angular.isFunction(options.onSubmit)){
+                    options.onSubmit.call($module, { active: active() }, e);
+                }
+            }
+
+            // indicates if step is first.
+            function isFirst(key, value) {
+                var step = find(key, value, true),
+                    idx;
+                step = step || active();
+                idx = indexOf(step);
+                return 0 === idx;
+            }
+
+            // indicates if step is last.
+            function isLast(key, value) {
+                var step = find(key, value, true),
+                    idx;
+                step = step || active();
+                idx = indexOf(step);
+                return steps.length -1 === idx;
+            }
+
+            // checks if is active.
+            function isActive(key, value){
+                var step = find(key, value, true);
+                return !!(step && step.active === true);
+            }
+
+            // checks if is enabled.
+            function isEnabled(key, value) {
+                var step = find(key, value, true);
+                return !!(step && step.enabled === true);
+            }
+
+            // step has next step.
+            function hasNext() {
+                var idx = indexOf(active()) + 1,
+                    _next = steps[idx];
+                if(_next && _next.enabled)
+                    return true;
+            }
+
+            // step has previous step.
+            function hasPrev() {
+                var idx = indexOf(active()) - 1,
+                    _prev = steps[idx];
+                if(_prev && _prev.enabled)
+                    return true;
+            }
+
+            // initialize the module.
+            function init() {
+
+                // if initialized with steps
+                // add them to the collection.
+                if(_steps) {
+                    // convert string to array.
+                    if(angular.isString(_steps))
+                        _steps = $helpers.trim(_steps).split(',');
+                    // convert object to array.
+                    if(angular.isObject(_steps)){
+                        var tmpArr = [];
+                        angular.forEach(_steps, function (v,k){
+                            if(angular.isObject(v) || angular.isString(v)){
+                                if(angular.isString(v)){
+                                    var tmpObj = {};
+                                    tmpObj[options.key] = k;
+                                    tmpObj.content = v;
+                                    tmpArr.push(tmpObj);
+                                } else {
+                                    v[options.key] = v[options.key] || k;
+                                    if(options.title)
+                                        v.title = v.title || k;
+                                    tmpArr.push(v);
+                                }
+                            }
+                        });
+                    }
+                    angular.forEach(_steps, function (v) {
+                        if(angular.isString(v))
+                            v = $helpers.trim(v);
+                        add(v);
+                    });
+                }
+
+                if(!element)
+                    return callback();
+
+                var template, contentTemplate;
+
+                template = '';
+                contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
+
+                if(options.header)
+                    templates.push($helpers.loadTemplate(options.header || ''));
+
+                if(options.content)
+                    templates.push($helpers.loadTemplate(options.content || ''));
+
+                if(options.actions)
+                    templates.push($helpers.loadTemplate(options.actions || ''));
+
+                templates = templates.concat(contentTemplates);
+
+                // load user content/templates.
+
+                templates = $q.all(templates);
+                templates.then(function(res) {
+
+                    if(res){
+                        // load each base template
+                        // which will be the template or empty string.
+                        var map = {
+                            header: res[0],
+                            content: res[1],
+                            actions: res[2],
+                            steps: []
+                        };
+
+                        // load content templates.
+                        for(var i = 3; i < res.length; i++){
+                            map.steps.push(res[i]);
+                        }
+                        template += map.header;
+                        if(map.content && map.content.length){
+                            var content = angular.element(map.content),
+                                contents = '',
+                                contentHtml;
+                            angular.forEach(map.steps, function(v,k) {
+                                contents += contentTemplate.replace('{{INDEX}}', k).replace('{{CONTENT}}', v);
+                            });
+                            content.html(contents);
+                            contentHtml = angular.element('<div/>').append(content).clone().html();
+                            template += contentHtml;
+                        }
+                        template += map.actions;
+
+                        element.html(template);
+                        $helpers.compile(scope, element.contents());
+                    }
+
+                });
+
+
+                // Expose methods to module and scope.
+                $module.find = scope.find = find;
+                $module.active = scope.active = active;
+                $module.add = scope.add = add;
+                $module.to = scope.to = to;
+                $module.next = scope.next = next;
+                $module.prev = scope.prev = prev;
+                $module.submit = scope.submit = submit;
+                scope.headTo = headTo;
+                $module.isFirst = scope.isFirst = isFirst;
+                $module.isLast = scope.isLast = isLast;
+                $module.isActive = scope.isActive = isActive;
+                $module.isEnabled = scope.isEnabled = isEnabled;
+                $module.hasNext = scope.hasNext = hasNext;
+                $module.hasPrev = scope.hasPrev = hasPrev;
+                $module.steps = scope.steps = steps;
+
+                if(angular.isFunction(options.onReady))
+                    options.onReady($module);
+
+                return $module;
+
+            }
+
+            return init();
+
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+
+})
+
+.directive('aiStep', [ '$step', function ($step) {
+
+        return {
+        restrict: 'EAC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                $module = $step(element, options, attrs);
+            }
+
+            options = scope.$eval(attrs.aiStep || attrs.aiStepOptions);
+            options = angular.extend(defaults, options);
+
+            init();
+
+        }
+    };
+
+}]);
+
+angular.module('ai.passport.factory', [])
+
+    .provider('$passport', function $passport() {
+
+        var defaults, get, set;
+
+        defaults = {
+            rootName: 'Passport',                               // the name to use on rootscope for passport.
+            levels: {                                           // security levels to string name map.
+                0: '*',
+                1: 'user',
+                2: 'manager',
+                3: 'admin',
+                4: 'superadmin'
+            },            
+            401: true,                                          // set to false to not handle 401 status codes.
+            403: true,                                          // set to false to not handle 403 status codes.
+            paranoid: false,                                    // when true, fails if access level is missing.
+            delimiter: ',',                                     // char to use to separate roles when passing string.
+
+            // passport paths.
+            defaultUrl: '/',                                    // the default path or home page.
+            loginUrl: '/passport/login',                        // path to login form.
+            resetUrl: '/passport/reset',                        // path to password reset form.
+            recoverUrl: '/passport/recover',                    // path to password recovery form.            
+
+            // passport actions
+            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
+            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
+            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
+            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
+            refreshAction: false,                               // when the page is loaded the user may still be
+                                                                // logged in this calls the server to ensure the
+                                                                // active session is reloaded.
+                                                                // ex: 'get /api/passport/refresh'
+
+            // success fail actions.
+            onLoginSuccess: '/',                                // path or func on success.
+            onLoginFailed: '/passport/login',                   // path or func when login fails.
+            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
+            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
+            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
+            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
+            
+            namePrefix: 'Welcome Back ',                        // prefix string to identity.
+            nameParams: [ 'firstName' ]                         // array of user properties which make up the
+                                                                // user's identity or full name, properties are 
+                                                                // separated by a space.
+        };
+
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
+
+            var instance;
+
+            // nomralize url to method/path object.
+            function urlToObject(url) {
+                var parts = url.split(' '),
+                    obj = { method: 'get' };
+                obj.path =  parts[0];
+                if(parts.length > 1){
+                    obj.method = parts[0];
+                    obj.path = parts[1];
+                }
+                return obj;
+            }
+
+            // convert string roles to levels.
+            function rolesToLevels(source, roles){
+                var arr = [];
+                source = source || [];
+                angular.forEach(roles, function (v) {
+                    if(source[v] !== undefined)
+                        arr.push(source[v]);
+                });
+                return arr;
+            }
+
+            // reverse the levels map setting role values as keys.
+            function reverseMap(levels) {
+                var obj = {};
+                angular.forEach(levels, function (v,k) {
+                    obj[v] = parseFloat(k);
+                });
+                return obj;
+            }
+
+            function ModuleFactory(options) {
+
+                var $module = {};
+                
+                $module.user = null;
+
+                function setOptions(options) {
+
+                    // ensure valid object.
+                    options = options || {};
+
+                    // override options map if exists.
+                    defaults.levels = options.levels || defaults.levels;
+
+                    // merge the options.
+                    $module.options = angular.extend(angular.copy(defaults), options);
+
+                    // normalize/reverse levels map
+                    $module.options.roles = reverseMap($module.options.levels);
+                }
+
+                // login passport credentials.
+                $module.login = function login(data) {
+                    var url = urlToObject($module.options.loginAction);
+                    $http[url.method](url.path, data)
+                        .then(function (res) {
+                            // set to authenticated and merge in passport profile.
+                            //angular.extend(self, res.data);
+                            $module.user = res.data;
+                            if(angular.isFunction($module.options.onLoginSuccess)) {
+                                $module.options.onLoginSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onLoginSuccess);
+                            }
+                        }, function (res) {
+                            if(angular.isFunction($module.options.onLoginFailed)) {
+                                $module.options.onLoginFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onLoginFailed);
+                            }
+                        });
+                };
+
+                $module.logout = function logout() {        
+                    function done() {
+                        $module.user = null;
+                        $location.path($module.options.loginUrl);
+                        $route.reload();
+                    }
+                    if(angular.isFunction($module.options.logoutAction)){
+                        $module.options.logoutAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.logoutAction);
+                        $http[url.method](url.path).then(function (res) {
+                                done();                               
+                            });
+                    }
+                };
+
+                $module.recover = function recover() {
+                    if(angular.isFunction($module.options.recoverAction)){
+                        $module.options.recoverAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.recoverAction);
+                        $http[url.method](url.path).then(function (res){
+                            if(angular.isFunction($module.options.onRecoverSuccess)) {
+                                $module.options.onRecoverSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverSuccess);
+                            }
+                        }, function () {
+                            if(angular.isFunction($module.options.onRecoverFailed)) {
+                                $module.options.onRecoverFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverFailed);
+                            }
+                        });        
+                    }
+                };               
+                
+                $module.refresh = function refresh() {   
+                    if(!$module.options.refreshAction)
+                        return;
+                    if(angular.isFunction($module.options.refreshAction)){
+                        $module.options.refreshAction.call($module);                            
+                    } else {
+                        var url = urlToObject($module.options.refreshAction);
+                        $http[url.method](url.path).then(function (res){
+                            $module.user = res.data;
+                        });
+                    }
+                };
+
+                $module.reset = function reset() {
+
+                };
+
+                // expects string.
+                $module.hasRole = function hasRole(role) {
+                    var passportRoles = $module.roles || [];
+                    // if string convert to role level.
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // if public return true
+                    if(role === 0)
+                        return true;
+                    return passportRoles.indexOf(role) !== -1;
+                };
+
+                // expects string or array of strings.
+                $module.hasAnyRole = function hasAnyRole(roles) {
+                    var passportRoles = $module.roles || [];
+                    // if a string convert to role levels.
+                    if(angular.isString(roles)){
+                        roles = roles.split($module.options.delimiter);
+                        roles = rolesToLevels($module.options.roles, roles);
+                    }
+                    // if public return true
+                    if(roles.indexOf(0) !== -1)
+                        return true;
+                    return roles.some(function (v) {
+                        return passportRoles.indexOf(v) !== -1;
+                    });
+                };
+
+                // check if meets the minimum roll required.
+                $module.minRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole >= role;
+                };
+
+                // check if role is not greater than.
+                $module.maxRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole < role;
+                };
+
+                // unauthorized handler.
+                $module.unauthenticated = function unauthenticated() {
+                    var action = $module.options.onUnauthenticated;
+
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+
+                };
+
+                // unauthorized handler.
+                $module.unauthorized = function unauthorized() {
+                    var action = $module.options.onUnauthorized;
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+                };
+                
+                // gets the identity name of the authenticated user.
+                $module.getName = function getName(arr) {
+                    var result = '';
+                    arr = arr || $module.options.nameParams;
+                    if(!$module.user)
+                        return;
+                    angular.forEach(arr, function (v, k){
+                        if($module.user[v]){
+                            if(k === 0)
+                                result += $module.user[v];
+                            else
+                                result += (' ' + $module.user[v]);
+                        }      
+                    });    
+                    return $module.options.namePrefix + result;
+                };
+
+                setOptions(options);
+                
+                $module.refresh();
+
+                return $module;
+
+            }
+
+            function getInstance() {
+                if(!instance)
+                    instance = new ModuleFactory();
+                $rootScope.Passport = instance;
+                return instance;
+            }
+
+            return getInstance();
+           
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    });
+
+// intercepts 401 and 403 errors.
+angular.module('ai.passport.interceptor', [])
+    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+                // get passport here to prevent circ dependency.
+                var passport = $injector.get('$passport');
+                // handle unauthenticated response
+                if (res.status === 401 && passport.options['401'])
+                    passport.unauthenticated();
+                if(res.status === 403 && passport.options['403'])
+                    passport.unauthorized();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$passportInterceptor');
+    }]);
+
+// handles intercepting route when
+// required permissions are not met.
+angular.module('ai.passport.route', [])
+    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
+        $rootScope.$on('$routeChangeStart', function (event, next) {
+            var area = {},
+                route = {},
+                access,
+                authorized;
+            if(next && next.$$route){
+                route = next.$$route;
+                if(route.area)
+                    area = route.area;
+            }
+            access = route.access || area.access;
+            // when paranoid is true require access params
+            // if undefined call unauthorized.
+            // when paranoid is false unauthorized is not called
+            // when access is undefined.
+            if($passport.options.paranoid && access === undefined)
+                return $passport.unauthorized();
+            if(access !== undefined){
+                authorized = $passport.hasAnyRole('*');
+                if(!authorized)
+                    $passport.unauthorized();
+            }
+        });
+    }]);
+
+// imports above modules.
+angular.module('ai.passport', [
+    'ai.passport.factory',
+    'ai.passport.interceptor',
+    'ai.passport.route'
+]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         */
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend({}, defaults, obj);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
+
 angular.module('ai.modal', [])
 
     .provider('$modal', function $modal() {
@@ -2297,1152 +3830,57 @@ angular.module('ai.modal', [])
         };
 
     }]);
-angular.module('ai.loader.factory', ['ai.helpers'])
+angular.module('ai.widget', [])
 
-    .provider('$loader', function $loader() {
-        
-        var defaults = {
-                name: 'page',                                       // the default page loader name.
-                intercept: undefined,                               // when false loader intercepts disabled.
-                template: 'ai-loader.html',                         // the default loader content template. only used
-                                                                    // if content is not detected in the element.
-                message: undefined,                                 // text to display under loader if value.
-                delay: 300,                                         // the delay in ms before loader is shown.  
-                overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
-                                                                    // then toggled back to original body overflow.
-                                                                    // default loader is set to hidden.
-                onLoading: undefined                                // callback on loader shown, true to show false 
-                                                                    // to suppress. returns module and instances.
-            }, get, set;
-        
-        set = function set (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
+.provider('$widget', function $widget() {
 
-        get = [ '$q', '$rootScope', '$helpers',  function get($q, $rootScope, $helpers) {
-            
-            var loaderTemplate, instances, loaderUri;
-            
-            instances = {};
-            loaderUri = 'data:image/gif;base64,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';
-            loaderTemplate = '<div>' +
-                                '<img src="' + loaderUri + '" />' +
-                                '<div ng-bind="message" ng-show="message" class="ai-loader-message">test</div>' +
-                            '</div>';
-            
-            $helpers.getPutTemplate(defaults.template, loaderTemplate);
-
-            function ModuleFactory(name, element, options, attrs) {
-                
-                var $module = {},
-                    body,
-                    overflows,
-                    htmlContent,
-                    contentTemplate,              
-                    scope;
-
-                // set global name if not passed.
-                if(!angular.isString(name)){
-                    attrs = options;
-                    options = element;
-                    element = name;
-                    name = undefined;
-                }
- 
-                // if no element can't create loader.             
-                if(!element)
-                    return console.error('Cannot configure loader with element of undefined.');
-
-                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-                options = options || {};
-                scope = $module.scope = options.scope || $rootScope.$new();
-                options = $module.options = scope.options = angular.extend({}, defaults, attrs, options);
-                $module.element = scope.element = element;
-                
-                if(options.name === 'page')
-                    options.overflow = $module.options.overflow = scope.options.overflow = 'hidden';
-
-                if(instances[options.name]){
-                    $module = undefined;
-                    return $module;
-                }                  
-       
-                body = $helpers.findElement('body');
-                overflows = $helpers.getOverflow();
-                htmlContent = element.html();           
-                contentTemplate = options.template;                
-                
-                if(htmlContent && htmlContent.length){
-                    contentTemplate = htmlContent;
-                    // remove element contents
-                    // we'll add it back later.
-                    element.empty();
-                }
-                
-                // start the loader.
-                function start() {                
-                    if(!$module.loading && !$module.disabled){
-                        $module.loading = true;        
-                        if(angular.isFunction(options.onLoading)){
-                            $q.when(options.onLoading($module, instances)).then(function(res) {
-                                if(res){
-                                    $module.loading = true;
-                                    if(options.overflow)
-                                        body.css({ overflow: 'hidden'});
-                                    element.addClass('show');
-                                }
-                            });                            
-                        } else {
-                            $module.loading = true;
-                            if(options.overflow)
-                                body.css({ overflow: 'hidden'});
-                            element.addClass('show');
-                        }
-                    }
-                }
-                
-                // stop the loader.
-                function stop() {    
-                    if(options.overflow)
-                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                    if(element)
-                        element.removeClass('show'); 
-                    $module.loading = false;
-                    $module.suppressed = false;
-                }  
-                
-                // suppresses once.
-                function suppress() {                    
-                    $module.suppressed = true;
-                }
-                
-                // disable the loader
-                function disable() {
-                    $module.disabled = true;    
-                }
-
-                // enable the loader
-                function enable() {
-                    $module.disabled = false;
-                }
-                
-                // set/update options.
-                // does not support live templates.
-                function setOptions(key, value) {
-                    var obj = key;
-                    if(arguments.length > 1){
-                        obj = {};
-                        obj[key] = value;
-                    }
-                    options = $module.options = scope.options = angular.extend(options, obj); 
-                    scope.message = options.message;
-                }
-
-                function destroy() {              
-                    delete instances[$module.options.name];
-                    scope.$destroy();                    
-                }
-                
-                function init() {
-                    
-                    $module.start = scope.start = start;
-                    $module.stop = scope.stop = stop;
-                    $module.set = scope.set = setOptions;
-                    $module.suppress = scope.suppress = suppress;
-                    $module.enable = scope.enable = enable;
-                    $module.disable = scope.disable = disable;
-                    scope.message = options.message;                   
-               
-                    $helpers.loadTemplate(contentTemplate).then(function (template) {
-                        if(template) {
-                            element.html(template);
-                            $helpers.compile(scope, element.contents());
-                            if(options.name === 'page')
-                                element.addClass('ai-loader-page');
-                        } else {
-                            console.error('Error loading $loader template.');
-                        }
-                    });
-
-                    // remove loader on location/route change.
-                    $rootScope.$on('$locationChangeStart', function () {
-                        if(element)
-                            element.removeClass('show');
-                        if(body && options.overflow)
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                    });
-
-                    scope.$watch($module.options, function (newVal, oldVal) {
-                        if(newVal === oldVal) return;
-                        scope.options = newVal;
-                    });
-
-                    scope.$on('destroy', function () {
-                        $module.destroy();
-                    });
-                    
-                }
-                
-                init();
-                
-                return $module;
-            }
-            
-            function getLoader(name, element, options) {
-                var instance;
-                if(!arguments.length)
-                    return instances;
-                else if(arguments.length === 1)
-                    return instances[name];
-                else
-                    instance = ModuleFactory(name, element, options);
-                if(instance)
-                    instances[instance.options.name] = instance;
-                return instance;
-            }      
-            
-            return getLoader;
-
-        }];
-        
-        return { 
-            $get: get,
-            $set: set            
-        };
-        
-    })
-    
-    .directive('aiLoader', [ '$loader', function ($loader) {
-    
-        return {
-            restrict: 'EAC',
-            link: function (scope, element, attrs) {
-
-                var $module, defaults, options, watchKey, validKeys;
-
-                defaults = {
-                    scope: scope
-                };
-                
-                validKeys = ['name', 'template', 'intercept', 'message', 'delay', 'overflow', 'onLoading'];
-
-                // initialize the directive.
-                function init () {
-                    $module = $loader(element, options, attrs);
-                }
-
-                options = scope.$eval(attrs.aiLoader) || scope.$eval(attrs.aiLoaderOptions);
-                options = angular.extend(defaults, options);
-                
-                watchKey = attrs.aiLoader ? 'aiLoader' : 'aiLoaderOptions';
-                scope.$watch(attrs[watchKey], function (newVal, oldVal) {
-                    if(newVal === oldVal) return;
-                    $module.set(newVal);
-                });
-
-                init();
-                
-            }
-            
-        };
-        
-    }]);
-
-angular.module('ai.loader.interceptor', [])
-    .factory('$loaderInterceptor', [ '$q', '$injector', '$timeout', function ($q, $injector, $timeout) {
-        
-        function getLoaders() {
-            return $injector.get('$loader')();
-        }
-
-        // prevents loader from immediately showing
-        // set options.delay.
-        function delayLoader(_loader) {
-            if(_loader.options.delay === 0){
-                _loader.start();                
-            } else {
-                clearTimeout(_loader.timeoutId);
-                _loader.timeoutId = $timeout(function () {
-                        _loader.start();
-                }, _loader.options.delay);
-            }
-        }
-        
-        function startLoaders() {
-            var loaders = getLoaders();            
-            angular.forEach(loaders, function (_loader) {
-                if(_loader.options.intercept !== false){
-                    if(!_loader.suppressed){
-                        delayLoader(_loader);
-                    }
-                }
-            });                
-        }
-        
-        function stopLoaders(){
-            var loaders = getLoaders();
-            angular.forEach(loaders, function (_loader) {     
-                _loader.loading = false;
-                _loader.stop();
-            });
-        }
-        
-        return {
-            request: function (req) {      
-                startLoaders();
-                return req || $q.when(req);
-            },
-            response: function (res) {        
-                stopLoaders();
-                return res || $q.when(res);
-            },
-            responseError: function (res){   
-                stopLoaders();
-                return $q.reject(res);
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$loaderInterceptor');
-    }]);
-
-// imports above modules.
-angular.module('ai.loader', [
-    'ai.loader.factory',
-    'ai.loader.interceptor'
-]);
-
-   
-
-
-
-angular.module('ai.passport.factory', [])
-
-    .provider('$passport', function $passport() {
-
-        var defaults, get, set;
-
-        defaults = {
-            rootName: 'Passport',                               // the name to use on rootscope for passport.
-            levels: {                                           // security levels to string name map.
-                0: '*',
-                1: 'user',
-                2: 'manager',
-                3: 'admin',
-                4: 'superadmin'
+    var defaults = {            
+            number: {
+                defaultValue: undefined,        // default value if initialized undefined.
+                places: 2,                      // default decimal places.
+                event: 'blur'                   // event that triggers formatting.
             },            
-            401: true,                                          // set to false to not handle 401 status codes.
-            403: true,                                          // set to false to not handle 403 status codes.
-            paranoid: false,                                    // when true, fails if access level is missing.
-            delimiter: ',',                                     // char to use to separate roles when passing string.
-
-            // passport paths.
-            defaultUrl: '/',                                    // the default path or home page.
-            loginUrl: '/passport/login',                        // path to login form.
-            resetUrl: '/passport/reset',                        // path to password reset form.
-            recoverUrl: '/passport/recover',                    // path to password recovery form.            
-
-            // passport actions
-            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
-            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
-            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
-            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
-            refreshAction: false,                               // when the page is loaded the user may still be
-                                                                // logged in this calls the server to ensure the
-                                                                // active session is reloaded.
-                                                                // ex: 'get /api/passport/refresh'
-
-            // success fail actions.
-            onLoginSuccess: '/',                                // path or func on success.
-            onLoginFailed: '/passport/login',                   // path or func when login fails.
-            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
-            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
-            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
-            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
-            
-            namePrefix: 'Welcome Back ',                        // prefix string to identity.
-            nameParams: [ 'firstName' ]                         // array of user properties which make up the
-                                                                // user's identity or full name, properties are 
-                                                                // separated by a space.
-        };
-
-        set = function set (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
+            case: {
+                casing: 'first',
+                event: 'blur'
+            },
+            compare: {
+                defaultValue: undefined,        // the default value when undefined.
+                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
+                dataType: 'string',             // options are string, date, time, datetime, integer
+                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
+                                                // valid options 'minutes', 'seconds', 'milliseconds'
             }
-            defaults = angular.extend(defaults, obj);
-        };
+            //nicescroll: {
+            //    horizrailenabled: false         // disables horizontal scroll bar.
+            //},
+            //redactor: {
+            //    focus: true,
+            //    plugins: ['fullscreen']
+            //},
+        },
+        get, set;
 
-        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
-
-            var instance;
-
-            // nomralize url to method/path object.
-            function urlToObject(url) {
-                var parts = url.split(' '),
-                    obj = { method: 'get' };
-                obj.path =  parts[0];
-                if(parts.length > 1){
-                    obj.method = parts[0];
-                    obj.path = parts[1];
-                }
-                return obj;
-            }
-
-            // convert string roles to levels.
-            function rolesToLevels(source, roles){
-                var arr = [];
-                source = source || [];
-                angular.forEach(roles, function (v) {
-                    if(source[v] !== undefined)
-                        arr.push(source[v]);
-                });
-                return arr;
-            }
-
-            // reverse the levels map setting role values as keys.
-            function reverseMap(levels) {
-                var obj = {};
-                angular.forEach(levels, function (v,k) {
-                    obj[v] = parseFloat(k);
-                });
-                return obj;
-            }
-
-            function ModuleFactory(options) {
-
-                var $module = {};
-                
-                $module.user = null;
-
-                function setOptions(options) {
-
-                    // ensure valid object.
-                    options = options || {};
-
-                    // override options map if exists.
-                    defaults.levels = options.levels || defaults.levels;
-
-                    // merge the options.
-                    $module.options = angular.extend(angular.copy(defaults), options);
-
-                    // normalize/reverse levels map
-                    $module.options.roles = reverseMap($module.options.levels);
-                }
-
-                // login passport credentials.
-                $module.login = function login(data) {
-                    var url = urlToObject($module.options.loginAction);
-                    $http[url.method](url.path, data)
-                        .then(function (res) {
-                            // set to authenticated and merge in passport profile.
-                            //angular.extend(self, res.data);
-                            $module.user = res.data;
-                            if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginSuccess);
-                            }
-                        }, function (res) {
-                            if(angular.isFunction($module.options.onLoginFailed)) {
-                                $module.options.onLoginFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginFailed);
-                            }
-                        });
-                };
-
-                $module.logout = function logout() {        
-                    function done() {
-                        $module.user = null;
-                        $location.path($module.options.loginUrl);
-                        $route.reload();
-                    }
-                    if(angular.isFunction($module.options.logoutAction)){
-                        $module.options.logoutAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.logoutAction);
-                        $http[url.method](url.path).then(function (res) {
-                                done();                               
-                            });
-                    }
-                };
-
-                $module.recover = function recover() {
-                    if(angular.isFunction($module.options.recoverAction)){
-                        $module.options.recoverAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.recoverAction);
-                        $http[url.method](url.path).then(function (res){
-                            if(angular.isFunction($module.options.onRecoverSuccess)) {
-                                $module.options.onRecoverSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverSuccess);
-                            }
-                        }, function () {
-                            if(angular.isFunction($module.options.onRecoverFailed)) {
-                                $module.options.onRecoverFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverFailed);
-                            }
-                        });        
-                    }
-                };               
-                
-                $module.refresh = function refresh() {   
-                    if(!$module.options.refreshAction)
-                        return;
-                    if(angular.isFunction($module.options.refreshAction)){
-                        $module.options.refreshAction.call($module);                            
-                    } else {
-                        var url = urlToObject($module.options.refreshAction);
-                        $http[url.method](url.path).then(function (res){
-                            $module.user = res.data;
-                        });
-                    }
-                };
-
-                $module.reset = function reset() {
-
-                };
-
-                // expects string.
-                $module.hasRole = function hasRole(role) {
-                    var passportRoles = $module.roles || [];
-                    // if string convert to role level.
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // if public return true
-                    if(role === 0)
-                        return true;
-                    return passportRoles.indexOf(role) !== -1;
-                };
-
-                // expects string or array of strings.
-                $module.hasAnyRole = function hasAnyRole(roles) {
-                    var passportRoles = $module.roles || [];
-                    // if a string convert to role levels.
-                    if(angular.isString(roles)){
-                        roles = roles.split($module.options.delimiter);
-                        roles = rolesToLevels($module.options.roles, roles);
-                    }
-                    // if public return true
-                    if(roles.indexOf(0) !== -1)
-                        return true;
-                    return roles.some(function (v) {
-                        return passportRoles.indexOf(v) !== -1;
-                    });
-                };
-
-                // check if meets the minimum roll required.
-                $module.minRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole >= role;
-                };
-
-                // check if role is not greater than.
-                $module.maxRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole < role;
-                };
-
-                // unauthorized handler.
-                $module.unauthenticated = function unauthenticated() {
-                    var action = $module.options.onUnauthenticated;
-
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-
-                };
-
-                // unauthorized handler.
-                $module.unauthorized = function unauthorized() {
-                    var action = $module.options.onUnauthorized;
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-                };
-                
-                // gets the identity name of the authenticated user.
-                $module.getName = function getName(arr) {
-                    var result = '';
-                    arr = arr || $module.options.nameParams;
-                    if(!$module.user)
-                        return;
-                    angular.forEach(arr, function (v, k){
-                        if($module.user[v]){
-                            if(k === 0)
-                                result += $module.user[v];
-                            else
-                                result += (' ' + $module.user[v]);
-                        }      
-                    });    
-                    return $module.options.namePrefix + result;
-                };
-
-                setOptions(options);
-                
-                $module.refresh();
-
-                return $module;
-
-            }
-
-            function getInstance() {
-                if(!instance)
-                    instance = new ModuleFactory();
-                $rootScope.Passport = instance;
-                return instance;
-            }
-
-            return getInstance();
-           
-        }];
-
-        return {
-            $get: get,
-            $set: set
-        };
-
-    });
-
-// intercepts 401 and 403 errors.
-angular.module('ai.passport.interceptor', [])
-    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                // get passport here to prevent circ dependency.
-                var passport = $injector.get('$passport');
-                // handle unauthenticated response
-                if (res.status === 401 && passport.options['401'])
-                    passport.unauthenticated();
-                if(res.status === 403 && passport.options['403'])
-                    passport.unauthorized();
-                return $q.reject(res);
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$passportInterceptor');
-    }]);
-
-// handles intercepting route when
-// required permissions are not met.
-angular.module('ai.passport.route', [])
-    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
-        $rootScope.$on('$routeChangeStart', function (event, next) {
-            var area = {},
-                route = {},
-                access,
-                authorized;
-            if(next && next.$$route){
-                route = next.$$route;
-                if(route.area)
-                    area = route.area;
-            }
-            access = route.access || area.access;
-            // when paranoid is true require access params
-            // if undefined call unauthorized.
-            // when paranoid is false unauthorized is not called
-            // when access is undefined.
-            if($passport.options.paranoid && access === undefined)
-                return $passport.unauthorized();
-            if(access !== undefined){
-                authorized = $passport.hasAnyRole('*');
-                if(!authorized)
-                    $passport.unauthorized();
-            }
-        });
-    }]);
-
-// imports above modules.
-angular.module('ai.passport', [
-    'ai.passport.factory',
-    'ai.passport.interceptor',
-    'ai.passport.route'
-]);
-angular.module('ai.step', ['ai.helpers'])
-
-.provider('$step', function $step() {
-
-    var defaults = {
-
-            key: '$id',                     // the primary key for the collection of steps.
-            start: 0,                       // the starting index of the step wizard.
-            title: 'true',                  // when true title is auto generated if not set in step object.
-            continue: undefined,            // when true if called step is disabled continue to next enabled.
-            breadcrumb: false,              // when true only header is shown, used as breadcrumb.
-                                            // breadcrumb mode looks for property 'href' to navigate to.
-
-                                            // html templates, can be html or path to template.
-
-            header: 'step-header.tpl.html',   // the header template when using directive.
-            content: 'step-content.tpl.html', // the content template to use when using directive.
-            actions: 'step-actions.tpl.html', // the actions template when using directive.
-
-                                            // hide/show buttons, disable/enable header click events.
-
-            showNumber: undefined,          // when true step number show next to title.
-            showNext: undefined,            // when true next button is created.
-            showPrev: undefined,            // when true prev button is created.
-            showSubmit: undefined,          // when true submit button is created.
-            headTo: undefined,              // when true header can be clicked to navigate.
-
-                                            // all events are called with $module context except onload which passes it.
-
-            onBeforeChange: undefined,      // callback event fired before changing steps.
-            onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
-            onSubmit: undefined,            // callback on submit returns ({ active }, event)
-            onReady: undefined               // callback on load returns ($module)
-
-        }, get, set;
-
-    set = function set(key, value) {
-        var obj = key;
-        if(arguments.length > 1){
-            obj = {};
-            obj[key] = value;
+    set = function set(key, options) {
+        if(angular.isObject(key)){
+            options = key;
+            key = undefined;
+            defaults = angular.extend(defaults, options);
+        } else {
+            defaults[key] = angular.extend(defaults[key], options);
         }
-        defaults = angular.extend(defaults, obj);
     };
 
-    get = [ '$q', '$rootScope', '$location', '$helpers', function get($q, $rootScope, $location, $helpers) {
+    get = [ function get() {
 
-        var headerTemplate, contentTemplate, actionsTemplate;
-
-        headerTemplate = '<div class="ai-step-header" ng-show="steps.length">' +
-                            '<ul>' +
-                                '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
-                                'ng-class="{ active: step.active, disabled: !step.enabled, ' +
-                                'clickable: options.headTo !== false && step.enabled, nonum: !options.showNumber === false }">' +
-                                    '<span class="title">{{step.title}}</span>' +
-                                    '<span class="number">{{step.$number}}</span>' +
-                                '</li>' +
-                            '</ul>' +
-                         '</div>';
-
-        contentTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-content" ng-show="steps.length">' +
-                            '<div ng-show="isActive($index)" ng-repeat="step in steps" ng-bind-html="step.content"></div>' +
-                          '</div>';
-
-        actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
-                            '<hr/><button ng-show="options.showPrev !== false" ng-disabled="isFirst()" class="btn btn-warning" ' +
-                                'ng-click="prev($event)">Previous</button> ' +
-                            '<button ng-show="options.showNext !== false" ng-disabled="isLast()" class="btn btn-primary" ' +
-                                'ng-click="next($event)">Next</button> ' +
-                            '<button ng-show="isLast() && options.showSubmit !== false" class="btn btn-success submit" ' +
-                                'ng-click="submit($event)">Submit</button>' +
-                          '</div>';
-
-        $helpers.getPutTemplate(defaults.header, headerTemplate);
-        $helpers.getPutTemplate(defaults.content, contentTemplate);
-        $helpers.getPutTemplate(defaults.actions, actionsTemplate);
-
-        function ModuleFactory(element, options, attrs) {
-
-            var $module = {},
-                steps = [],
-                templates =[],
-                contentTemplates = [],
-                _steps,
-                scope,
-                _previous;
-
-            // shift args if needed.
-            if(!angular.isElement(element) && angular.isObject(element)){
-                attrs = options;
-                options = element;
-                element = undefined;
-            }            
-
-            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            // extend options
+        // factory allows for globally
+        // setting widget options.
+        function ModuleFactory(key, options) {
             options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
-
-            // check if options contain steps.
-            if(options.steps){
-                _steps = options.steps;
-                delete options.steps;
-            }
-
-            // clears active step.
-            function clear() {
-                angular.forEach(steps, function (v) {
-                    v.active = false;
-                });
-            }
-
-            // Public API
-
-            // get step by key/value, index or step.
-            function find(key, value, first) {
-                if(angular.isNumber(key) && !value){
-                    return steps[key];
-                } else {
-                    if(!value){
-                        value = key;
-                        key = options.key;
-                    }
-                    var result = steps.filter(function (v) {
-                        if(v[key])
-                            return v[key] === value;
-                        return false;
-                    });
-                    if(result && first)
-                        return result[0];
-                    return result;
-                }
-            }
-
-            // get the index of a step.
-            function indexOf(step) {
-                if(!step)
-                    return -1;
-                return steps.indexOf(step);
-            }
-
-            // getter/setter for active step.
-            function active(key, value) {
-                if(!key) {
-                    return steps.filter(function (v) {
-                        return v.active === true;
-                    })[0];
-                } else {
-                    var step = find(key, value, true);
-                    if(step && step.enabled){
-                        clear();
-                        step.active = true;
-                    }
-                }
-            }
-
-            // go to a specific step index or object.
-            function to(key, reverse, e) {
-                var curActive = active(),
-                    nextActive,
-                    nextIdx;
-                if(angular.isNumber(key)){
-                    nextIdx = key;
-                    nextActive = steps[key];
-                }
-                if(angular.isObject(key)){
-                    nextIdx = indexOf(key);
-                    nextActive = key;
-                }
-
-                if(angular.isFunction(options.onBeforeChange)){
-                    $q.when(options.onBeforeChange({ active: curActive, next: nextActive }, e))
-                        .then(function(res) {
-                            if(res) done();
-                        });
-                }
-
-                function done() {
-
-                    if(nextActive) {
-                        if(!nextActive.enabled && options.continue !== false){
-
-                            var i, altActive;
-                            if(reverse) {
-                                for(i = nextIdx -1; i >= 0; i-- )  {
-                                    altActive = steps[i];
-                                    if(altActive.enabled){
-                                        nextActive = altActive;
-                                        nextIdx = i;
-                                    }
-                                }
-                            } else {
-                                for(i = nextIdx; i < steps.length; i++ )  {
-                                    altActive = steps[i];
-                                    if(altActive.enabled){
-                                        nextActive = altActive;
-                                        nextIdx = i;
-                                    }
-                                }
-                            }
-                        }
-
-
-                        if(nextActive.enabled) {
-                            clear();
-                            nextActive.active = true;
-                            _previous = nextActive;
-                        }
-
-                        // callback on change.
-                        if(angular.isFunction(options.onChange))
-                            options.onChange.call($module, { previous: curActive, active: nextActive }, e);
-
-                    }
-
-                }
-
-            }
-
-            // adds a new step
-            function add(name, obj) {
-                if(!name && !obj) return;
-                var nextIdx = steps.length,
-                    nameOnly;
-                if(angular.isObject(name)){
-                    obj = name;
-                    name = undefined;
-                }
-                nameOnly = !obj;
-                if(nameOnly){
-                    obj = {};
-                    obj.content = name;
-                }
-                // must have name or defined key in object.
-                if(!name && !obj[options.key]) return;
-                obj.enabled = obj.enabled !== undefined ? obj.enabled : true;
-                obj.active = nextIdx === options.start;
-                obj[options.key] = obj[options.key] || name;
-                obj.content = obj.content || name;
-                if(options.title){
-                    obj.title = obj.title || 'Step';
-                    obj.title = obj.title.charAt(0).toUpperCase() + obj.title.slice(1);
-                }
-                obj.$index = nextIdx;
-                obj.$number = nextIdx +1;
-                // simple string wrap in span.
-                if(!$helpers.isHtml(obj.content) && !$helpers.isPath(obj.content))
-                    obj.content = '<span>' + obj.content + '</span>';
-                contentTemplates.push($helpers.loadTemplate(obj.content));
-                $rootScope.$broadcast('step:add', obj);
-                steps.push(obj);
-            }
-
-            // go to next step;
-            function next(e) {
-                var cur = active();
-                if(cur)
-                    to(cur.$index + 1, null, e);
-            }
-
-            // go to previous step.
-            function prev(e) {
-                var cur = active();
-                if(cur)
-                    to(cur.$index - 1, true, e);
-            }
-
-            // on header click.
-            function headTo(e, idx) {
-                if(options.headTo === false) return;
-                var step = steps[idx];
-                if(!options.breadcrumb && step.content) {
-                    to(idx, null, e);
-                } else {
-                    // breadcrumb mode navigate
-                    // to href if provided.
-                    if(step && step.href && step.enabled)
-                        $location.path(step.href);
-                }
-            }
-
-            // submit button for last step.
-            function submit(e) {
-                if(angular.isFunction(options.onSubmit)){
-                    options.onSubmit.call($module, { active: active() }, e);
-                }
-            }
-
-            // indicates if step is first.
-            function isFirst(key, value) {
-                var step = find(key, value, true),
-                    idx;
-                step = step || active();
-                idx = indexOf(step);
-                return 0 === idx;
-            }
-
-            // indicates if step is last.
-            function isLast(key, value) {
-                var step = find(key, value, true),
-                    idx;
-                step = step || active();
-                idx = indexOf(step);
-                return steps.length -1 === idx;
-            }
-
-            // checks if is active.
-            function isActive(key, value){
-                var step = find(key, value, true);
-                return !!(step && step.active === true);
-            }
-
-            // checks if is enabled.
-            function isEnabled(key, value) {
-                var step = find(key, value, true);
-                return !!(step && step.enabled === true);
-            }
-
-            // step has next step.
-            function hasNext() {
-                var idx = indexOf(active()) + 1,
-                    _next = steps[idx];
-                if(_next && _next.enabled)
-                    return true;
-            }
-
-            // step has previous step.
-            function hasPrev() {
-                var idx = indexOf(active()) - 1,
-                    _prev = steps[idx];
-                if(_prev && _prev.enabled)
-                    return true;
-            }
-
-            // initialize the module.
-            function init() {
-
-                // if initialized with steps
-                // add them to the collection.
-                if(_steps) {
-                    // convert string to array.
-                    if(angular.isString(_steps))
-                        _steps = $helpers.trim(_steps).split(',');
-                    // convert object to array.
-                    if(angular.isObject(_steps)){
-                        var tmpArr = [];
-                        angular.forEach(_steps, function (v,k){
-                            if(angular.isObject(v) || angular.isString(v)){
-                                if(angular.isString(v)){
-                                    var tmpObj = {};
-                                    tmpObj[options.key] = k;
-                                    tmpObj.content = v;
-                                    tmpArr.push(tmpObj);
-                                } else {
-                                    v[options.key] = v[options.key] || k;
-                                    if(options.title)
-                                        v.title = v.title || k;
-                                    tmpArr.push(v);
-                                }
-                            }
-                        });
-                    }
-                    angular.forEach(_steps, function (v) {
-                        if(angular.isString(v))
-                            v = $helpers.trim(v);
-                        add(v);
-                    });
-                }
-
-                if(!element)
-                    return callback();
-
-                var template, contentTemplate;
-
-                template = '';
-                contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
-
-                if(options.header)
-                    templates.push($helpers.loadTemplate(options.header || ''));
-
-                if(options.content)
-                    templates.push($helpers.loadTemplate(options.content || ''));
-
-                if(options.actions)
-                    templates.push($helpers.loadTemplate(options.actions || ''));
-
-                templates = templates.concat(contentTemplates);
-
-                // load user content/templates.
-
-                templates = $q.all(templates);
-                templates.then(function(res) {
-
-                    if(res){
-                        // load each base template
-                        // which will be the template or empty string.
-                        var map = {
-                            header: res[0],
-                            content: res[1],
-                            actions: res[2],
-                            steps: []
-                        };
-
-                        // load content templates.
-                        for(var i = 3; i < res.length; i++){
-                            map.steps.push(res[i]);
-                        }
-                        template += map.header;
-                        if(map.content && map.content.length){
-                            var content = angular.element(map.content),
-                                contents = '',
-                                contentHtml;
-                            angular.forEach(map.steps, function(v,k) {
-                                contents += contentTemplate.replace('{{INDEX}}', k).replace('{{CONTENT}}', v);
-                            });
-                            content.html(contents);
-                            contentHtml = angular.element('<div/>').append(content).clone().html();
-                            template += contentHtml;
-                        }
-                        template += map.actions;
-
-                        element.html(template);
-                        $helpers.compile(scope, element.contents());
-                    }
-
-                });
-
-
-                // Expose methods to module and scope.
-                $module.find = scope.find = find;
-                $module.active = scope.active = active;
-                $module.add = scope.add = add;
-                $module.to = scope.to = to;
-                $module.next = scope.next = next;
-                $module.prev = scope.prev = prev;
-                $module.submit = scope.submit = submit;
-                scope.headTo = headTo;
-                $module.isFirst = scope.isFirst = isFirst;
-                $module.isLast = scope.isLast = isLast;
-                $module.isActive = scope.isActive = isActive;
-                $module.isEnabled = scope.isEnabled = isEnabled;
-                $module.hasNext = scope.hasNext = hasNext;
-                $module.hasPrev = scope.hasPrev = hasPrev;
-                $module.steps = scope.steps = steps;
-
-                if(angular.isFunction(options.onReady))
-                    options.onReady($module);
-
-                return $module;
-
-            }
-
-            return init();
-
+            if(!defaults[key]) return options;
+            options = angular.extend({}, defaults[key], options);
+            return options;
         }
-
         return ModuleFactory;
 
     }];
@@ -3452,383 +3890,442 @@ angular.module('ai.step', ['ai.helpers'])
         $set: set
     };
 
-
 })
 
-.directive('aiStep', [ '$step', function ($step) {
+// simple directive to prevent default
+// on click, for use as attribute/class only.
+.directive('aiPrevent',[ function() {
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+            if(attrs.ngClick){
+                element.on('click', function(e){
+                    e.preventDefault();
+                });
+            }
+        }
+    };
+}])
+    
+//
+//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
+//
+//    return {
+//        restrict: 'AC',
+//        link: function(scope, element, attrs) {
+//
+//            var defaults, options, $module, _attrs;
+//
+//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
+//                'see: http://areaaperta.com/nicescroll');
+//
+//            defaults = angular.copy($widget('nicescroll'));
+//
+//            function init() {
+//                $timeout(function () {
+//                    $module = element.niceScroll(options);
+//                },0);
+//            }
+//
+//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
+//            options = angular.extend(defaults, _attrs, scope.$eval(options));
+//            init();
+//        }
+//    };
+//}])
 
-        return {
-        restrict: 'EAC',
-        scope: true,
-        link: function (scope, element, attrs) {
+// ensures handling decimal values.
+.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function(scope, element, attrs, ngModel) {
 
-            var defaults, options, $module;
+            var defaults, options, _attrs, lastVal;
 
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $step(element, options, attrs);
+            defaults = angular.copy($widget('number'));
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
+            function parseVal(val){
+                val = $helpers.tryParseFloat(val);  
+                if(val) 
+                    val = val.toFixed(options.places);
+                return val;
+            }
+            
+            // format and set value.
+            function format(val) {
+                if(val !== undefined)  {
+                    val = parseVal(val);
+                    if(!val)
+                        val = parseVal(lastVal);                
+                }
+                if(val === undefined)
+                    val = options.defaultValue !== undefined ? options.defaultValue : '';
+                element.val(val);           
+                ngModel.$modelValue = val;
+                lastVal = val;
             }
 
-            options = scope.$eval(attrs.aiStep || attrs.aiStepOptions);
-            options = angular.extend(defaults, options);
+            function init() {
+                
+                // bind event call apply
+                // format the value. 
+                // use simple event binding instead
+                // of adding watchers etc.
+                element.unbind(options.event);
+                element.on(options.event, function (e) {
+                    scope.$apply(function () {
+                        format(e.target.value);
+                    });
+                });
+                
+                // use timeout make sure dom is ready.
+                $timeout(function () {
+                    var val = element.val();
+                    if(!val)
+                        if(options.defaultValue !== undefined)
+                            val = options.defaultValue;
+                    format(val);
+                }, 0);                
+            }
+            
+            options = attrs.aiNumber|| attrs.aiNumberOptions;
+            options = angular.extend(defaults, _attrs, scope.$eval(options));
+            
+            init();
+        }
+    };
+}])
+
+//// Angular wrapper for using Redactor.
+//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
+//    return {
+//        restrict: 'AC',
+//        scope: true,
+//        require: '?ngModel',
+//        link: function (scope, element, attrs) {
+//            var defaults, options, $directive, _attrs;
+//
+//            defaults = angular.copy($widget('redactor'));
+//
+//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+//
+//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
+//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
+//
+//            function init() {
+//                $directive = element.redactor(options);
+//            }
+//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
+//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
+//
+//            init();
+//        }
+//    };
+//}])
+
+.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
+
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, casing, _attrs;
+
+            defaults = angular.copy($widget('case'));
+            options = {};
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function getCase(val) {
+                if (!val) return;
+
+                if (casing === 'title')
+                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+                else if (casing === 'first')
+                    return val.charAt(0).toUpperCase() + val.slice(1);
+                else if (casing === 'camel') {
+                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
+                        return group1.toUpperCase();
+                    });
+                }
+                else if (casing === 'pascal')
+                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
+                else if (casing === 'lower')
+                    return val.toLowerCase();
+                else if (casing === 'upper')
+                    return val.toUpperCase();
+                else return val;
+            }
+
+           function applyCase(e){
+
+               scope.$apply(function () {
+                   var val = element.val(),
+                       cased = getCase(val);
+                   if (ngModel) {
+                       ngModel.$modelValue = cased;
+                   } else {
+                       element.val(getCase(val));
+                   }
+               });
+
+            }
+
+            function init() {
+
+                casing = options.casing;
+
+                element.on(options.event, function (e) {
+                    applyCase(e);
+                });
+
+                element.on('keyup', function (e) {
+                    var code = e.which || e.keyCode;
+                    if(code === 13){
+                        /* prevent default or submit could happen
+                        prior to apply case updates model */
+                        e.preventDefault();
+                        applyCase(e);
+                    }
+                });
+
+                $timeout(function () {
+                    applyCase();
+                },100);
+
+            }
+
+            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
+            if(angular.isString(tmpOpt))
+                options.casing = tmpOpt;
+            if(angular.isObject(tmpOpt))
+                options = scope.$eval(tmpOpt);
+            options = angular.extend(defaults, _attrs, options);
+
+            init();
+
+        }
+
+    };
+
+}])
+
+.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
+
+    function checkMoment() {
+        try{
+            var m = moment();
+            return true;
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    function isNumber(val) {
+        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
+    }
+
+    return {
+        restrict: 'AC',
+        require: '^ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, formElem, form, momentLoaded,
+                ngModelCompare, _attrs;
+
+            // check moment is loaded for datetime compares.
+            momentLoaded = checkMoment();
+            defaults = angular.copy($widget('compare'));
+
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function validate(value) {
+
+                var valid;
+
+                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
+
+                    valid = options.defaultValue || '';
+
+                } else {
+
+                    if(options.dataType === 'string') {
+
+                        valid = ngModelCompare.$viewValue === value;
+
+                    } else if(options.dataType === 'integer'){
+
+                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
+                            valid = false;
+                        } else {
+                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
+                        }
+
+                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
+
+                        var comp, model, diff, diffMin;
+
+                        comp = ngModelCompare.$viewValue;
+                        model = ngModel.$viewValue;
+
+                        if(options.dataType === 'time'){
+                            comp = '01/01/1970 ' + comp;
+                            model = '01/01/1970 ' + model;
+                        }
+                        comp = moment(comp);
+                        model = moment(model);
+
+                        if(options.dataType === 'date'){
+
+                            diff = model.diff(comp, 'days');
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'time'){
+
+                            diff = model.diff(comp, options.precision);
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'datetime') {
+
+                            diff = model.diff(comp, 'days');
+                            diffMin = model.diff(comp, options.precision);
+                            valid = (diff === 0) && (diffMin === 0);
+
+                        } else {
+
+                            valid = false;
+
+                        }
+
+                    } else {
+
+                        valid = false;
+
+                    }
+
+                }
+
+                ngModel.$setValidity('compare', valid);
+                return valid;
+            }
+
+            function init() {
+
+                formElem = element[0].form;
+
+                /* can't continue without the form */
+                if(!formElem) return;
+
+                form = scope[formElem.name];
+                ngModelCompare = form[options.compareTo] || options.compareTo;
+
+                /* must have valid form in scope */
+                if(!form || !options.compareTo || !ngModelCompare) return;
+
+                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
+                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
+
+                ngModel.$formatters.unshift(validate);
+                ngModel.$parsers.unshift(validate);
+
+            }
+
+            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
+            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
+                tmpOpt = { compareTo: tmpOpt };
+            else
+                tmpOpt = scope.$eval(tmpOpt);
+
+            options = angular.extend({}, defaults, _attrs, tmpOpt);
 
             init();
 
         }
     };
+        
+}])
 
+.directive('aiPlaceholder', [ '$widget', function($widget) {
+
+    // get the previous sibling
+    // to the current element.
+    function prevSibling(elem, ts) {
+        try {
+            var parents = elem.parent(),
+                prevIdx;
+            angular.forEach(parents.children(), function (v,k) {
+                var child = angular.element(v),
+                    _ts = child.attr('_ts_');
+                if(ts.toString() === _ts){
+                    prevIdx = k -1;
+                }
+            });
+            elem.removeAttr('_ts_');
+            if(prevIdx < 0)
+                return { element: angular.element(elem.parent()), method: 'prepend' };
+            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    // capitalize a string.
+    function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // test if placeholder is supported.
+    function placeholderSupported() {
+        var test = document.createElement('input');
+        return ('placeholder' in test);
+    }
+
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+
+            var placeholder, isNative;
+
+            function init() {
+
+                var label = '<label>{{NAME}}</label>',
+                    ts = new Date().getTime(),
+                    prev;
+
+                placeholder = capitalize(placeholder);
+                
+                if(!isNative && placeholder)
+                    element.attr('placeholder', placeholder);
+
+                // since angular doesn't support .index()
+                // set attr so we can find it when iterating.
+                element.attr('_ts_', ts);
+                prev = prevSibling(element, ts);
+
+                // test if dot notation model name.
+                if(placeholder.indexOf('.') !== -1){
+                    placeholder = placeholder.split('.');
+                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
+                }
+
+                if(!placeholderSupported() && prev) {
+                    label = label.replace('{{NAME}}', placeholder);
+                    label = angular.element(label);
+                    prev.element[prev.method](label);
+                }
+
+            }
+
+            isNative = element.attr('placeholder');
+            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
+
+            init();
+
+        }
+    };
 }]);
-angular.module('ai.storage', [])
-
-    .provider('$storage', function $storage() {
-
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
-        }, get, set;
-
-
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
-        }
-
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
-            }
-            return def;
-        }
-
-        /**
-         * Sets provider defaults.
-         */
-        set = function (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend({}, defaults, obj);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
 
 
 angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
@@ -6562,503 +7059,6 @@ var form = angular.module('ai.validate', ['ai.helpers'])
 }]);
 
 
-
-angular.module('ai.widget', [])
-
-.provider('$widget', function $widget() {
-
-    var defaults = {            
-            number: {
-                defaultValue: undefined,        // default value if initialized undefined.
-                places: 2,                      // default decimal places.
-                event: 'blur'                   // event that triggers formatting.
-            },            
-            case: {
-                casing: 'first',
-                event: 'blur'
-            },
-            compare: {
-                defaultValue: undefined,        // the default value when undefined.
-                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
-                dataType: 'string',             // options are string, date, time, datetime, integer
-                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
-                                                // valid options 'minutes', 'seconds', 'milliseconds'
-            }
-            //nicescroll: {
-            //    horizrailenabled: false         // disables horizontal scroll bar.
-            //},
-            //redactor: {
-            //    focus: true,
-            //    plugins: ['fullscreen']
-            //},
-        },
-        get, set;
-
-    set = function set(key, options) {
-        if(angular.isObject(key)){
-            options = key;
-            key = undefined;
-            defaults = angular.extend(defaults, options);
-        } else {
-            defaults[key] = angular.extend(defaults[key], options);
-        }
-    };
-
-    get = [ function get() {
-
-        // factory allows for globally
-        // setting widget options.
-        function ModuleFactory(key, options) {
-            options = options || {};
-            if(!defaults[key]) return options;
-            options = angular.extend({}, defaults[key], options);
-            return options;
-        }
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-
-// simple directive to prevent default
-// on click, for use as attribute/class only.
-.directive('aiPrevent',[ function() {
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-            if(attrs.ngClick){
-                element.on('click', function(e){
-                    e.preventDefault();
-                });
-            }
-        }
-    };
-}])
-    
-//
-//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
-//
-//    return {
-//        restrict: 'AC',
-//        link: function(scope, element, attrs) {
-//
-//            var defaults, options, $module, _attrs;
-//
-//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
-//                'see: http://areaaperta.com/nicescroll');
-//
-//            defaults = angular.copy($widget('nicescroll'));
-//
-//            function init() {
-//                $timeout(function () {
-//                    $module = element.niceScroll(options);
-//                },0);
-//            }
-//
-//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
-//            options = angular.extend(defaults, _attrs, scope.$eval(options));
-//            init();
-//        }
-//    };
-//}])
-
-// ensures handling decimal values.
-.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function(scope, element, attrs, ngModel) {
-
-            var defaults, options, _attrs, lastVal;
-
-            defaults = angular.copy($widget('number'));
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            function parseVal(val){
-                val = $helpers.tryParseFloat(val);  
-                if(val) 
-                    val = val.toFixed(options.places);
-                return val;
-            }
-            
-            // format and set value.
-            function format(val) {
-                if(val !== undefined)  {
-                    val = parseVal(val);
-                    if(!val)
-                        val = parseVal(lastVal);                
-                }
-                if(val === undefined)
-                    val = options.defaultValue !== undefined ? options.defaultValue : '';
-                element.val(val);           
-                ngModel.$modelValue = val;
-                lastVal = val;
-            }
-
-            function init() {
-                
-                // bind event call apply
-                // format the value. 
-                // use simple event binding instead
-                // of adding watchers etc.
-                element.unbind(options.event);
-                element.on(options.event, function (e) {
-                    scope.$apply(function () {
-                        format(e.target.value);
-                    });
-                });
-                
-                // use timeout make sure dom is ready.
-                $timeout(function () {
-                    var val = element.val();
-                    if(!val)
-                        if(options.defaultValue !== undefined)
-                            val = options.defaultValue;
-                    format(val);
-                }, 0);                
-            }
-            
-            options = attrs.aiNumber|| attrs.aiNumberOptions;
-            options = angular.extend(defaults, _attrs, scope.$eval(options));
-            
-            init();
-        }
-    };
-}])
-
-//// Angular wrapper for using Redactor.
-//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
-//    return {
-//        restrict: 'AC',
-//        scope: true,
-//        require: '?ngModel',
-//        link: function (scope, element, attrs) {
-//            var defaults, options, $directive, _attrs;
-//
-//            defaults = angular.copy($widget('redactor'));
-//
-//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-//
-//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
-//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
-//
-//            function init() {
-//                $directive = element.redactor(options);
-//            }
-//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
-//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
-//
-//            init();
-//        }
-//    };
-//}])
-
-.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
-
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, casing, _attrs;
-
-            defaults = angular.copy($widget('case'));
-            options = {};
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function getCase(val) {
-                if (!val) return;
-
-                if (casing === 'title')
-                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
-                else if (casing === 'first')
-                    return val.charAt(0).toUpperCase() + val.slice(1);
-                else if (casing === 'camel') {
-                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
-                        return group1.toUpperCase();
-                    });
-                }
-                else if (casing === 'pascal')
-                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
-                else if (casing === 'lower')
-                    return val.toLowerCase();
-                else if (casing === 'upper')
-                    return val.toUpperCase();
-                else return val;
-            }
-
-           function applyCase(e){
-
-               scope.$apply(function () {
-                   var val = element.val(),
-                       cased = getCase(val);
-                   if (ngModel) {
-                       ngModel.$modelValue = cased;
-                   } else {
-                       element.val(getCase(val));
-                   }
-               });
-
-            }
-
-            function init() {
-
-                casing = options.casing;
-
-                element.on(options.event, function (e) {
-                    applyCase(e);
-                });
-
-                element.on('keyup', function (e) {
-                    var code = e.which || e.keyCode;
-                    if(code === 13){
-                        /* prevent default or submit could happen
-                        prior to apply case updates model */
-                        e.preventDefault();
-                        applyCase(e);
-                    }
-                });
-
-                $timeout(function () {
-                    applyCase();
-                },100);
-
-            }
-
-            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
-            if(angular.isString(tmpOpt))
-                options.casing = tmpOpt;
-            if(angular.isObject(tmpOpt))
-                options = scope.$eval(tmpOpt);
-            options = angular.extend(defaults, _attrs, options);
-
-            init();
-
-        }
-
-    };
-
-}])
-
-.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
-
-    function checkMoment() {
-        try{
-            var m = moment();
-            return true;
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    function isNumber(val) {
-        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
-    }
-
-    return {
-        restrict: 'AC',
-        require: '^ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, formElem, form, momentLoaded,
-                ngModelCompare, _attrs;
-
-            // check moment is loaded for datetime compares.
-            momentLoaded = checkMoment();
-            defaults = angular.copy($widget('compare'));
-
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function validate(value) {
-
-                var valid;
-
-                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
-
-                    valid = options.defaultValue || '';
-
-                } else {
-
-                    if(options.dataType === 'string') {
-
-                        valid = ngModelCompare.$viewValue === value;
-
-                    } else if(options.dataType === 'integer'){
-
-                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
-                            valid = false;
-                        } else {
-                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
-                        }
-
-                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
-
-                        var comp, model, diff, diffMin;
-
-                        comp = ngModelCompare.$viewValue;
-                        model = ngModel.$viewValue;
-
-                        if(options.dataType === 'time'){
-                            comp = '01/01/1970 ' + comp;
-                            model = '01/01/1970 ' + model;
-                        }
-                        comp = moment(comp);
-                        model = moment(model);
-
-                        if(options.dataType === 'date'){
-
-                            diff = model.diff(comp, 'days');
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'time'){
-
-                            diff = model.diff(comp, options.precision);
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'datetime') {
-
-                            diff = model.diff(comp, 'days');
-                            diffMin = model.diff(comp, options.precision);
-                            valid = (diff === 0) && (diffMin === 0);
-
-                        } else {
-
-                            valid = false;
-
-                        }
-
-                    } else {
-
-                        valid = false;
-
-                    }
-
-                }
-
-                ngModel.$setValidity('compare', valid);
-                return valid;
-            }
-
-            function init() {
-
-                formElem = element[0].form;
-
-                /* can't continue without the form */
-                if(!formElem) return;
-
-                form = scope[formElem.name];
-                ngModelCompare = form[options.compareTo] || options.compareTo;
-
-                /* must have valid form in scope */
-                if(!form || !options.compareTo || !ngModelCompare) return;
-
-                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
-                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
-
-                ngModel.$formatters.unshift(validate);
-                ngModel.$parsers.unshift(validate);
-
-            }
-
-            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
-            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
-                tmpOpt = { compareTo: tmpOpt };
-            else
-                tmpOpt = scope.$eval(tmpOpt);
-
-            options = angular.extend({}, defaults, _attrs, tmpOpt);
-
-            init();
-
-        }
-    };
-        
-}])
-
-.directive('aiPlaceholder', [ '$widget', function($widget) {
-
-    // get the previous sibling
-    // to the current element.
-    function prevSibling(elem, ts) {
-        try {
-            var parents = elem.parent(),
-                prevIdx;
-            angular.forEach(parents.children(), function (v,k) {
-                var child = angular.element(v),
-                    _ts = child.attr('_ts_');
-                if(ts.toString() === _ts){
-                    prevIdx = k -1;
-                }
-            });
-            elem.removeAttr('_ts_');
-            if(prevIdx < 0)
-                return { element: angular.element(elem.parent()), method: 'prepend' };
-            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    // capitalize a string.
-    function capitalize(str) {
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    // test if placeholder is supported.
-    function placeholderSupported() {
-        var test = document.createElement('input');
-        return ('placeholder' in test);
-    }
-
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-
-            var placeholder, isNative;
-
-            function init() {
-
-                var label = '<label>{{NAME}}</label>',
-                    ts = new Date().getTime(),
-                    prev;
-
-                placeholder = capitalize(placeholder);
-                
-                if(!isNative && placeholder)
-                    element.attr('placeholder', placeholder);
-
-                // since angular doesn't support .index()
-                // set attr so we can find it when iterating.
-                element.attr('_ts_', ts);
-                prev = prevSibling(element, ts);
-
-                // test if dot notation model name.
-                if(placeholder.indexOf('.') !== -1){
-                    placeholder = placeholder.split('.');
-                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
-                }
-
-                if(!placeholderSupported() && prev) {
-                    label = label.replace('{{NAME}}', placeholder);
-                    label = angular.element(label);
-                    prev.element[prev.method](label);
-                }
-
-            }
-
-            isNative = element.attr('placeholder');
-            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
-
-            init();
-
-        }
-    };
-}]);
 
 angular.module('ai.tree', ['ai.helpers'])
     .provider('$tree', function $tree() {
