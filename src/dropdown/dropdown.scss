@@ -4,7 +4,7 @@ $dropdown-caret-top:              45%;
 $dropdown-caret-right:            18px;
 $dropdown-caret-border-color:     #333;
 
-$dropdown-wrapper-zindex:         1060;
+$dropdown-wrapper-zindex:         1061;
 
 $dropdown-items-bg-color:         #fff;
 $dropdown-items-border-color:     rgba(0,0,0,.15);
@@ -35,10 +35,12 @@ $dropdown-list-margin:            4px -4px;
 
   .ai-dropdown-wrapper {
     z-index: $dropdown-wrapper-zindex;
+    height: 100%;
   }
 
   .ai-dropdown-items {
-    
+
+    z-index: inherit;
     border: 1px solid $items-border-color;
     padding: $dropdown-items-padding;
     background-color: $items-bg-color;

@@ -57,7 +57,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
  
                 // if no element can't create loader.             
                 if(!element)
-                    throw new Error('Cannot configure loader with element of undefined.');
+                    return console.error('Cannot configure loader with element of undefined.');
 
                 attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 

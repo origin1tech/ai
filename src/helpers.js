@@ -155,6 +155,18 @@ angular.module('ai.helpers', [])
     function compile(scope, contents){
        return $compile(contents)(scope);       
     }
+
+    function selfHtml(element) {
+        return angular.element('<div></div>').append(element.clone()).html();
+    }
+
+    function toPlainObject(obj) {
+        try{
+            return JSON.parse(JSON.stringify(obj));
+        } catch(ex){
+            return obj;
+        }
+    }
      
     return {
         isHtml: isHtml,
@@ -169,7 +181,9 @@ angular.module('ai.helpers', [])
         getOverflow: getOverflow,
         compile: compile,
         parseAttrs: parseAttrs,
-        tryParseFloat: tryParseFloat
+        tryParseFloat: tryParseFloat,
+        selfHtml: selfHtml,
+        toObject: toPlainObject
     };
         
 }]);

@@ -184,7 +184,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
 
             // load data using promise.
             function loadData(q) {
-                if($helpers.isUrl(options.source)){
+                if(angular.isString(options.source)){
                     var method = options.method,
                         params = buildParams(options.params, q);
                     return $q.when($http[method](options.source, { params: params }))
@@ -551,7 +551,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
     return {
         restrict: 'EAC',
         scope: true,
-        require: '^ngModel',
+        require: 'ngModel',
         link: function (scope, element, attrs, ngModel){
 
             var defaults, options, $module, model,

@@ -6,14 +6,12 @@ require([
     'flash/flash',
     'modal/modal',
     'validate/validate',
-    'viewer/viewer',
     'storage/storage',
     'passport/passport',
     'dropdown/dropdown',
     'autoform/autoform',
-    'tab/tab',
-    'loader/loader'
-    //'ai'
+    'loader/loader',
+    'tree/tree'
 ], function () {
 
     var app, tmpAreas, keys, areas, controller;
@@ -27,11 +25,10 @@ require([
         //'/modal': 'Native modal dialog.',
         '/table': 'Bind local or remote data to table/grid.',
         '/validate': 'Form validation with auto model binding.',
-        //'/viewer': 'Animated slide transitions for views.',
         '/widget': 'Various widgets - casing, number, compare, placeholder',
         '/step': 'Creates form step wizard.',
-        //'/tab': 'Creates tab content.',
-        '/loader': 'Shows loading message/spinner on ajax calls.'
+        '/loader': 'Shows loading message/spinner on ajax calls.',
+        '/tree': 'Treeview element.'
     };
 
     // sort areas.
@@ -43,9 +40,8 @@ require([
     });
 
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
-        'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal',
-        'ai.flash', 'ai.viewer', 'ai.passport', 'ai.validate',
-        'ai.autoform', 'ai.tab', 'ai.loader']);
+        'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal', 'ai.flash',
+        'ai.passport', 'ai.validate', 'ai.autoform', 'ai.loader', 'ai.tree']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider', '$loaderProvider',
         function ($routeProvider, $locationProvider, $passportProvider, $loaderProvider) {
@@ -99,12 +95,12 @@ require([
                 compare:    { active: 'markup' },
                 modal:      { active: 'markup' },
                 storage:    { active: 'markup' },
-                viewer:     { active: 'markup' },
                 dropdown:   { active: 'markup' },
                 autoform:   { active: 'markup' },
                 placeholder:{ active: 'markup' },
                 tab:        { active: 'markup' },
-                loader:     { active: 'markup' }
+                loader:     { active: 'markup' },
+                tree:       { active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -346,6 +342,28 @@ require([
                     }, timeout);
                 };
             }
+
+            if (area === 'tree') {
+                $scope.tree = {
+                    onSelect: function (node, model, event) {
+                        //console.log($scope.tree);
+                    }
+                };
+                $scope.treeModel = '/api/tree';
+                //$scope.treeModel = [
+                //    { value: 1, label: 'item one' },
+                //    { value: 2, label: 'item two', children: [
+                //        { value: 21, label: 'child item 2-1'},
+                //        { value: 22, label: 'child item 2-2'},
+                //        { value: 23, label: 'child item 2-3', children: [
+                //            { value: 231, label: 'child child item 2-3-1' },
+                //            { value: 232, label: 'child child item 2-3-2' }
+                //        ]}
+                //    ] },
+                //    { value: 3, label: 'item three' },
+                //    { value: 4, label: 'item four' }
+                //];
+            }
         }
     ];
 
@@ -358,9 +376,6 @@ require([
         };
     });
 
-    //angular.element(document).ready(function () {
-        angular.bootstrap(document, ['app']);
-    //});
-
+    angular.bootstrap(document, ['app']);
 
 });

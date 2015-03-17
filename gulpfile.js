@@ -45,13 +45,6 @@ function jshintNotify() {
     });
 }
 
-// reload server util
-function reload () {
-    if(!watch) return;
-    gulp.src('./src/**/*.*')
-        .pipe(plugins.connect.reload());
-}
-
 gulp.task('clean', function (cb) {
 
     del([
@@ -122,7 +115,11 @@ gulp.task('jshint', ['clean'],  function() {
     .pipe(plugins.jshint.reporter('jshint-stylish'));
 });
 
-gulp.task('reload', ['build'], reload);
+gulp.task('reload', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function reload () {
+    if(!watch) return;
+    gulp.src('./src/**/*.*')
+        .pipe(plugins.connect.reload());
+});
 
 // build the library.
 gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() {
@@ -130,7 +127,7 @@ gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() 
         gulp.watch(
             ['./src/**/*.*'],
             {debounceDelay: 400},
-            ['clean', 'build-sass', 'build-lib', 'copy-lib']
+            ['reload']
         );
     }
 });
@@ -145,13 +142,34 @@ gulp.task('serve', ['build'], function() {
         middleware: function (conn, options){
             return [ function (req, res, next) {
                 var isLoader = /\/api\/loader/.test(req.url);
+                var isTree = /\/api\/tree/.test(req.url);
+
                 if(isLoader){
                     var q = url.parse(req.url).query.split('=');
                     var timeout = parseInt(q[1] || 2000);
                     setTimeout(function () {
-                        return res.end('done');
+                        res.end('done');
                     }, timeout);
-                } else {
+                }
+
+                else if(isTree) {
+                    var source = [
+                        { value: 1, label: 'item one' },
+                        { value: 2, label: 'item two', children: [
+                            { value: 21, label: 'child item 2-1'},
+                            { value: 22, label: 'child item 2-2'},
+                            { value: 23, label: 'child item 2-3', children: [
+                                { value: 231, label: 'child child item 2-3-1' },
+                                { value: 232, label: 'child child item 2-3-2' }
+                            ]}
+                        ] },
+                        { value: 3, label: 'item three' },
+                        { value: 4, label: 'item four' }
+                    ];
+                    res.end(JSON.stringify(source));
+                }
+
+                else {
                     next();
                 }
             }];
