@@ -13,7 +13,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
             btnClass: 'btn-default',                // the class to add to the button which triggers dropdown.
             allowNull: undefined,                   // when true user can select placeholder/null value.
             inline: false,                          // positions element inline.
-            shadow: true,                           // when true adds shadow to bottom of list.
+            shadow: undefined,                      // when true adds shadow to bottom of list.
 
             template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
             itemTemplate:
@@ -291,8 +291,12 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 $module.expanded = scope.expanded;
                 if(!scope.expanded && options.closeClear === true)
                     clearFilter();
-                if(scope.expanded)
+                if(scope.expanded){
                     dropdown[0].focus();
+                    //dropdown[0]._ts_ = options.ts;
+                } else {
+                    //delete dropdown[0]._ts_;
+                }
                 // if a function callback on toggle.
                 if(angular.isFunction(options.onToggled))
                     options.onToggled.call($module, scope.expanded, event);
@@ -436,7 +440,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             items = $helpers.findElement('.ai-dropdown-items', dropdown[0], true);
                             items = angular.element(items);
 
-                            if(options.shadow)
+                            if(options.shadow !== false)
                                 items.addClass('shadow');
 
                             // add items and search if required.
@@ -461,7 +465,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                     search.on('blur', function (e) {
                                         e.preventDefault();
                                         if(!e.relatedTarget && scope.expanded){
-                                            scope.$digest(function () {
+                                            scope.$apply(function () {
                                                 toggle(e);
                                             });
                                         }
@@ -471,8 +475,11 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                 // check for on blur event.
                                 dropdown.on('blur', function (e) {
                                     e.preventDefault();
-                                    if(!e.relatedTarget && scope.expanded){
-                                        scope.$digest(function () {
+                                    var tsAttr = e.target.attributes._ts_.value;
+
+                                    console.log(e);
+                                    if(scope.expanded && tsAttr === options.ts){
+                                        scope.$apply(function () {
                                             toggle(e);
                                         });
                                     }
@@ -492,6 +499,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             if(vis.ngDisabled)
                                 parseDisabled(vis.ngDisabled);
 
+                            dropdown.attr('_ts_', options.ts);
                             // compile the contents.
                             $helpers.compile(scope, dropdown.contents());
 
@@ -561,7 +569,8 @@ angular.module('ai.dropdown', ['ai.helpers'])
             ts = new Date().getTime();
 
             defaults = {
-                scope: scope
+                scope: scope,
+                ts: ts
             };
 
             function init() {
