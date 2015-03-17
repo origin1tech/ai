@@ -1,0 +1,239 @@
+<h3>{{title}}</h3>
+<hr/>
+<p class="alert alert-warning">
+    Ai table is designed to take an object or RESTful url to populate data automatically. Columns can be visible, hidden
+    sortable, editable and contain custom html templates. Template features can be enabled/disabled.
+</p>
+<h4>Static Data Example</h4>
+<hr/>
+<div ai-table="tbl"></div>
+
+<h4>Loading Rows Manually <small> (see onReady)</small></h4>
+<hr/>
+<div ai-table="tblAdv"></div>
+
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('table:markup') }"><a ng-click="showTab('table:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('table:code') }"><a ng-click="showTab('table:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('table:options') }"><a ng-click="showTab('table:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('table:markup') }" ng-show="tabActive('table:markup')">
+<pre>
+    Several custom templates can be supplied to $tableProvider. See source for additional details.
+
+    &lt;div ai-table=&quot;tbl&quot;&gt;&lt;/div&gt;
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('table:code') }" ng-show="tabActive('table:code')">
+<pre>
+tbl = {
+    source: [
+        { name: 'Jim Thomas', email: 'jthomas@gmail.com'},
+        { name: 'Bob Blair', email: 'bblair@aol.com'},
+        { name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
+        ...
+    ],
+    orderBy: [ '-name' ],
+    selectable: true,
+    exportable: true,
+    hover: true,
+    goto: false,
+    onSelected: function (row, selected, e) {
+        // do something on selected.
+    },
+    onReset: function () {
+        // do something on reset.
+    },
+    beforeFilter: function (source, q){
+       // do something before filter must return filtered results.
+    }
+}
+    
+tblAdv = {
+    orderBy: [ '-name' ],
+    selectable: true,
+    exportable: true,
+    hover: true,
+    goto: false,
+    onReady: function (scope){
+    
+        // this is entire $module context.
+    
+        scope.options.source = [ // get your source from ajax call or other. ];
+        scope.init(); // reinitialize the table.
+    
+        // NOTE: if you have already loaded data/templates (your options.source had valid object),
+        //       then you need only call scope.bind() to rebind the data.
+        //       this is because the templates have already loaded.
+        //       you can also call scope.bind(your_callback_if_desired, true) with a callback
+        //       and optionally pass "true" as a second argument. this will append the 
+        //       additional items to the existing source.rows. this is used internally
+        //       when batch loading large datasets from the server.
+    }
+}
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('table:options') }" ng-show="tabActive('table:options')">
+<pre>
+    
+Column Options:
+    
+/* COLUMN OPTIONS
+ * map: property to map to.
+ * sortable: enables column sorting default: true.
+ * draggable: column can be rearranged.
+
+ * filter: an angular filter to apply or a function which returns the formatted value default: false.
+ * string filters should be formatted as 'filter_name|filter_format' where
+ * filter_name is 'date' and filter_format is 'medium' example: filter: 'date|medium'.
+ * NOTE: ignored if cellTemplate is passed.
+
+ * headerClass: the css class for header default: false.
+
+ * cellClass: the css class for the cell if any default: false.
+ * NOTE if header class is enabled assumes same for cell class,
+ * makes alignment easier instead of having to decorate both classes.
+
+ * headerTemplate: an html template to use for the column cell default: false.
+ * cellTemplate: an html template to use for the header cell default: false.
+ * editTemplate: the template to use for editing this overrides simple 'editType' configurations.
+
+ * editType: the type to use for editing this column default: undefined to disabled editing.
+ * NOTE: valid types are text, number, date, datetime, time, checkbox, email, password, tel
+ * types must be an input element, e.g. selects etc are not currently supported.
+
+ * editOptions: only used when editType is 'select'. this will init the options for your select.
+ * NOTE: if you create a scope object in your controller called let's say 'items' you can access
+ * it like such: editOptions: 'item.id as item.text as item in parent.items'.
+
+ * exclude: when true excludes this column default: false.
+ * accessible: boolean or function. when true column is displayed. good for securing editing/deleting command
+ * columns based on permissions.
+ */
+
+/* BOOTSTRAP OPTIONS
+ *  enabled: whether or not to use bootstrap styling. default: true.
+ *  bordered: boolean uses ai-table-bordered class when true on <table> element default: true.
+ *  striped: boolean uses ai-table-striped class when true on <table> element default: true.
+ *  hover: boolean uses ai-table-hover class when true on <table> element default: false.
+ *  condensed: boolean uses ai-table-condensed when true on <table> element default: false.
+ */
+    
+    
+defaults = {
+
+    // DATA & CONFIGURATION
+    auto: undefined,                            // when true row columns are automatically generated with defaults datatype: boolean
+                                                // to allow only defined columns in the columns option below set this to false.
+    uppercase: undefined,                       // if true headers will automatically converted to uppercase, useful when using auto
+                                                // and source properties are lowercase.
+    columns: {},                                // the mapped column settings datatype: object
+    source: [],                                 // the table source data can be datatype: object, array or url
+    server: false,                              // enables server side paging, pass skip, take order etc in params. param { where: value }
+                                                // is merged with params when search is enabled and search input has value datatype: boolean
+    serverFilter: false,                        // when true the query is passed back to the server rather than query the local batch. this will
+                                                // be ignored if batching is not enabled.
+    method: 'get',                              // the http method to use when source is url datatype: string
+    config: {},                                 // note when used values overwrite params & method. use for full http config datatype: object
+    params: {},                                 // when url is used this object is sent with each $http request datatype: object
+    mapParams: false,                           // map your server params sent when server is enabled. datatype: boolean/object
+                                                // server map object example: { where: 'your_where', sort: 'your_sort', skip: 'your_skip', limit: 'your_take' }
+                                                // replace 'your_*' with the corresponding param name for your server.
+    batch: 50,                                  // to enable specify the number of records to batch in the request. ignored unless "server" is enabled.
+                                                // this feature limits redundant server calls and should likely be used for large datasets. to disable
+                                                // set the property to false datatype: boolean/integer
+    loader: false,                              // if true the loader template creates a modal effect with preloader on async operations
+    loaderDelay: 100,                           // set value to delay displaying loader until after specified milliseconds. 100-300 ms usually works well.
+                                                // set loader to 0 if you want it to show right away.
+
+    // SORTING & SEARCHING & FILTERING
+    actions: undefined,                         // whether or not to display actions for searching/filtering datatype: boolean
+    changeable: undefined,                      // indicates if allowed to change displayed records/rows per page datatype: boolean
+    sortable: undefined,                        // whether or not the table can use sorting datatype: boolean
+    searchable: undefined,                      // whether or not the data is searchable datatype: boolean
+    selectable: false,                          // whether or not rows can be selected, accepts true or 'multi' for multi-selection
+                                                // datatype: boolean/string NOTE: requires onSelect to be valid function.
+                                                // useful to prevent selection of row on anchor or other element click.
+    selectableAll: false,                       // when true built in button displayed to select and clear all.
+    editable: false,                            // indicates whether rows are editable, columns must also be specified with editType.
+    exportable: false,                          // when true exportable options are displayed for export of current filtered results.
+    orderable: false,                           // if true columns and rows can be re-ordered.
+    orderBy: undefined,                         // initial order to display ex: 'name' or '-name' for descending datatype: string
+                                                // NOTE: with order by you can also use true or false ex: 'name true' where true means
+                                                // the order is reverse e.g. descending.
+
+    // PAGING & COUNTS
+    pager: undefined,                           // options for paging datatype: boolean
+    display: 10,                                // the number of records to display per page datatype: integer
+    pages: 5,                                   // the number of pages show in the pager datatype: integer
+    counts: undefined,                          // when pager is enabled page/record counts are displayed datatype: boolean
+    pagination: undefined,                      // this enables hiding pagination but showing counts pager must be set to true datatype: boolean
+    firstLast: undefined,                       // indicates whether first and last should be shown in pager
+    goto: true,                                 // allows manually entering a page directly and navigating to it datatype: boolean
+
+    // TEMPLATING
+
+    actionsTemplate: 'table-actions.tpl.html', // template where search input is located datatype: string
+    tableTemplate: 'table.tpl.html',           // the template for the table datatype: string
+    pagerTemplate: 'table-pager.tpl.html',     // the template for paging datatype: string
+    nodataTemplate: 'table-nodata.tpl.html',   // presented when no data rows are present datatype: string.
+    loaderTemplate: 'table-loader.tpl.html',   // loading spinner template. datatype: string
+
+    // BOOTSTRAP TEMPLATING
+
+    bootstrap: true,                             // when true use Twitter Bootstrap styling datatype: boolean
+    bordered: true,                              // when bootstrap is true bordered styling is applied datatype: boolean
+    striped: true,                               // when bootstrap is true striped styling is applied datatype: boolean
+    hover: false,                                // when bootstrap is true hover styling is applied datatype: boolean
+    condensed: false,                            // when bootstrap is true condensed styling is applied datatype: boolean
+    responsive: true,                            // when bootstrap is true responsive wrapper div is applied datatype: boolean
+
+    // TABLE EVENTS
+
+    onSelected: undefined,                      // returns row, selected row(s) & event data when row is selected datatype: function
+    onDeleted: undefined,                       // returns row, selected row(s) & event data. datatype: function
+    onLoad: undefined,                          // fires when a data source is about to load it passes the $http config for the request datatype: function
+                                                // this is useful when needing to pass additional params or modify the config before
+                                                // requesting from the server.
+    onReset: undefined,                         // callback after table has been reset.
+    onReady: undefined,                         // callback after table as completely rendered.
+
+    beforeFilter: undefined,                    // allows for custom filtering. passes filtered query and source collection.
+                                                // you may return a string, object or filtered array.
+    beforeUpdate: undefined,                    // before updates are saved to row this is called can return boolean or promise with boolean if successfull.
+    beforeDelete: undefined,                    // the callback to process before deleting a row. can return boolean to continue processing or promise.
+    beforeDownload: undefined                   // event that is fired before download of exported data. You can use this to pass a file name,
+                                                // or perhaps prompt with a dialog. Passes the filtered collection and default fileName you should
+                                                // return an object with the filtered records to export and fileName or false to cancel download.
+
+    // GENERIC EVENTS
+
+    /*
+     * NOTE you can pass just about any jQuery
+     * event here and it will return the context (this)
+     * along with the row, column and event.
+     * essentially it is just a wrapper.
+     * don't forget to $apply if you need
+     * the table to update after using this
+     * wrapper. note the example below.
+     * wrapper events MUST start with on.
+     * such as "onClick" which is normalized to
+     * "click". or onMouseOut which is normalized to
+     * "mouseout".
+     */
+    // onTouchStart: function(ctx, row, column, event) { // do something }
+
+}
+</pre>
+        </div>
+
+    </div>
+
+</div>
