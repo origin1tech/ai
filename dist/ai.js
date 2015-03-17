@@ -5667,19 +5667,20 @@ angular.module('ai.tree', ['ai.helpers'])
     .provider('$tree', function $tree() {
 
         var defaults = {
-            template: 'ai-tree.html',       // the template to be used, accepts, html, path, or cashed view name.
-            label: 'label',                 // the property used for display.
-            value: 'value',                 // the property used for value.
-            children: 'children',           // the property used for child elements.
-            active: 'active',               // the property used to indicated the element is checked or active.
-            method: 'get',                  // when and endpoint is specified in model.
-            params: {},                     // params to be passed when model is an endpoint.
-            icon: undefined,                // when NOT false icon is displayed left of label.
-            expanded: false,                // when true tree loads with all nodes expanded.
-            expandAll: false,               // when true all child nodes are expanded when either expanded or parent selects all.
-            onSelect: undefined,            // callback when item is clicked returns node, treeModel & event.
-            onToggle: undefined             // callback when child node is expanded or collapsed. returns
-                                            // node, treeModel & event.
+            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
+            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
+            label: 'label',                             // the property used for display.
+            value: 'value',                             // the property used for value.
+            children: 'children',                       // the property used for child elements.
+            active: 'active',                           // the property used to indicated the element is checked or active.
+            method: 'get',                              // when and endpoint is specified in model.
+            params: {},                                 // params to be passed when model is an endpoint.
+            icon: true,                                 // when NOT false icon is displayed left of label.
+            expanded: false,                            // when true tree loads with all nodes expanded.
+            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
+            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
+            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
+            onReady: undefined                          // callback when loaded.
         }, get, set;
 
         set = function set(key, value) {
@@ -5699,8 +5700,8 @@ angular.module('ai.tree', ['ai.helpers'])
                         '<span class="ai-tree-toggle" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
                             'ng-click="toggle($event, node)"></span>' +
                         '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
-                            '<span class="ai-tree-icon" ng-show="node.icon"></span>' +
-                            '<span class="ai-tree-label" ng-bind="node.label"></span>' +
+                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
+                            '[LABEL_TEMPLATE]' +
                         '</div>' +
                         '<ai-tree ng-if="node.children" ' +
                             'ng-show="node.expanded" ' +
@@ -5712,7 +5713,10 @@ angular.module('ai.tree', ['ai.helpers'])
                     '</li>' +
                 '</ul>';
 
+            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
+
             $helpers.getPutTemplate(defaults.template, treeTemplate);
+            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
 
             function ModuleFactory(element, options, attrs){
 
@@ -5731,8 +5735,44 @@ angular.module('ai.tree', ['ai.helpers'])
                 options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
                 $module.element = scope.element = element;
 
+                // the current model may be nested.
                 model = options.model;
-                treeModel = options.treeScope.options.model;
+
+                // the root tree model.
+                treeModel = options.tree.options.model;
+
+                // get templates.
+                function getTemplates() {
+                    var promises = [
+                        $helpers.loadTemplate(options.template),
+                        $helpers.loadTemplate(options.labelTemplate)
+                    ];
+                    return $q.all(promises);
+                }
+
+                // get data collection.
+                function loadData(m, cb) {
+
+                    if(angular.isArray(m))
+                        return cb(m);
+
+                    // if string get via http
+                    if(angular.isString(m)){
+                        $http.get(m, {
+                            params: options.params
+                        }).then(function (res) {
+                            model = res.data;
+                            treeModel = options.tree.options.model = res.data;
+                            cb(res.data);
+                        }, function (res) {
+                            console.error(res);
+                            cb();
+                        });
+                    } else {
+                        cb();
+                    }
+
+                }
 
                 // check if node is a parent node.
                 function isParent(node){
@@ -5763,30 +5803,6 @@ angular.module('ai.tree', ['ai.helpers'])
                             node.toggle = true;
                         }
                     });
-                }
-
-                // get data collection.
-                function loadData(m, cb) {
-
-                    if(angular.isArray(m))
-                        return cb(m);
-
-                    // if string get via http
-                    if(angular.isString(m)){
-                        $http.get(m, {
-                            params: options.params
-                        }).then(function (res) {
-                            model = res.data;
-                            treeModel = options.treeScope.options.model = res.data;
-                            cb(res.data);
-                        }, function (res) {
-                            console.error(res);
-                            cb();
-                        });
-                    } else {
-                        cb();
-                    }
-
                 }
 
                 // gets all child nodes
@@ -5826,7 +5842,7 @@ angular.module('ai.tree', ['ai.helpers'])
                             }
                         }
                     });
-                    options.treeScope.selected = selected;
+                    options.tree.selected = selected;
                     return selected;
                 }
 
@@ -5857,8 +5873,13 @@ angular.module('ai.tree', ['ai.helpers'])
                     if(undefined !== state || options.expandAll)
                         expandChildren(node.children, state);
                     if(angular.isFunction(options.onToggle)){
-                        options.onToggle(node, node.expanded, treeModel, event);
+                        options.onToggle(node, treeModel, event);
                     }
+                }
+
+                // get the selected nodes.
+                function selected() {
+                    return options.tree.selected;
                 }
 
                 // select a node
@@ -5882,6 +5903,10 @@ angular.module('ai.tree', ['ai.helpers'])
                     }
                 }
 
+                $module.select = scope.select = select;
+                $module.toggle = scope.toggle = toggle;
+                $module.selected = scope.selected = selected;
+
                 // initialize the tree view.
                 function init() {
 
@@ -5896,12 +5921,23 @@ angular.module('ai.tree', ['ai.helpers'])
                         setState(treeModel);
 
                         $module.nodes = scope.nodes = data;
-                        $module.select = scope.select = select;
-                        $module.toggle = scope.toggle = toggle;
 
-                        $helpers.loadTemplate(options.template).then(function(template) {
-                            element.empty().append($helpers.compile(scope, template));
+                        getTemplates().then(function(t) {
+
+                            var _template = t[0],
+                                _labelTemplate = t[1];
+                            _template = _template.replace('[LABEL_TEMPLATE]', _labelTemplate);
+                            element.empty().append($helpers.compile(scope, _template));
+
+                            if(angular.isFunction(options.onReady) && !options.tree.ready){
+                                options.onReady(options.tree, treeModel);
+                                options.tree.ready = true;
+                            }
+
                         });
+
+                        // don't wait for templates.
+                        return $module;
 
                     });
                 }
@@ -5909,6 +5945,7 @@ angular.module('ai.tree', ['ai.helpers'])
                 init();
 
                 return $module;
+
             }
 
             return ModuleFactory;
@@ -5926,6 +5963,7 @@ angular.module('ai.tree', ['ai.helpers'])
         return {
             restrict: 'EAC',
             require: 'ngModel',
+            scope: true,
             link: function (scope, element, attrs, ngModel) {
 
                 var defaults, options, $module;
@@ -5945,13 +5983,11 @@ angular.module('ai.tree', ['ai.helpers'])
                 delete options.scope;
 
                 // save the original scope.
-                options.treeScope = options.treeScope || scope;
-
-                // collection of selected items.
-                options.treeScope.selected = options.treeScope.selected || [];
+                options.tree = options.tree || scope;
 
                 options = angular.extend(defaults, options);
                 options.model = scope.$eval(attrs.ngModel);
+
                 init();
 
             }

@@ -448,14 +448,11 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
   margin-top: 8px; }
 
 .ai-tree, [ai-tree], ai-tree {
-  display: block; }
+  display: block;
+  padding-left: 20px; }
   .ai-tree ul, [ai-tree] ul, ai-tree ul {
     list-style: none;
     padding: 0; }
-  .ai-tree.ai-tree-child, [ai-tree].ai-tree-child, ai-tree.ai-tree-child {
-    position: relative; }
-    .ai-tree.ai-tree-child ul, [ai-tree].ai-tree-child ul, ai-tree.ai-tree-child ul {
-      margin-left: 12px; }
 
 .ai-tree-item {
   margin-bottom: 0px;
@@ -496,3 +493,6 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
   line-height: inherit;
   vertical-align: middle;
   margin-right: 6px; }
+
+.ai-tree-label {
+  display: inline-block; }

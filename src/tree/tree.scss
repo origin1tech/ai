@@ -17,17 +17,10 @@ $tree-caret-down:                   url(data:image/png;base64,iVBORw0KGgoAAAANSU
 .ai-tree, [ai-tree], ai-tree  {
 
   display: block;
+  padding-left: $tree-toggle-size + $tree-toggle-margin-right;
 
   ul {
     list-style: none; padding: 0;
-  }
-
-  &.ai-tree-child {
-    position: relative;
-    ul {
-      margin-left: $tree-child-margin-left;
-    }
-
   }
 
 }
@@ -85,3 +78,5 @@ $tree-caret-down:                   url(data:image/png;base64,iVBORw0KGgoAAAANSU
   vertical-align: middle;
   margin-right: $tree-icon-margin-right;
 }
+
+.ai-tree-label { display: inline-block; }

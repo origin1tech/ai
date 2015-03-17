@@ -12,6 +12,7 @@ The Ai library contains the following:
 - step - a step wizard for stepping through forms culminating at a submit action.
 - storage - module that enables you to easily top into localstorage but falls back to cookies if not supported.
 - table - grid like table directive that supports batch loading, server side order, filtering and much more.
+- tree - a treeview component that supports deep nesting.
 - validate - auto-magically created validation messages or summary for forms.
 - widget - the widget modules contains following widgets: case(forces text case), number(force number with decimal places),
           compare(compares two values for equality), and placeholder(if browser doesn't support placeholder, adds label).

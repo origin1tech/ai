@@ -345,24 +345,13 @@ require([
 
             if (area === 'tree') {
                 $scope.tree = {
+                    model: '/api/tree',
                     onSelect: function (node, model, event) {
-                        //console.log($scope.tree);
+                        console.log($scope.tree);
+                    },
+                    onReady: function (tree) {
                     }
                 };
-                $scope.treeModel = '/api/tree';
-                //$scope.treeModel = [
-                //    { value: 1, label: 'item one' },
-                //    { value: 2, label: 'item two', children: [
-                //        { value: 21, label: 'child item 2-1'},
-                //        { value: 22, label: 'child item 2-2'},
-                //        { value: 23, label: 'child item 2-3', children: [
-                //            { value: 231, label: 'child child item 2-3-1' },
-                //            { value: 232, label: 'child child item 2-3-2' }
-                //        ]}
-                //    ] },
-                //    { value: 3, label: 'item three' },
-                //    { value: 4, label: 'item four' }
-                //];
             }
         }
     ];
