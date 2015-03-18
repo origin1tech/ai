@@ -8,7 +8,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
                 message: 'Loading',                                 // text to display under loader if value.
-                delay: 400,                                         // the delay in ms before loader is shown.
+                delay: 600,                                         // the delay in ms before loader is shown.
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
                                                                     // default loader is set to hidden.
