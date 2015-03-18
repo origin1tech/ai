@@ -1,0 +1,53 @@
+$loader-zindex:                                1060;
+$loader-background-color:                      rgba(29,29,29,0.8); // requires IE 9 or greater.
+
+$loader-message-size:                          125%;
+$loader-message-color:                         #fff;
+$loader-message-margin-top:                    8px;
+
+.select-none {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.ai-loader, ai-loader, [ai-loader] {
+  display: none;
+  &.show {
+    // use important to override Bootstrap.
+    display: inline-block !important;
+  }
+  &.ai-loader-page {
+    z-index: $loader-zindex;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    text-align: center;
+    &.show {
+      overflow: hidden;
+      background-color: $loader-background-color;  
+    }
+    > div, p, svg {
+     // NOTE: IE 9 or greater required for transform.
+      z-index: $loader-zindex + 1;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      -webkit-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+      @extend .select-none;
+    }
+  }
+}
+
+.ai-loader-message {
+  color: $loader-message-color;
+  font-size: $loader-message-size;
+  margin-top: $loader-message-margin-top;
+}
+

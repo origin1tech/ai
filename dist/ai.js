@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.1.5
+* Version: 0.1.6
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -1643,7 +1643,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
                 message: 'Loading',                                 // text to display under loader if value.
-                delay: 300,                                         // the delay in ms before loader is shown.  
+                delay: 400,                                         // the delay in ms before loader is shown.
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
                                                                     // default loader is set to hidden.
@@ -1900,12 +1900,17 @@ angular.module('ai.loader.interceptor', [])
         // prevents loader from immediately showing
         // set options.delay.
         function delayLoader(_loader) {
-            if(_loader.options.delay === 0){
+            if(_loader.options.delay === 0 && !_loader.completed){
                 _loader.start();                
             } else {
                 clearTimeout(_loader.timeoutId);
                 _loader.timeoutId = $timeout(function () {
+                    if(_loader.completed){
+                        clearTimeout(_loader.timeoutId);
+                        _loader.stop();
+                    } else {
                         _loader.start();
+                    }
                 }, _loader.options.delay);
             }
         }
@@ -1913,6 +1918,7 @@ angular.module('ai.loader.interceptor', [])
         function startLoaders() {
             var loaders = getLoaders();            
             angular.forEach(loaders, function (_loader) {
+                _loader.completed = false;
                 if(_loader.options.intercept !== false){
                     if(!_loader.suppressed){
                         delayLoader(_loader);
@@ -1924,13 +1930,9 @@ angular.module('ai.loader.interceptor', [])
         function stopLoaders(){
             var loaders = getLoaders();
             angular.forEach(loaders, function (_loader) {
-                var stopTimeout = 100;
-                if(_loader.options.delay> 0)
-                    stopTimeout = _loader.options.delay + 100;
-                $timeout(function () {
-                    _loader.loading = false;
-                    _loader.stop();
-                }, stopTimeout);
+                _loader.completed = true;
+                _loader.loading = false;
+                _loader.stop();
             });
         }
         

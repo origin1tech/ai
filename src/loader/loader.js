@@ -265,12 +265,17 @@ angular.module('ai.loader.interceptor', [])
         // prevents loader from immediately showing
         // set options.delay.
         function delayLoader(_loader) {
-            if(_loader.options.delay === 0){
+            if(_loader.options.delay === 0 && !_loader.completed){
                 _loader.start();                
             } else {
                 clearTimeout(_loader.timeoutId);
                 _loader.timeoutId = $timeout(function () {
+                    if(_loader.completed){
+                        clearTimeout(_loader.timeoutId);
+                        _loader.stop();
+                    } else {
                         _loader.start();
+                    }
                 }, _loader.options.delay);
             }
         }
@@ -278,6 +283,7 @@ angular.module('ai.loader.interceptor', [])
         function startLoaders() {
             var loaders = getLoaders();            
             angular.forEach(loaders, function (_loader) {
+                _loader.completed = false;
                 if(_loader.options.intercept !== false){
                     if(!_loader.suppressed){
                         delayLoader(_loader);
@@ -289,13 +295,9 @@ angular.module('ai.loader.interceptor', [])
         function stopLoaders(){
             var loaders = getLoaders();
             angular.forEach(loaders, function (_loader) {
-                var stopTimeout = 10;
-                if(_loader.options.delay > 0)
-                    stopTimeout = _loader.options.delay + 10;
-                $timeout(function () {
-                    _loader.loading = false;
-                    _loader.stop();
-                }, stopTimeout);
+                _loader.completed = true;
+                _loader.loading = false;
+                _loader.stop();
             });
         }
         
