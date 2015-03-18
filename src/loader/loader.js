@@ -8,7 +8,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
                 message: 'Loading',                                 // text to display under loader if value.
-                delay: 300,                                         // the delay in ms before loader is shown.  
+                delay: 400,                                         // the delay in ms before loader is shown.
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
                                                                     // default loader is set to hidden.
@@ -289,9 +289,9 @@ angular.module('ai.loader.interceptor', [])
         function stopLoaders(){
             var loaders = getLoaders();
             angular.forEach(loaders, function (_loader) {
-                var stopTimeout = 100;
-                if(_loader.options.delay> 0)
-                    stopTimeout = _loader.options.delay + 100;
+                var stopTimeout = 10;
+                if(_loader.options.delay > 0)
+                    stopTimeout = _loader.options.delay + 10;
                 $timeout(function () {
                     _loader.loading = false;
                     _loader.stop();
