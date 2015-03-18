@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.1.4
+* Version: 0.1.5
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -938,6 +938,10 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 };
                 scope.filter = filter;
 
+                scope.$on('destroy', function () {
+                    activeDropdowns = [];
+                });
+
                 // parse ngDisabled if exists.
                 $module.parseDisabled = scope.parseDisabled = parseDisabled;
 
@@ -1638,7 +1642,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 intercept: undefined,                               // when false loader intercepts disabled.
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
-                message: undefined,                                 // text to display under loader if value.
+                message: 'Loading',                                 // text to display under loader if value.
                 delay: 300,                                         // the delay in ms before loader is shown.  
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
@@ -1745,8 +1749,8 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                         body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
                     if(element)
                         element.removeClass('show'); 
-                    $module.loading = false;
-                    $module.suppressed = false;
+                    $module.loading = scope.loading = false;
+                    $module.suppressed = scope.suppressed = false;
                 }  
                 
                 // suppresses once.
@@ -1919,9 +1923,14 @@ angular.module('ai.loader.interceptor', [])
         
         function stopLoaders(){
             var loaders = getLoaders();
-            angular.forEach(loaders, function (_loader) {     
-                _loader.loading = false;
-                _loader.stop();
+            angular.forEach(loaders, function (_loader) {
+                var stopTimeout = 100;
+                if(_loader.options.delay> 0)
+                    stopTimeout = _loader.options.delay + 100;
+                $timeout(function () {
+                    _loader.loading = false;
+                    _loader.stop();
+                }, stopTimeout);
             });
         }
         
@@ -1930,7 +1939,7 @@ angular.module('ai.loader.interceptor', [])
                 startLoaders();
                 return req || $q.when(req);
             },
-            response: function (res) {        
+            response: function (res) {
                 stopLoaders();
                 return res || $q.when(res);
             },
@@ -5717,7 +5726,7 @@ angular.module('ai.tree', ['ai.helpers'])
             var treeTemplate =
                 '<ul>' +
                     '<li ng-repeat="node in nodes track by $index">' +
-                        '<span class="ai-tree-toggle" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
+                        '<span class="ai-tree-caret" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
                             'ng-click="toggle($event, node)"></span>' +
                         '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
                             '<span class="ai-tree-icon" ng-if="node.icon"></span>' +

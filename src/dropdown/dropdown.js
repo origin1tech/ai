@@ -372,6 +372,10 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 };
                 scope.filter = filter;
 
+                scope.$on('destroy', function () {
+                    activeDropdowns = [];
+                });
+
                 // parse ngDisabled if exists.
                 $module.parseDisabled = scope.parseDisabled = parseDisabled;
 

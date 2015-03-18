@@ -32,7 +32,7 @@ angular.module('ai.tree', ['ai.helpers'])
             var treeTemplate =
                 '<ul>' +
                     '<li ng-repeat="node in nodes track by $index">' +
-                        '<span class="ai-tree-toggle" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
+                        '<span class="ai-tree-caret" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
                             'ng-click="toggle($event, node)"></span>' +
                         '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
                             '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
