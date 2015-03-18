@@ -36,6 +36,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
             selectClear: undefined,                 // after selecting value clear item.
             closeClear: undefined,                  // when searchable and on toggle close clear query filter.
             blurClose: undefined,                   // when true list is closed on blur event.
+            closePrevious: undefined,               // when not false previously opened dropdowns are closed.
 
                                                     // all callbacks are returned with $module context.
             onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
@@ -57,7 +58,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
 
     get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
 
-         var baseTemplate = '<button type="button" class="btn ai-dropdown-toggle" ng-click="toggle()" ng-class="{expanded: expanded}">' +
+         var baseTemplate = '<button type="button" class="btn ai-dropdown-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
                                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
                                 '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
                             '</button>' +
@@ -94,6 +95,8 @@ angular.module('ai.dropdown', ['ai.helpers'])
         $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
         $helpers.getPutTemplate(defaults.itemGroupTemplate, itemGroupTemplate);
         $helpers.getPutTemplate(defaults.searchTemplate, searchTemplate);
+
+        var activeDropdowns = [];
 
         // module factory.
         function ModuleFactory(element, options, attrs) {
@@ -285,17 +288,26 @@ angular.module('ai.dropdown', ['ai.helpers'])
                     options.onSelected.call($module, _item, options.model, event);
             }
 
+            function beforeToggle(ts) {
+                angular.forEach(activeDropdowns, function (dd, idx) {
+                    if(dd.ts !== ts){
+                        dd.options.scope.expanded = false;
+                        activeDropdowns.splice(idx, 1);
+                    }
+                });
+            }
+
             // toggle the list.
-            function toggle(event) {
+            function toggle(event, ts) {
+                if(ts && (options.closePrevious !== false))
+                    beforeToggle(ts);
                 scope.expanded =! scope.expanded;
                 $module.expanded = scope.expanded;
                 if(!scope.expanded && options.closeClear === true)
                     clearFilter();
                 if(scope.expanded){
                     dropdown[0].focus();
-                    //dropdown[0]._ts_ = options.ts;
-                } else {
-                    //delete dropdown[0]._ts_;
+                    activeDropdowns.push($module);
                 }
                 // if a function callback on toggle.
                 if(angular.isFunction(options.onToggled))
@@ -335,10 +347,13 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 $module.expanded = scope.expanded = false;
                 $module.q = scope.q = undefined;
 
+                // timestamp used as an id.
+                $module.ts = scope.ts = options.ts;
+
                 // set scope/module methods.
                 $module.toggle = scope.toggle = toggle;
                 $module.find = scope.find = find;
-
+                $module.beforeToggle = scope.beforeToggle = beforeToggle;
                 // if calling by instance
                 // no event so pass null apply args.
                 $module.select = function () {
@@ -475,10 +490,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                 // check for on blur event.
                                 dropdown.on('blur', function (e) {
                                     e.preventDefault();
-                                    var tsAttr = e.target.attributes._ts_.value;
-
-                                    console.log(e);
-                                    if(scope.expanded && tsAttr === options.ts){
+                                    if(scope.expanded && !e.relatedTarget){
                                         scope.$apply(function () {
                                             toggle(e);
                                         });
@@ -499,7 +511,6 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             if(vis.ngDisabled)
                                 parseDisabled(vis.ngDisabled);
 
-                            dropdown.attr('_ts_', options.ts);
                             // compile the contents.
                             $helpers.compile(scope, dropdown.contents());
 

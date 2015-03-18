@@ -112,7 +112,7 @@ var defaults = {
     btnClass: 'btn-default',                // the class to add to the button which triggers dropdown.
     allowNull: undefined,                   // when true user can select placeholder/null value.
     inline: false,                          // positions element inline.
-    shadow: true,                           // when true adds shadow to bottom of list.
+    shadow: undefined,                      // when true adds shadow to bottom of list.
 
     template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
     itemTemplate:
@@ -135,6 +135,7 @@ var defaults = {
     selectClear: undefined,                 // after selecting value clear item.
     closeClear: undefined,                  // when searchable and on toggle close clear query filter.
     blurClose: undefined,                   // when true list is closed on blur event.
+    closePrevious: undefined,               // when not false previously opened dropdowns are closed.
 
                                             // all callbacks are returned with $module context.
     onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
@@ -142,6 +143,7 @@ var defaults = {
     onFilter: false,                        // callback on filter. injects (filter, event).
     onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
     onReady: false                           // callback on directive loaded. returns
+
 }
 </pre>
         </div>

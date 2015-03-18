@@ -602,6 +602,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
             selectClear: undefined,                 // after selecting value clear item.
             closeClear: undefined,                  // when searchable and on toggle close clear query filter.
             blurClose: undefined,                   // when true list is closed on blur event.
+            closePrevious: undefined,               // when not false previously opened dropdowns are closed.
 
                                                     // all callbacks are returned with $module context.
             onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
@@ -623,7 +624,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
 
     get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
 
-         var baseTemplate = '<button type="button" class="btn ai-dropdown-toggle" ng-click="toggle()" ng-class="{expanded: expanded}">' +
+         var baseTemplate = '<button type="button" class="btn ai-dropdown-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
                                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
                                 '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
                             '</button>' +
@@ -660,6 +661,8 @@ angular.module('ai.dropdown', ['ai.helpers'])
         $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
         $helpers.getPutTemplate(defaults.itemGroupTemplate, itemGroupTemplate);
         $helpers.getPutTemplate(defaults.searchTemplate, searchTemplate);
+
+        var activeDropdowns = [];
 
         // module factory.
         function ModuleFactory(element, options, attrs) {
@@ -851,17 +854,26 @@ angular.module('ai.dropdown', ['ai.helpers'])
                     options.onSelected.call($module, _item, options.model, event);
             }
 
+            function beforeToggle(ts) {
+                angular.forEach(activeDropdowns, function (dd, idx) {
+                    if(dd.ts !== ts){
+                        dd.options.scope.expanded = false;
+                        activeDropdowns.splice(idx, 1);
+                    }
+                });
+            }
+
             // toggle the list.
-            function toggle(event) {
+            function toggle(event, ts) {
+                if(ts && (options.closePrevious !== false))
+                    beforeToggle(ts);
                 scope.expanded =! scope.expanded;
                 $module.expanded = scope.expanded;
                 if(!scope.expanded && options.closeClear === true)
                     clearFilter();
                 if(scope.expanded){
                     dropdown[0].focus();
-                    //dropdown[0]._ts_ = options.ts;
-                } else {
-                    //delete dropdown[0]._ts_;
+                    activeDropdowns.push($module);
                 }
                 // if a function callback on toggle.
                 if(angular.isFunction(options.onToggled))
@@ -901,10 +913,13 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 $module.expanded = scope.expanded = false;
                 $module.q = scope.q = undefined;
 
+                // timestamp used as an id.
+                $module.ts = scope.ts = options.ts;
+
                 // set scope/module methods.
                 $module.toggle = scope.toggle = toggle;
                 $module.find = scope.find = find;
-
+                $module.beforeToggle = scope.beforeToggle = beforeToggle;
                 // if calling by instance
                 // no event so pass null apply args.
                 $module.select = function () {
@@ -1041,10 +1056,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                 // check for on blur event.
                                 dropdown.on('blur', function (e) {
                                     e.preventDefault();
-                                    var tsAttr = e.target.attributes._ts_.value;
-
-                                    console.log(e);
-                                    if(scope.expanded && tsAttr === options.ts){
+                                    if(scope.expanded && !e.relatedTarget){
                                         scope.$apply(function () {
                                             toggle(e);
                                         });
@@ -1065,7 +1077,6 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             if(vis.ngDisabled)
                                 parseDisabled(vis.ngDisabled);
 
-                            dropdown.attr('_ts_', options.ts);
                             // compile the contents.
                             $helpers.compile(scope, dropdown.contents());
 
@@ -1942,1215 +1953,6 @@ angular.module('ai.loader', [
    
 
 
-angular.module('ai.step', ['ai.helpers'])
-
-.provider('$step', function $step() {
-
-    var defaults = {
-
-            key: '$id',                     // the primary key for the collection of steps.
-            start: 0,                       // the starting index of the step wizard.
-            title: 'true',                  // when true title is auto generated if not set in step object.
-            continue: undefined,            // when true if called step is disabled continue to next enabled.
-            breadcrumb: false,              // when true only header is shown, used as breadcrumb.
-                                            // breadcrumb mode looks for property 'href' to navigate to.
-
-                                            // html templates, can be html or path to template.
-
-            header: 'step-header.tpl.html',   // the header template when using directive.
-            content: 'step-content.tpl.html', // the content template to use when using directive.
-            actions: 'step-actions.tpl.html', // the actions template when using directive.
-
-                                            // hide/show buttons, disable/enable header click events.
-
-            showNumber: undefined,          // when true step number show next to title.
-            showNext: undefined,            // when true next button is created.
-            showPrev: undefined,            // when true prev button is created.
-            showSubmit: undefined,          // when true submit button is created.
-            headTo: undefined,              // when true header can be clicked to navigate.
-
-                                            // all events are called with $module context except onload which passes it.
-
-            onBeforeChange: undefined,      // callback event fired before changing steps.
-            onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
-            onSubmit: undefined,            // callback on submit returns ({ active }, event)
-            onReady: undefined               // callback on load returns ($module)
-
-        }, get, set;
-
-    set = function set(key, value) {
-        var obj = key;
-        if(arguments.length > 1){
-            obj = {};
-            obj[key] = value;
-        }
-        defaults = angular.extend(defaults, obj);
-    };
-
-    get = [ '$q', '$rootScope', '$location', '$helpers', function get($q, $rootScope, $location, $helpers) {
-
-        var headerTemplate, contentTemplate, actionsTemplate;
-
-        headerTemplate = '<div class="ai-step-header" ng-show="steps.length">' +
-                            '<ul>' +
-                                '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
-                                'ng-class="{ active: step.active, disabled: !step.enabled, ' +
-                                'clickable: options.headTo !== false && step.enabled, nonum: !options.showNumber === false }">' +
-                                    '<span class="title">{{step.title}}</span>' +
-                                    '<span class="number">{{step.$number}}</span>' +
-                                '</li>' +
-                            '</ul>' +
-                         '</div>';
-
-        contentTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-content" ng-show="steps.length">' +
-                            '<div ng-show="isActive($index)" ng-repeat="step in steps" ng-bind-html="step.content"></div>' +
-                          '</div>';
-
-        actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
-                            '<hr/><button ng-show="options.showPrev !== false" ng-disabled="isFirst()" class="btn btn-warning" ' +
-                                'ng-click="prev($event)">Previous</button> ' +
-                            '<button ng-show="options.showNext !== false" ng-disabled="isLast()" class="btn btn-primary" ' +
-                                'ng-click="next($event)">Next</button> ' +
-                            '<button ng-show="isLast() && options.showSubmit !== false" class="btn btn-success submit" ' +
-                                'ng-click="submit($event)">Submit</button>' +
-                          '</div>';
-
-        $helpers.getPutTemplate(defaults.header, headerTemplate);
-        $helpers.getPutTemplate(defaults.content, contentTemplate);
-        $helpers.getPutTemplate(defaults.actions, actionsTemplate);
-
-        function ModuleFactory(element, options, attrs) {
-
-            var $module = {},
-                steps = [],
-                templates =[],
-                contentTemplates = [],
-                _steps,
-                scope,
-                _previous;
-
-            // shift args if needed.
-            if(!angular.isElement(element) && angular.isObject(element)){
-                attrs = options;
-                options = element;
-                element = undefined;
-            }            
-
-            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            // extend options
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
-
-            // check if options contain steps.
-            if(options.steps){
-                _steps = options.steps;
-                delete options.steps;
-            }
-
-            // clears active step.
-            function clear() {
-                angular.forEach(steps, function (v) {
-                    v.active = false;
-                });
-            }
-
-            // Public API
-
-            // get step by key/value, index or step.
-            function find(key, value, first) {
-                if(angular.isNumber(key) && !value){
-                    return steps[key];
-                } else {
-                    if(!value){
-                        value = key;
-                        key = options.key;
-                    }
-                    var result = steps.filter(function (v) {
-                        if(v[key])
-                            return v[key] === value;
-                        return false;
-                    });
-                    if(result && first)
-                        return result[0];
-                    return result;
-                }
-            }
-
-            // get the index of a step.
-            function indexOf(step) {
-                if(!step)
-                    return -1;
-                return steps.indexOf(step);
-            }
-
-            // getter/setter for active step.
-            function active(key, value) {
-                if(!key) {
-                    return steps.filter(function (v) {
-                        return v.active === true;
-                    })[0];
-                } else {
-                    var step = find(key, value, true);
-                    if(step && step.enabled){
-                        clear();
-                        step.active = true;
-                    }
-                }
-            }
-
-            // go to a specific step index or object.
-            function to(key, reverse, e) {
-                var curActive = active(),
-                    nextActive,
-                    nextIdx;
-                if(angular.isNumber(key)){
-                    nextIdx = key;
-                    nextActive = steps[key];
-                }
-                if(angular.isObject(key)){
-                    nextIdx = indexOf(key);
-                    nextActive = key;
-                }
-
-                if(angular.isFunction(options.onBeforeChange)){
-                    $q.when(options.onBeforeChange({ active: curActive, next: nextActive }, e))
-                        .then(function(res) {
-                            if(res) done();
-                        });
-                }
-
-                function done() {
-
-                    if(nextActive) {
-                        if(!nextActive.enabled && options.continue !== false){
-
-                            var i, altActive;
-                            if(reverse) {
-                                for(i = nextIdx -1; i >= 0; i-- )  {
-                                    altActive = steps[i];
-                                    if(altActive.enabled){
-                                        nextActive = altActive;
-                                        nextIdx = i;
-                                    }
-                                }
-                            } else {
-                                for(i = nextIdx; i < steps.length; i++ )  {
-                                    altActive = steps[i];
-                                    if(altActive.enabled){
-                                        nextActive = altActive;
-                                        nextIdx = i;
-                                    }
-                                }
-                            }
-                        }
-
-
-                        if(nextActive.enabled) {
-                            clear();
-                            nextActive.active = true;
-                            _previous = nextActive;
-                        }
-
-                        // callback on change.
-                        if(angular.isFunction(options.onChange))
-                            options.onChange.call($module, { previous: curActive, active: nextActive }, e);
-
-                    }
-
-                }
-
-            }
-
-            // adds a new step
-            function add(name, obj) {
-                if(!name && !obj) return;
-                var nextIdx = steps.length,
-                    nameOnly;
-                if(angular.isObject(name)){
-                    obj = name;
-                    name = undefined;
-                }
-                nameOnly = !obj;
-                if(nameOnly){
-                    obj = {};
-                    obj.content = name;
-                }
-                // must have name or defined key in object.
-                if(!name && !obj[options.key]) return;
-                obj.enabled = obj.enabled !== undefined ? obj.enabled : true;
-                obj.active = nextIdx === options.start;
-                obj[options.key] = obj[options.key] || name;
-                obj.content = obj.content || name;
-                if(options.title){
-                    obj.title = obj.title || 'Step';
-                    obj.title = obj.title.charAt(0).toUpperCase() + obj.title.slice(1);
-                }
-                obj.$index = nextIdx;
-                obj.$number = nextIdx +1;
-                // simple string wrap in span.
-                if(!$helpers.isHtml(obj.content) && !$helpers.isPath(obj.content))
-                    obj.content = '<span>' + obj.content + '</span>';
-                contentTemplates.push($helpers.loadTemplate(obj.content));
-                $rootScope.$broadcast('step:add', obj);
-                steps.push(obj);
-            }
-
-            // go to next step;
-            function next(e) {
-                var cur = active();
-                if(cur)
-                    to(cur.$index + 1, null, e);
-            }
-
-            // go to previous step.
-            function prev(e) {
-                var cur = active();
-                if(cur)
-                    to(cur.$index - 1, true, e);
-            }
-
-            // on header click.
-            function headTo(e, idx) {
-                if(options.headTo === false) return;
-                var step = steps[idx];
-                if(!options.breadcrumb && step.content) {
-                    to(idx, null, e);
-                } else {
-                    // breadcrumb mode navigate
-                    // to href if provided.
-                    if(step && step.href && step.enabled)
-                        $location.path(step.href);
-                }
-            }
-
-            // submit button for last step.
-            function submit(e) {
-                if(angular.isFunction(options.onSubmit)){
-                    options.onSubmit.call($module, { active: active() }, e);
-                }
-            }
-
-            // indicates if step is first.
-            function isFirst(key, value) {
-                var step = find(key, value, true),
-                    idx;
-                step = step || active();
-                idx = indexOf(step);
-                return 0 === idx;
-            }
-
-            // indicates if step is last.
-            function isLast(key, value) {
-                var step = find(key, value, true),
-                    idx;
-                step = step || active();
-                idx = indexOf(step);
-                return steps.length -1 === idx;
-            }
-
-            // checks if is active.
-            function isActive(key, value){
-                var step = find(key, value, true);
-                return !!(step && step.active === true);
-            }
-
-            // checks if is enabled.
-            function isEnabled(key, value) {
-                var step = find(key, value, true);
-                return !!(step && step.enabled === true);
-            }
-
-            // step has next step.
-            function hasNext() {
-                var idx = indexOf(active()) + 1,
-                    _next = steps[idx];
-                if(_next && _next.enabled)
-                    return true;
-            }
-
-            // step has previous step.
-            function hasPrev() {
-                var idx = indexOf(active()) - 1,
-                    _prev = steps[idx];
-                if(_prev && _prev.enabled)
-                    return true;
-            }
-
-            // initialize the module.
-            function init() {
-
-                // if initialized with steps
-                // add them to the collection.
-                if(_steps) {
-                    // convert string to array.
-                    if(angular.isString(_steps))
-                        _steps = $helpers.trim(_steps).split(',');
-                    // convert object to array.
-                    if(angular.isObject(_steps)){
-                        var tmpArr = [];
-                        angular.forEach(_steps, function (v,k){
-                            if(angular.isObject(v) || angular.isString(v)){
-                                if(angular.isString(v)){
-                                    var tmpObj = {};
-                                    tmpObj[options.key] = k;
-                                    tmpObj.content = v;
-                                    tmpArr.push(tmpObj);
-                                } else {
-                                    v[options.key] = v[options.key] || k;
-                                    if(options.title)
-                                        v.title = v.title || k;
-                                    tmpArr.push(v);
-                                }
-                            }
-                        });
-                    }
-                    angular.forEach(_steps, function (v) {
-                        if(angular.isString(v))
-                            v = $helpers.trim(v);
-                        add(v);
-                    });
-                }
-
-                if(!element)
-                    return callback();
-
-                var template, contentTemplate;
-
-                template = '';
-                contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
-
-                if(options.header)
-                    templates.push($helpers.loadTemplate(options.header || ''));
-
-                if(options.content)
-                    templates.push($helpers.loadTemplate(options.content || ''));
-
-                if(options.actions)
-                    templates.push($helpers.loadTemplate(options.actions || ''));
-
-                templates = templates.concat(contentTemplates);
-
-                // load user content/templates.
-
-                templates = $q.all(templates);
-                templates.then(function(res) {
-
-                    if(res){
-                        // load each base template
-                        // which will be the template or empty string.
-                        var map = {
-                            header: res[0],
-                            content: res[1],
-                            actions: res[2],
-                            steps: []
-                        };
-
-                        // load content templates.
-                        for(var i = 3; i < res.length; i++){
-                            map.steps.push(res[i]);
-                        }
-                        template += map.header;
-                        if(map.content && map.content.length){
-                            var content = angular.element(map.content),
-                                contents = '',
-                                contentHtml;
-                            angular.forEach(map.steps, function(v,k) {
-                                contents += contentTemplate.replace('{{INDEX}}', k).replace('{{CONTENT}}', v);
-                            });
-                            content.html(contents);
-                            contentHtml = angular.element('<div/>').append(content).clone().html();
-                            template += contentHtml;
-                        }
-                        template += map.actions;
-
-                        element.html(template);
-                        $helpers.compile(scope, element.contents());
-                    }
-
-                });
-
-
-                // Expose methods to module and scope.
-                $module.find = scope.find = find;
-                $module.active = scope.active = active;
-                $module.add = scope.add = add;
-                $module.to = scope.to = to;
-                $module.next = scope.next = next;
-                $module.prev = scope.prev = prev;
-                $module.submit = scope.submit = submit;
-                scope.headTo = headTo;
-                $module.isFirst = scope.isFirst = isFirst;
-                $module.isLast = scope.isLast = isLast;
-                $module.isActive = scope.isActive = isActive;
-                $module.isEnabled = scope.isEnabled = isEnabled;
-                $module.hasNext = scope.hasNext = hasNext;
-                $module.hasPrev = scope.hasPrev = hasPrev;
-                $module.steps = scope.steps = steps;
-
-                if(angular.isFunction(options.onReady))
-                    options.onReady($module);
-
-                return $module;
-
-            }
-
-            return init();
-
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-
-})
-
-.directive('aiStep', [ '$step', function ($step) {
-
-        return {
-        restrict: 'EAC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                $module = $step(element, options, attrs);
-            }
-
-            options = scope.$eval(attrs.aiStep || attrs.aiStepOptions);
-            options = angular.extend(defaults, options);
-
-            init();
-
-        }
-    };
-
-}]);
-
-angular.module('ai.passport.factory', [])
-
-    .provider('$passport', function $passport() {
-
-        var defaults, get, set;
-
-        defaults = {
-            rootName: 'Passport',                               // the name to use on rootscope for passport.
-            levels: {                                           // security levels to string name map.
-                0: '*',
-                1: 'user',
-                2: 'manager',
-                3: 'admin',
-                4: 'superadmin'
-            },            
-            401: true,                                          // set to false to not handle 401 status codes.
-            403: true,                                          // set to false to not handle 403 status codes.
-            paranoid: false,                                    // when true, fails if access level is missing.
-            delimiter: ',',                                     // char to use to separate roles when passing string.
-
-            // passport paths.
-            defaultUrl: '/',                                    // the default path or home page.
-            loginUrl: '/passport/login',                        // path to login form.
-            resetUrl: '/passport/reset',                        // path to password reset form.
-            recoverUrl: '/passport/recover',                    // path to password recovery form.            
-
-            // passport actions
-            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
-            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
-            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
-            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
-            refreshAction: false,                               // when the page is loaded the user may still be
-                                                                // logged in this calls the server to ensure the
-                                                                // active session is reloaded.
-                                                                // ex: 'get /api/passport/refresh'
-
-            // success fail actions.
-            onLoginSuccess: '/',                                // path or func on success.
-            onLoginFailed: '/passport/login',                   // path or func when login fails.
-            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
-            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
-            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
-            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
-            
-            namePrefix: 'Welcome Back ',                        // prefix string to identity.
-            nameParams: [ 'firstName' ]                         // array of user properties which make up the
-                                                                // user's identity or full name, properties are 
-                                                                // separated by a space.
-        };
-
-        set = function set (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
-
-            var instance;
-
-            // nomralize url to method/path object.
-            function urlToObject(url) {
-                var parts = url.split(' '),
-                    obj = { method: 'get' };
-                obj.path =  parts[0];
-                if(parts.length > 1){
-                    obj.method = parts[0];
-                    obj.path = parts[1];
-                }
-                return obj;
-            }
-
-            // convert string roles to levels.
-            function rolesToLevels(source, roles){
-                var arr = [];
-                source = source || [];
-                angular.forEach(roles, function (v) {
-                    if(source[v] !== undefined)
-                        arr.push(source[v]);
-                });
-                return arr;
-            }
-
-            // reverse the levels map setting role values as keys.
-            function reverseMap(levels) {
-                var obj = {};
-                angular.forEach(levels, function (v,k) {
-                    obj[v] = parseFloat(k);
-                });
-                return obj;
-            }
-
-            function ModuleFactory(options) {
-
-                var $module = {};
-                
-                $module.user = null;
-
-                function setOptions(options) {
-
-                    // ensure valid object.
-                    options = options || {};
-
-                    // override options map if exists.
-                    defaults.levels = options.levels || defaults.levels;
-
-                    // merge the options.
-                    $module.options = angular.extend(angular.copy(defaults), options);
-
-                    // normalize/reverse levels map
-                    $module.options.roles = reverseMap($module.options.levels);
-                }
-
-                // login passport credentials.
-                $module.login = function login(data) {
-                    var url = urlToObject($module.options.loginAction);
-                    $http[url.method](url.path, data)
-                        .then(function (res) {
-                            // set to authenticated and merge in passport profile.
-                            //angular.extend(self, res.data);
-                            $module.user = res.data;
-                            if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginSuccess);
-                            }
-                        }, function (res) {
-                            if(angular.isFunction($module.options.onLoginFailed)) {
-                                $module.options.onLoginFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginFailed);
-                            }
-                        });
-                };
-
-                $module.logout = function logout() {        
-                    function done() {
-                        $module.user = null;
-                        $location.path($module.options.loginUrl);
-                        $route.reload();
-                    }
-                    if(angular.isFunction($module.options.logoutAction)){
-                        $module.options.logoutAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.logoutAction);
-                        $http[url.method](url.path).then(function (res) {
-                                done();                               
-                            });
-                    }
-                };
-
-                $module.recover = function recover() {
-                    if(angular.isFunction($module.options.recoverAction)){
-                        $module.options.recoverAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.recoverAction);
-                        $http[url.method](url.path).then(function (res){
-                            if(angular.isFunction($module.options.onRecoverSuccess)) {
-                                $module.options.onRecoverSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverSuccess);
-                            }
-                        }, function () {
-                            if(angular.isFunction($module.options.onRecoverFailed)) {
-                                $module.options.onRecoverFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverFailed);
-                            }
-                        });        
-                    }
-                };               
-                
-                $module.refresh = function refresh() {   
-                    if(!$module.options.refreshAction)
-                        return;
-                    if(angular.isFunction($module.options.refreshAction)){
-                        $module.options.refreshAction.call($module);                            
-                    } else {
-                        var url = urlToObject($module.options.refreshAction);
-                        $http[url.method](url.path).then(function (res){
-                            $module.user = res.data;
-                        });
-                    }
-                };
-
-                $module.reset = function reset() {
-
-                };
-
-                // expects string.
-                $module.hasRole = function hasRole(role) {
-                    var passportRoles = $module.roles || [];
-                    // if string convert to role level.
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // if public return true
-                    if(role === 0)
-                        return true;
-                    return passportRoles.indexOf(role) !== -1;
-                };
-
-                // expects string or array of strings.
-                $module.hasAnyRole = function hasAnyRole(roles) {
-                    var passportRoles = $module.roles || [];
-                    // if a string convert to role levels.
-                    if(angular.isString(roles)){
-                        roles = roles.split($module.options.delimiter);
-                        roles = rolesToLevels($module.options.roles, roles);
-                    }
-                    // if public return true
-                    if(roles.indexOf(0) !== -1)
-                        return true;
-                    return roles.some(function (v) {
-                        return passportRoles.indexOf(v) !== -1;
-                    });
-                };
-
-                // check if meets the minimum roll required.
-                $module.minRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole >= role;
-                };
-
-                // check if role is not greater than.
-                $module.maxRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole < role;
-                };
-
-                // unauthorized handler.
-                $module.unauthenticated = function unauthenticated() {
-                    var action = $module.options.onUnauthenticated;
-
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-
-                };
-
-                // unauthorized handler.
-                $module.unauthorized = function unauthorized() {
-                    var action = $module.options.onUnauthorized;
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-                };
-                
-                // gets the identity name of the authenticated user.
-                $module.getName = function getName(arr) {
-                    var result = '';
-                    arr = arr || $module.options.nameParams;
-                    if(!$module.user)
-                        return;
-                    angular.forEach(arr, function (v, k){
-                        if($module.user[v]){
-                            if(k === 0)
-                                result += $module.user[v];
-                            else
-                                result += (' ' + $module.user[v]);
-                        }      
-                    });    
-                    return $module.options.namePrefix + result;
-                };
-
-                setOptions(options);
-                
-                $module.refresh();
-
-                return $module;
-
-            }
-
-            function getInstance() {
-                if(!instance)
-                    instance = new ModuleFactory();
-                $rootScope.Passport = instance;
-                return instance;
-            }
-
-            return getInstance();
-           
-        }];
-
-        return {
-            $get: get,
-            $set: set
-        };
-
-    });
-
-// intercepts 401 and 403 errors.
-angular.module('ai.passport.interceptor', [])
-    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                // get passport here to prevent circ dependency.
-                var passport = $injector.get('$passport');
-                // handle unauthenticated response
-                if (res.status === 401 && passport.options['401'])
-                    passport.unauthenticated();
-                if(res.status === 403 && passport.options['403'])
-                    passport.unauthorized();
-                return $q.reject(res);
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$passportInterceptor');
-    }]);
-
-// handles intercepting route when
-// required permissions are not met.
-angular.module('ai.passport.route', [])
-    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
-        $rootScope.$on('$routeChangeStart', function (event, next) {
-            var area = {},
-                route = {},
-                access,
-                authorized;
-            if(next && next.$$route){
-                route = next.$$route;
-                if(route.area)
-                    area = route.area;
-            }
-            access = route.access || area.access;
-            // when paranoid is true require access params
-            // if undefined call unauthorized.
-            // when paranoid is false unauthorized is not called
-            // when access is undefined.
-            if($passport.options.paranoid && access === undefined)
-                return $passport.unauthorized();
-            if(access !== undefined){
-                authorized = $passport.hasAnyRole('*');
-                if(!authorized)
-                    $passport.unauthorized();
-            }
-        });
-    }]);
-
-// imports above modules.
-angular.module('ai.passport', [
-    'ai.passport.factory',
-    'ai.passport.interceptor',
-    'ai.passport.route'
-]);
-angular.module('ai.storage', [])
-
-    .provider('$storage', function $storage() {
-
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
-        }, get, set;
-
-
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
-        }
-
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
-            }
-            return def;
-        }
-
-        /**
-         * Sets provider defaults.
-         */
-        set = function (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend({}, defaults, obj);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
-
 angular.module('ai.modal', [])
 
     .provider('$modal', function $modal() {
@@ -3830,57 +2632,828 @@ angular.module('ai.modal', [])
         };
 
     }]);
-angular.module('ai.widget', [])
 
-.provider('$widget', function $widget() {
+angular.module('ai.passport.factory', [])
 
-    var defaults = {            
-            number: {
-                defaultValue: undefined,        // default value if initialized undefined.
-                places: 2,                      // default decimal places.
-                event: 'blur'                   // event that triggers formatting.
+    .provider('$passport', function $passport() {
+
+        var defaults, get, set;
+
+        defaults = {
+            rootName: 'Passport',                               // the name to use on rootscope for passport.
+            levels: {                                           // security levels to string name map.
+                0: '*',
+                1: 'user',
+                2: 'manager',
+                3: 'admin',
+                4: 'superadmin'
             },            
-            case: {
-                casing: 'first',
-                event: 'blur'
-            },
-            compare: {
-                defaultValue: undefined,        // the default value when undefined.
-                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
-                dataType: 'string',             // options are string, date, time, datetime, integer
-                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
-                                                // valid options 'minutes', 'seconds', 'milliseconds'
-            }
-            //nicescroll: {
-            //    horizrailenabled: false         // disables horizontal scroll bar.
-            //},
-            //redactor: {
-            //    focus: true,
-            //    plugins: ['fullscreen']
-            //},
-        },
-        get, set;
+            401: true,                                          // set to false to not handle 401 status codes.
+            403: true,                                          // set to false to not handle 403 status codes.
+            paranoid: false,                                    // when true, fails if access level is missing.
+            delimiter: ',',                                     // char to use to separate roles when passing string.
 
-    set = function set(key, options) {
-        if(angular.isObject(key)){
-            options = key;
-            key = undefined;
-            defaults = angular.extend(defaults, options);
-        } else {
-            defaults[key] = angular.extend(defaults[key], options);
+            // passport paths.
+            defaultUrl: '/',                                    // the default path or home page.
+            loginUrl: '/passport/login',                        // path to login form.
+            resetUrl: '/passport/reset',                        // path to password reset form.
+            recoverUrl: '/passport/recover',                    // path to password recovery form.            
+
+            // passport actions
+            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
+            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
+            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
+            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
+            refreshAction: false,                               // when the page is loaded the user may still be
+                                                                // logged in this calls the server to ensure the
+                                                                // active session is reloaded.
+                                                                // ex: 'get /api/passport/refresh'
+
+            // success fail actions.
+            onLoginSuccess: '/',                                // path or func on success.
+            onLoginFailed: '/passport/login',                   // path or func when login fails.
+            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
+            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
+            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
+            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
+            
+            namePrefix: 'Welcome Back ',                        // prefix string to identity.
+            nameParams: [ 'firstName' ]                         // array of user properties which make up the
+                                                                // user's identity or full name, properties are 
+                                                                // separated by a space.
+        };
+
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
+
+            var instance;
+
+            // nomralize url to method/path object.
+            function urlToObject(url) {
+                var parts = url.split(' '),
+                    obj = { method: 'get' };
+                obj.path =  parts[0];
+                if(parts.length > 1){
+                    obj.method = parts[0];
+                    obj.path = parts[1];
+                }
+                return obj;
+            }
+
+            // convert string roles to levels.
+            function rolesToLevels(source, roles){
+                var arr = [];
+                source = source || [];
+                angular.forEach(roles, function (v) {
+                    if(source[v] !== undefined)
+                        arr.push(source[v]);
+                });
+                return arr;
+            }
+
+            // reverse the levels map setting role values as keys.
+            function reverseMap(levels) {
+                var obj = {};
+                angular.forEach(levels, function (v,k) {
+                    obj[v] = parseFloat(k);
+                });
+                return obj;
+            }
+
+            function ModuleFactory(options) {
+
+                var $module = {};
+                
+                $module.user = null;
+
+                function setOptions(options) {
+
+                    // ensure valid object.
+                    options = options || {};
+
+                    // override options map if exists.
+                    defaults.levels = options.levels || defaults.levels;
+
+                    // merge the options.
+                    $module.options = angular.extend(angular.copy(defaults), options);
+
+                    // normalize/reverse levels map
+                    $module.options.roles = reverseMap($module.options.levels);
+                }
+
+                // login passport credentials.
+                $module.login = function login(data) {
+                    var url = urlToObject($module.options.loginAction);
+                    $http[url.method](url.path, data)
+                        .then(function (res) {
+                            // set to authenticated and merge in passport profile.
+                            //angular.extend(self, res.data);
+                            $module.user = res.data;
+                            if(angular.isFunction($module.options.onLoginSuccess)) {
+                                $module.options.onLoginSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onLoginSuccess);
+                            }
+                        }, function (res) {
+                            if(angular.isFunction($module.options.onLoginFailed)) {
+                                $module.options.onLoginFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onLoginFailed);
+                            }
+                        });
+                };
+
+                $module.logout = function logout() {        
+                    function done() {
+                        $module.user = null;
+                        $location.path($module.options.loginUrl);
+                        $route.reload();
+                    }
+                    if(angular.isFunction($module.options.logoutAction)){
+                        $module.options.logoutAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.logoutAction);
+                        $http[url.method](url.path).then(function (res) {
+                                done();                               
+                            });
+                    }
+                };
+
+                $module.recover = function recover() {
+                    if(angular.isFunction($module.options.recoverAction)){
+                        $module.options.recoverAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.recoverAction);
+                        $http[url.method](url.path).then(function (res){
+                            if(angular.isFunction($module.options.onRecoverSuccess)) {
+                                $module.options.onRecoverSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverSuccess);
+                            }
+                        }, function () {
+                            if(angular.isFunction($module.options.onRecoverFailed)) {
+                                $module.options.onRecoverFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverFailed);
+                            }
+                        });        
+                    }
+                };               
+                
+                $module.refresh = function refresh() {   
+                    if(!$module.options.refreshAction)
+                        return;
+                    if(angular.isFunction($module.options.refreshAction)){
+                        $module.options.refreshAction.call($module);                            
+                    } else {
+                        var url = urlToObject($module.options.refreshAction);
+                        $http[url.method](url.path).then(function (res){
+                            $module.user = res.data;
+                        });
+                    }
+                };
+
+                $module.reset = function reset() {
+
+                };
+
+                // expects string.
+                $module.hasRole = function hasRole(role) {
+                    var passportRoles = $module.roles || [];
+                    // if string convert to role level.
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // if public return true
+                    if(role === 0)
+                        return true;
+                    return passportRoles.indexOf(role) !== -1;
+                };
+
+                // expects string or array of strings.
+                $module.hasAnyRole = function hasAnyRole(roles) {
+                    var passportRoles = $module.roles || [];
+                    // if a string convert to role levels.
+                    if(angular.isString(roles)){
+                        roles = roles.split($module.options.delimiter);
+                        roles = rolesToLevels($module.options.roles, roles);
+                    }
+                    // if public return true
+                    if(roles.indexOf(0) !== -1)
+                        return true;
+                    return roles.some(function (v) {
+                        return passportRoles.indexOf(v) !== -1;
+                    });
+                };
+
+                // check if meets the minimum roll required.
+                $module.minRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole >= role;
+                };
+
+                // check if role is not greater than.
+                $module.maxRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole < role;
+                };
+
+                // unauthorized handler.
+                $module.unauthenticated = function unauthenticated() {
+                    var action = $module.options.onUnauthenticated;
+
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+
+                };
+
+                // unauthorized handler.
+                $module.unauthorized = function unauthorized() {
+                    var action = $module.options.onUnauthorized;
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+                };
+                
+                // gets the identity name of the authenticated user.
+                $module.getName = function getName(arr) {
+                    var result = '';
+                    arr = arr || $module.options.nameParams;
+                    if(!$module.user)
+                        return;
+                    angular.forEach(arr, function (v, k){
+                        if($module.user[v]){
+                            if(k === 0)
+                                result += $module.user[v];
+                            else
+                                result += (' ' + $module.user[v]);
+                        }      
+                    });    
+                    return $module.options.namePrefix + result;
+                };
+
+                setOptions(options);
+                
+                $module.refresh();
+
+                return $module;
+
+            }
+
+            function getInstance() {
+                if(!instance)
+                    instance = new ModuleFactory();
+                $rootScope.Passport = instance;
+                return instance;
+            }
+
+            return getInstance();
+           
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    });
+
+// intercepts 401 and 403 errors.
+angular.module('ai.passport.interceptor', [])
+    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+                // get passport here to prevent circ dependency.
+                var passport = $injector.get('$passport');
+                // handle unauthenticated response
+                if (res.status === 401 && passport.options['401'])
+                    passport.unauthenticated();
+                if(res.status === 403 && passport.options['403'])
+                    passport.unauthorized();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$passportInterceptor');
+    }]);
+
+// handles intercepting route when
+// required permissions are not met.
+angular.module('ai.passport.route', [])
+    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
+        $rootScope.$on('$routeChangeStart', function (event, next) {
+            var area = {},
+                route = {},
+                access,
+                authorized;
+            if(next && next.$$route){
+                route = next.$$route;
+                if(route.area)
+                    area = route.area;
+            }
+            access = route.access || area.access;
+            // when paranoid is true require access params
+            // if undefined call unauthorized.
+            // when paranoid is false unauthorized is not called
+            // when access is undefined.
+            if($passport.options.paranoid && access === undefined)
+                return $passport.unauthorized();
+            if(access !== undefined){
+                authorized = $passport.hasAnyRole('*');
+                if(!authorized)
+                    $passport.unauthorized();
+            }
+        });
+    }]);
+
+// imports above modules.
+angular.module('ai.passport', [
+    'ai.passport.factory',
+    'ai.passport.interceptor',
+    'ai.passport.route'
+]);
+angular.module('ai.step', ['ai.helpers'])
+
+.provider('$step', function $step() {
+
+    var defaults = {
+
+            key: '$id',                     // the primary key for the collection of steps.
+            start: 0,                       // the starting index of the step wizard.
+            title: 'true',                  // when true title is auto generated if not set in step object.
+            continue: undefined,            // when true if called step is disabled continue to next enabled.
+            breadcrumb: false,              // when true only header is shown, used as breadcrumb.
+                                            // breadcrumb mode looks for property 'href' to navigate to.
+
+                                            // html templates, can be html or path to template.
+
+            header: 'step-header.tpl.html',   // the header template when using directive.
+            content: 'step-content.tpl.html', // the content template to use when using directive.
+            actions: 'step-actions.tpl.html', // the actions template when using directive.
+
+                                            // hide/show buttons, disable/enable header click events.
+
+            showNumber: undefined,          // when true step number show next to title.
+            showNext: undefined,            // when true next button is created.
+            showPrev: undefined,            // when true prev button is created.
+            showSubmit: undefined,          // when true submit button is created.
+            headTo: undefined,              // when true header can be clicked to navigate.
+
+                                            // all events are called with $module context except onload which passes it.
+
+            onBeforeChange: undefined,      // callback event fired before changing steps.
+            onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
+            onSubmit: undefined,            // callback on submit returns ({ active }, event)
+            onReady: undefined               // callback on load returns ($module)
+
+        }, get, set;
+
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
         }
+        defaults = angular.extend(defaults, obj);
     };
 
-    get = [ function get() {
+    get = [ '$q', '$rootScope', '$location', '$helpers', function get($q, $rootScope, $location, $helpers) {
 
-        // factory allows for globally
-        // setting widget options.
-        function ModuleFactory(key, options) {
+        var headerTemplate, contentTemplate, actionsTemplate;
+
+        headerTemplate = '<div class="ai-step-header" ng-show="steps.length">' +
+                            '<ul>' +
+                                '<li ng-click="headTo($event, $index)" ng-repeat="step in steps" ' +
+                                'ng-class="{ active: step.active, disabled: !step.enabled, ' +
+                                'clickable: options.headTo !== false && step.enabled, nonum: !options.showNumber === false }">' +
+                                    '<span class="title">{{step.title}}</span>' +
+                                    '<span class="number">{{step.$number}}</span>' +
+                                '</li>' +
+                            '</ul>' +
+                         '</div>';
+
+        contentTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-content" ng-show="steps.length">' +
+                            '<div ng-show="isActive($index)" ng-repeat="step in steps" ng-bind-html="step.content"></div>' +
+                          '</div>';
+
+        actionsTemplate = '<div ng-if="!options.breadcrumb" class="ai-step-actions" ng-show="steps.length">' +
+                            '<hr/><button ng-show="options.showPrev !== false" ng-disabled="isFirst()" class="btn btn-warning" ' +
+                                'ng-click="prev($event)">Previous</button> ' +
+                            '<button ng-show="options.showNext !== false" ng-disabled="isLast()" class="btn btn-primary" ' +
+                                'ng-click="next($event)">Next</button> ' +
+                            '<button ng-show="isLast() && options.showSubmit !== false" class="btn btn-success submit" ' +
+                                'ng-click="submit($event)">Submit</button>' +
+                          '</div>';
+
+        $helpers.getPutTemplate(defaults.header, headerTemplate);
+        $helpers.getPutTemplate(defaults.content, contentTemplate);
+        $helpers.getPutTemplate(defaults.actions, actionsTemplate);
+
+        function ModuleFactory(element, options, attrs) {
+
+            var $module = {},
+                steps = [],
+                templates =[],
+                contentTemplates = [],
+                _steps,
+                scope,
+                _previous;
+
+            // shift args if needed.
+            if(!angular.isElement(element) && angular.isObject(element)){
+                attrs = options;
+                options = element;
+                element = undefined;
+            }            
+
+            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
+            // extend options
             options = options || {};
-            if(!defaults[key]) return options;
-            options = angular.extend({}, defaults[key], options);
-            return options;
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
+
+            // check if options contain steps.
+            if(options.steps){
+                _steps = options.steps;
+                delete options.steps;
+            }
+
+            // clears active step.
+            function clear() {
+                angular.forEach(steps, function (v) {
+                    v.active = false;
+                });
+            }
+
+            // Public API
+
+            // get step by key/value, index or step.
+            function find(key, value, first) {
+                if(angular.isNumber(key) && !value){
+                    return steps[key];
+                } else {
+                    if(!value){
+                        value = key;
+                        key = options.key;
+                    }
+                    var result = steps.filter(function (v) {
+                        if(v[key])
+                            return v[key] === value;
+                        return false;
+                    });
+                    if(result && first)
+                        return result[0];
+                    return result;
+                }
+            }
+
+            // get the index of a step.
+            function indexOf(step) {
+                if(!step)
+                    return -1;
+                return steps.indexOf(step);
+            }
+
+            // getter/setter for active step.
+            function active(key, value) {
+                if(!key) {
+                    return steps.filter(function (v) {
+                        return v.active === true;
+                    })[0];
+                } else {
+                    var step = find(key, value, true);
+                    if(step && step.enabled){
+                        clear();
+                        step.active = true;
+                    }
+                }
+            }
+
+            // go to a specific step index or object.
+            function to(key, reverse, e) {
+                var curActive = active(),
+                    nextActive,
+                    nextIdx;
+                if(angular.isNumber(key)){
+                    nextIdx = key;
+                    nextActive = steps[key];
+                }
+                if(angular.isObject(key)){
+                    nextIdx = indexOf(key);
+                    nextActive = key;
+                }
+
+                if(angular.isFunction(options.onBeforeChange)){
+                    $q.when(options.onBeforeChange({ active: curActive, next: nextActive }, e))
+                        .then(function(res) {
+                            if(res) done();
+                        });
+                }
+
+                function done() {
+
+                    if(nextActive) {
+                        if(!nextActive.enabled && options.continue !== false){
+
+                            var i, altActive;
+                            if(reverse) {
+                                for(i = nextIdx -1; i >= 0; i-- )  {
+                                    altActive = steps[i];
+                                    if(altActive.enabled){
+                                        nextActive = altActive;
+                                        nextIdx = i;
+                                    }
+                                }
+                            } else {
+                                for(i = nextIdx; i < steps.length; i++ )  {
+                                    altActive = steps[i];
+                                    if(altActive.enabled){
+                                        nextActive = altActive;
+                                        nextIdx = i;
+                                    }
+                                }
+                            }
+                        }
+
+
+                        if(nextActive.enabled) {
+                            clear();
+                            nextActive.active = true;
+                            _previous = nextActive;
+                        }
+
+                        // callback on change.
+                        if(angular.isFunction(options.onChange))
+                            options.onChange.call($module, { previous: curActive, active: nextActive }, e);
+
+                    }
+
+                }
+
+            }
+
+            // adds a new step
+            function add(name, obj) {
+                if(!name && !obj) return;
+                var nextIdx = steps.length,
+                    nameOnly;
+                if(angular.isObject(name)){
+                    obj = name;
+                    name = undefined;
+                }
+                nameOnly = !obj;
+                if(nameOnly){
+                    obj = {};
+                    obj.content = name;
+                }
+                // must have name or defined key in object.
+                if(!name && !obj[options.key]) return;
+                obj.enabled = obj.enabled !== undefined ? obj.enabled : true;
+                obj.active = nextIdx === options.start;
+                obj[options.key] = obj[options.key] || name;
+                obj.content = obj.content || name;
+                if(options.title){
+                    obj.title = obj.title || 'Step';
+                    obj.title = obj.title.charAt(0).toUpperCase() + obj.title.slice(1);
+                }
+                obj.$index = nextIdx;
+                obj.$number = nextIdx +1;
+                // simple string wrap in span.
+                if(!$helpers.isHtml(obj.content) && !$helpers.isPath(obj.content))
+                    obj.content = '<span>' + obj.content + '</span>';
+                contentTemplates.push($helpers.loadTemplate(obj.content));
+                $rootScope.$broadcast('step:add', obj);
+                steps.push(obj);
+            }
+
+            // go to next step;
+            function next(e) {
+                var cur = active();
+                if(cur)
+                    to(cur.$index + 1, null, e);
+            }
+
+            // go to previous step.
+            function prev(e) {
+                var cur = active();
+                if(cur)
+                    to(cur.$index - 1, true, e);
+            }
+
+            // on header click.
+            function headTo(e, idx) {
+                if(options.headTo === false) return;
+                var step = steps[idx];
+                if(!options.breadcrumb && step.content) {
+                    to(idx, null, e);
+                } else {
+                    // breadcrumb mode navigate
+                    // to href if provided.
+                    if(step && step.href && step.enabled)
+                        $location.path(step.href);
+                }
+            }
+
+            // submit button for last step.
+            function submit(e) {
+                if(angular.isFunction(options.onSubmit)){
+                    options.onSubmit.call($module, { active: active() }, e);
+                }
+            }
+
+            // indicates if step is first.
+            function isFirst(key, value) {
+                var step = find(key, value, true),
+                    idx;
+                step = step || active();
+                idx = indexOf(step);
+                return 0 === idx;
+            }
+
+            // indicates if step is last.
+            function isLast(key, value) {
+                var step = find(key, value, true),
+                    idx;
+                step = step || active();
+                idx = indexOf(step);
+                return steps.length -1 === idx;
+            }
+
+            // checks if is active.
+            function isActive(key, value){
+                var step = find(key, value, true);
+                return !!(step && step.active === true);
+            }
+
+            // checks if is enabled.
+            function isEnabled(key, value) {
+                var step = find(key, value, true);
+                return !!(step && step.enabled === true);
+            }
+
+            // step has next step.
+            function hasNext() {
+                var idx = indexOf(active()) + 1,
+                    _next = steps[idx];
+                if(_next && _next.enabled)
+                    return true;
+            }
+
+            // step has previous step.
+            function hasPrev() {
+                var idx = indexOf(active()) - 1,
+                    _prev = steps[idx];
+                if(_prev && _prev.enabled)
+                    return true;
+            }
+
+            // initialize the module.
+            function init() {
+
+                // if initialized with steps
+                // add them to the collection.
+                if(_steps) {
+                    // convert string to array.
+                    if(angular.isString(_steps))
+                        _steps = $helpers.trim(_steps).split(',');
+                    // convert object to array.
+                    if(angular.isObject(_steps)){
+                        var tmpArr = [];
+                        angular.forEach(_steps, function (v,k){
+                            if(angular.isObject(v) || angular.isString(v)){
+                                if(angular.isString(v)){
+                                    var tmpObj = {};
+                                    tmpObj[options.key] = k;
+                                    tmpObj.content = v;
+                                    tmpArr.push(tmpObj);
+                                } else {
+                                    v[options.key] = v[options.key] || k;
+                                    if(options.title)
+                                        v.title = v.title || k;
+                                    tmpArr.push(v);
+                                }
+                            }
+                        });
+                    }
+                    angular.forEach(_steps, function (v) {
+                        if(angular.isString(v))
+                            v = $helpers.trim(v);
+                        add(v);
+                    });
+                }
+
+                if(!element)
+                    return callback();
+
+                var template, contentTemplate;
+
+                template = '';
+                contentTemplate = '<div ng-show="isActive({{INDEX}})">{{CONTENT}}</div>';
+
+                if(options.header)
+                    templates.push($helpers.loadTemplate(options.header || ''));
+
+                if(options.content)
+                    templates.push($helpers.loadTemplate(options.content || ''));
+
+                if(options.actions)
+                    templates.push($helpers.loadTemplate(options.actions || ''));
+
+                templates = templates.concat(contentTemplates);
+
+                // load user content/templates.
+
+                templates = $q.all(templates);
+                templates.then(function(res) {
+
+                    if(res){
+                        // load each base template
+                        // which will be the template or empty string.
+                        var map = {
+                            header: res[0],
+                            content: res[1],
+                            actions: res[2],
+                            steps: []
+                        };
+
+                        // load content templates.
+                        for(var i = 3; i < res.length; i++){
+                            map.steps.push(res[i]);
+                        }
+                        template += map.header;
+                        if(map.content && map.content.length){
+                            var content = angular.element(map.content),
+                                contents = '',
+                                contentHtml;
+                            angular.forEach(map.steps, function(v,k) {
+                                contents += contentTemplate.replace('{{INDEX}}', k).replace('{{CONTENT}}', v);
+                            });
+                            content.html(contents);
+                            contentHtml = angular.element('<div/>').append(content).clone().html();
+                            template += contentHtml;
+                        }
+                        template += map.actions;
+
+                        element.html(template);
+                        $helpers.compile(scope, element.contents());
+                    }
+
+                });
+
+
+                // Expose methods to module and scope.
+                $module.find = scope.find = find;
+                $module.active = scope.active = active;
+                $module.add = scope.add = add;
+                $module.to = scope.to = to;
+                $module.next = scope.next = next;
+                $module.prev = scope.prev = prev;
+                $module.submit = scope.submit = submit;
+                scope.headTo = headTo;
+                $module.isFirst = scope.isFirst = isFirst;
+                $module.isLast = scope.isLast = isLast;
+                $module.isActive = scope.isActive = isActive;
+                $module.isEnabled = scope.isEnabled = isEnabled;
+                $module.hasNext = scope.hasNext = hasNext;
+                $module.hasPrev = scope.hasPrev = hasPrev;
+                $module.steps = scope.steps = steps;
+
+                if(angular.isFunction(options.onReady))
+                    options.onReady($module);
+
+                return $module;
+
+            }
+
+            return init();
+
         }
+
         return ModuleFactory;
 
     }];
@@ -3890,442 +3463,383 @@ angular.module('ai.widget', [])
         $set: set
     };
 
+
 })
 
-// simple directive to prevent default
-// on click, for use as attribute/class only.
-.directive('aiPrevent',[ function() {
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-            if(attrs.ngClick){
-                element.on('click', function(e){
-                    e.preventDefault();
-                });
-            }
-        }
-    };
-}])
-    
-//
-//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
-//
-//    return {
-//        restrict: 'AC',
-//        link: function(scope, element, attrs) {
-//
-//            var defaults, options, $module, _attrs;
-//
-//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
-//                'see: http://areaaperta.com/nicescroll');
-//
-//            defaults = angular.copy($widget('nicescroll'));
-//
-//            function init() {
-//                $timeout(function () {
-//                    $module = element.niceScroll(options);
-//                },0);
-//            }
-//
-//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
-//            options = angular.extend(defaults, _attrs, scope.$eval(options));
-//            init();
-//        }
-//    };
-//}])
+.directive('aiStep', [ '$step', function ($step) {
 
-// ensures handling decimal values.
-.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function(scope, element, attrs, ngModel) {
+        return {
+        restrict: 'EAC',
+        scope: true,
+        link: function (scope, element, attrs) {
 
-            var defaults, options, _attrs, lastVal;
+            var defaults, options, $module;
 
-            defaults = angular.copy($widget('number'));
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            function parseVal(val){
-                val = $helpers.tryParseFloat(val);  
-                if(val) 
-                    val = val.toFixed(options.places);
-                return val;
-            }
-            
-            // format and set value.
-            function format(val) {
-                if(val !== undefined)  {
-                    val = parseVal(val);
-                    if(!val)
-                        val = parseVal(lastVal);                
-                }
-                if(val === undefined)
-                    val = options.defaultValue !== undefined ? options.defaultValue : '';
-                element.val(val);           
-                ngModel.$modelValue = val;
-                lastVal = val;
-            }
+            defaults = {
+                scope: scope
+            };
 
             function init() {
-                
-                // bind event call apply
-                // format the value. 
-                // use simple event binding instead
-                // of adding watchers etc.
-                element.unbind(options.event);
-                element.on(options.event, function (e) {
-                    scope.$apply(function () {
-                        format(e.target.value);
-                    });
-                });
-                
-                // use timeout make sure dom is ready.
-                $timeout(function () {
-                    var val = element.val();
-                    if(!val)
-                        if(options.defaultValue !== undefined)
-                            val = options.defaultValue;
-                    format(val);
-                }, 0);                
-            }
-            
-            options = attrs.aiNumber|| attrs.aiNumberOptions;
-            options = angular.extend(defaults, _attrs, scope.$eval(options));
-            
-            init();
-        }
-    };
-}])
-
-//// Angular wrapper for using Redactor.
-//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
-//    return {
-//        restrict: 'AC',
-//        scope: true,
-//        require: '?ngModel',
-//        link: function (scope, element, attrs) {
-//            var defaults, options, $directive, _attrs;
-//
-//            defaults = angular.copy($widget('redactor'));
-//
-//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-//
-//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
-//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
-//
-//            function init() {
-//                $directive = element.redactor(options);
-//            }
-//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
-//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
-//
-//            init();
-//        }
-//    };
-//}])
-
-.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
-
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, casing, _attrs;
-
-            defaults = angular.copy($widget('case'));
-            options = {};
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function getCase(val) {
-                if (!val) return;
-
-                if (casing === 'title')
-                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
-                else if (casing === 'first')
-                    return val.charAt(0).toUpperCase() + val.slice(1);
-                else if (casing === 'camel') {
-                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
-                        return group1.toUpperCase();
-                    });
-                }
-                else if (casing === 'pascal')
-                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
-                else if (casing === 'lower')
-                    return val.toLowerCase();
-                else if (casing === 'upper')
-                    return val.toUpperCase();
-                else return val;
+                $module = $step(element, options, attrs);
             }
 
-           function applyCase(e){
-
-               scope.$apply(function () {
-                   var val = element.val(),
-                       cased = getCase(val);
-                   if (ngModel) {
-                       ngModel.$modelValue = cased;
-                   } else {
-                       element.val(getCase(val));
-                   }
-               });
-
-            }
-
-            function init() {
-
-                casing = options.casing;
-
-                element.on(options.event, function (e) {
-                    applyCase(e);
-                });
-
-                element.on('keyup', function (e) {
-                    var code = e.which || e.keyCode;
-                    if(code === 13){
-                        /* prevent default or submit could happen
-                        prior to apply case updates model */
-                        e.preventDefault();
-                        applyCase(e);
-                    }
-                });
-
-                $timeout(function () {
-                    applyCase();
-                },100);
-
-            }
-
-            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
-            if(angular.isString(tmpOpt))
-                options.casing = tmpOpt;
-            if(angular.isObject(tmpOpt))
-                options = scope.$eval(tmpOpt);
-            options = angular.extend(defaults, _attrs, options);
-
-            init();
-
-        }
-
-    };
-
-}])
-
-.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
-
-    function checkMoment() {
-        try{
-            var m = moment();
-            return true;
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    function isNumber(val) {
-        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
-    }
-
-    return {
-        restrict: 'AC',
-        require: '^ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, formElem, form, momentLoaded,
-                ngModelCompare, _attrs;
-
-            // check moment is loaded for datetime compares.
-            momentLoaded = checkMoment();
-            defaults = angular.copy($widget('compare'));
-
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function validate(value) {
-
-                var valid;
-
-                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
-
-                    valid = options.defaultValue || '';
-
-                } else {
-
-                    if(options.dataType === 'string') {
-
-                        valid = ngModelCompare.$viewValue === value;
-
-                    } else if(options.dataType === 'integer'){
-
-                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
-                            valid = false;
-                        } else {
-                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
-                        }
-
-                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
-
-                        var comp, model, diff, diffMin;
-
-                        comp = ngModelCompare.$viewValue;
-                        model = ngModel.$viewValue;
-
-                        if(options.dataType === 'time'){
-                            comp = '01/01/1970 ' + comp;
-                            model = '01/01/1970 ' + model;
-                        }
-                        comp = moment(comp);
-                        model = moment(model);
-
-                        if(options.dataType === 'date'){
-
-                            diff = model.diff(comp, 'days');
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'time'){
-
-                            diff = model.diff(comp, options.precision);
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'datetime') {
-
-                            diff = model.diff(comp, 'days');
-                            diffMin = model.diff(comp, options.precision);
-                            valid = (diff === 0) && (diffMin === 0);
-
-                        } else {
-
-                            valid = false;
-
-                        }
-
-                    } else {
-
-                        valid = false;
-
-                    }
-
-                }
-
-                ngModel.$setValidity('compare', valid);
-                return valid;
-            }
-
-            function init() {
-
-                formElem = element[0].form;
-
-                /* can't continue without the form */
-                if(!formElem) return;
-
-                form = scope[formElem.name];
-                ngModelCompare = form[options.compareTo] || options.compareTo;
-
-                /* must have valid form in scope */
-                if(!form || !options.compareTo || !ngModelCompare) return;
-
-                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
-                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
-
-                ngModel.$formatters.unshift(validate);
-                ngModel.$parsers.unshift(validate);
-
-            }
-
-            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
-            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
-                tmpOpt = { compareTo: tmpOpt };
-            else
-                tmpOpt = scope.$eval(tmpOpt);
-
-            options = angular.extend({}, defaults, _attrs, tmpOpt);
+            options = scope.$eval(attrs.aiStep || attrs.aiStepOptions);
+            options = angular.extend(defaults, options);
 
             init();
 
         }
     };
-        
-}])
 
-.directive('aiPlaceholder', [ '$widget', function($widget) {
-
-    // get the previous sibling
-    // to the current element.
-    function prevSibling(elem, ts) {
-        try {
-            var parents = elem.parent(),
-                prevIdx;
-            angular.forEach(parents.children(), function (v,k) {
-                var child = angular.element(v),
-                    _ts = child.attr('_ts_');
-                if(ts.toString() === _ts){
-                    prevIdx = k -1;
-                }
-            });
-            elem.removeAttr('_ts_');
-            if(prevIdx < 0)
-                return { element: angular.element(elem.parent()), method: 'prepend' };
-            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    // capitalize a string.
-    function capitalize(str) {
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    // test if placeholder is supported.
-    function placeholderSupported() {
-        var test = document.createElement('input');
-        return ('placeholder' in test);
-    }
-
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-
-            var placeholder, isNative;
-
-            function init() {
-
-                var label = '<label>{{NAME}}</label>',
-                    ts = new Date().getTime(),
-                    prev;
-
-                placeholder = capitalize(placeholder);
-                
-                if(!isNative && placeholder)
-                    element.attr('placeholder', placeholder);
-
-                // since angular doesn't support .index()
-                // set attr so we can find it when iterating.
-                element.attr('_ts_', ts);
-                prev = prevSibling(element, ts);
-
-                // test if dot notation model name.
-                if(placeholder.indexOf('.') !== -1){
-                    placeholder = placeholder.split('.');
-                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
-                }
-
-                if(!placeholderSupported() && prev) {
-                    label = label.replace('{{NAME}}', placeholder);
-                    label = angular.element(label);
-                    prev.element[prev.method](label);
-                }
-
-            }
-
-            isNative = element.attr('placeholder');
-            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
-
-            init();
-
-        }
-    };
 }]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         */
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend({}, defaults, obj);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
 
 
 angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
@@ -6169,6 +5683,339 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
         };
 
     }]);
+angular.module('ai.tree', ['ai.helpers'])
+    .provider('$tree', function $tree() {
+
+        var defaults = {
+            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
+            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
+            label: 'label',                             // the property used for display.
+            value: 'value',                             // the property used for value.
+            children: 'children',                       // the property used for child elements.
+            active: 'active',                           // the property used to indicated the element is checked or active.
+            method: 'get',                              // when and endpoint is specified in model.
+            params: {},                                 // params to be passed when model is an endpoint.
+            icon: true,                                 // when NOT false icon is displayed left of label.
+            expanded: false,                            // when true tree loads with all nodes expanded.
+            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
+            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
+            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
+            onReady: undefined                          // callback when loaded.
+        }, get, set;
+
+        set = function set(key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
+
+            var treeTemplate =
+                '<ul>' +
+                    '<li ng-repeat="node in nodes track by $index">' +
+                        '<span class="ai-tree-toggle" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
+                            'ng-click="toggle($event, node)"></span>' +
+                        '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
+                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
+                            '{{LABEL_TEMPLATE}}' +
+                        '</div>' +
+                        '<ai-tree ng-if="node.children" ' +
+                            'ng-show="node.expanded" ' +
+                            'ng-model="node.children" ' +
+                            'ai-tree-options="options" ' +
+                            'class="ai-tree-child"' +
+                            '>' +
+                        '</ai-tree>' +
+                    '</li>' +
+                '</ul>';
+
+            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
+
+            $helpers.getPutTemplate(defaults.template, treeTemplate);
+            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
+
+            function ModuleFactory(element, options, attrs){
+
+                var $module = {},
+                    treeModel,
+                    model,
+                    scope;
+
+                if(!element)
+                    return console.error('Cannot configure tree with element of undefined.');
+
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                options = options || {};
+                scope = $module.scope = options.scope || $rootScope.$new();
+                options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
+                $module.element = scope.element = element;
+
+                // the current model may be nested.
+                model = options.model;
+
+                // the root tree model.
+                treeModel = options.tree.options.model;
+
+                // get templates.
+                function getTemplates() {
+                    var promises = [
+                        $helpers.loadTemplate(options.template),
+                        $helpers.loadTemplate(options.labelTemplate)
+                    ];
+                    return $q.all(promises);
+                }
+
+                // get data collection.
+                function loadData(m, cb) {
+
+                    if(angular.isArray(m))
+                        return cb(m);
+
+                    // if string get via http
+                    if(angular.isString(m)){
+                        $http.get(m, {
+                            params: options.params
+                        }).then(function (res) {
+                            model = res.data;
+                            treeModel = options.tree.options.model = res.data;
+                            cb(res.data);
+                        }, function (res) {
+                            console.error(res);
+                            cb();
+                        });
+                    } else {
+                        cb();
+                    }
+
+                }
+
+                // check if node is a parent node.
+                function isParent(node){
+                    return (node.children && node.children.length);
+                }
+
+                // iterate children and set active.
+                function toggleChildren(arr, value){
+                    angular.forEach(arr, function (n) {
+                        if(n.children)
+                            toggleChildren(n.children, value);
+                        n.active = value;
+                    });
+                }
+
+                // normalize data and properties.
+                function normalizeData(arr) {
+                    angular.forEach(arr, function (node) {
+                        // support specifying only values.
+                        // set label to value if label is absent.
+                        node.label = node[options.label || options.value];
+                        node.value = node[options.value];
+                        node.children = node[options.children];
+                        node.active = node[options.active] || false;
+                        node.toggle = false;
+                        node.icon = options.icon === false ? false : true;
+                        if(isParent(node)){
+                            node.options = options;
+                            node.expanded = options.expanded || node.expanded || false;
+                            node.toggle = true;
+                        }
+                    });
+                }
+
+                // gets all child nodes
+                function getChildren(arr) {
+                    var children = [];
+                    angular.forEach(arr, function (n) {
+                        if(isParent(n)){
+                            var nestedChildren = getChildren(n.children);
+                            children = children.concat(nestedChildren);
+                        } else {
+                            children.push(n);
+                        }
+                    });
+                    return children;
+                }
+
+                // sets tree checked state.
+                function setState(arr) {
+                    var selected = [];
+                    angular.forEach(arr, function(n) {
+                        if(isParent(n)){
+                            var activeChildren = setState(n.children);
+                            var maxChildren = getChildren(n.children);
+                            if(maxChildren.length === activeChildren.length)
+                                n.state = 'checked';
+                            else if(activeChildren.length > 0)
+                                n.state = 'intermediate';
+                            else
+                                n.state = 'unchecked';
+                            selected = selected.concat(activeChildren);
+                        }else {
+                            if(n.active){
+                                n.state = 'checked';
+                                selected.push(n);
+                            } else {
+                                n.state = 'unchecked';
+                            }
+                        }
+                    });
+                    options.tree.selected = selected;
+                    return selected;
+                }
+
+                // expands children nodes if any.
+                function expandChildren(arr, state) {
+                    angular.forEach(arr, function (n) {
+                        if(isParent(n)){
+                            if(state !== undefined)
+                                n.expanded = state
+                            else
+                                n.expanded =! n.expanded;
+                            expandChildren(n.children, state);
+                        }
+                    });
+                }
+
+                // when child nodes are expanded/collapsed.
+                function toggle(event, node, state) {
+                    var isMouseEvent = event instanceof MouseEvent;
+                    if(!isMouseEvent){
+                        state = node;
+                        node = event;
+                        event = null;                    }
+                    if(state === undefined)
+                        node.expanded =! node.expanded;
+                    else
+                        node.expanded = state;
+                    if(undefined !== state || options.expandAll)
+                        expandChildren(node.children, state);
+                    if(angular.isFunction(options.onToggle)){
+                        options.onToggle(node, treeModel, event);
+                    }
+                }
+
+                // get the selected nodes.
+                function selected() {
+                    return options.tree.selected;
+                }
+
+                // select a node
+                function select(event, node) {
+                    var isMouseEvent = event instanceof MouseEvent;
+                    if(!isMouseEvent){
+                        node = event;
+                        event = null;
+                    }
+                    if(isParent(node)) {
+                        node.active =! node.active;
+                        toggleChildren(node.children, node.active);
+                        if(node.active)
+                            toggle(event, node, true);
+                    } else {
+                        node.active =! node.active;
+                    }
+                    setState(treeModel);
+                    if(angular.isFunction(options.onSelect)){
+                        options.onSelect(node, treeModel, event);
+                    }
+                }
+
+                $module.select = scope.select = select;
+                $module.toggle = scope.toggle = toggle;
+                $module.selected = scope.selected = selected;
+
+                // initialize the tree view.
+                function init() {
+
+                    loadData(model, function (data) {
+
+                        if(!data) return;
+
+                        // normalize the model properties.
+                        normalizeData(data);
+
+                        // set initial check state.
+                        setState(treeModel);
+
+                        $module.nodes = scope.nodes = data;
+
+                        getTemplates().then(function(t) {
+
+                            var _template = t[0],
+                                _labelTemplate = t[1];
+                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
+                            element.empty().append($helpers.compile(scope, _template));
+
+                            if(angular.isFunction(options.onReady) && !options.tree.ready){
+                                options.onReady(options.tree, treeModel);
+                                options.tree.ready = true;
+                            }
+
+                        });
+
+                        // don't wait for templates.
+                        return $module;
+
+                    });
+                }
+
+                init();
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    })
+    .directive('aiTree', ['$tree', function ($tree) {
+
+        return {
+            restrict: 'EAC',
+            require: 'ngModel',
+            scope: true,
+            link: function (scope, element, attrs, ngModel) {
+
+                var defaults, options, $module;
+                defaults = {
+                    scope: scope
+                };
+
+                function init() {
+                    $module = $tree(element, options, attrs);
+                }
+
+                // get local options
+                options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
+
+                // make sure parent scope
+                // doesn't polute child.
+                delete options.scope;
+
+                // save the original scope.
+                options.tree = options.tree || scope;
+
+                options = angular.extend(defaults, options);
+                options.model = scope.$eval(attrs.ngModel);
+
+                init();
+
+            }
+        };
+
+    }]);
 var form = angular.module('ai.validate', ['ai.helpers'])
 .provider('$validate', function $validate() {
 
@@ -7060,335 +6907,501 @@ var form = angular.module('ai.validate', ['ai.helpers'])
 
 
 
-angular.module('ai.tree', ['ai.helpers'])
-    .provider('$tree', function $tree() {
+angular.module('ai.widget', [])
 
-        var defaults = {
-            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
-            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
-            label: 'label',                             // the property used for display.
-            value: 'value',                             // the property used for value.
-            children: 'children',                       // the property used for child elements.
-            active: 'active',                           // the property used to indicated the element is checked or active.
-            method: 'get',                              // when and endpoint is specified in model.
-            params: {},                                 // params to be passed when model is an endpoint.
-            icon: true,                                 // when NOT false icon is displayed left of label.
-            expanded: false,                            // when true tree loads with all nodes expanded.
-            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
-            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
-            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
-            onReady: undefined                          // callback when loaded.
-        }, get, set;
+.provider('$widget', function $widget() {
 
-        set = function set(key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
+    var defaults = {            
+            number: {
+                defaultValue: undefined,        // default value if initialized undefined.
+                places: 2,                      // default decimal places.
+                event: 'blur'                   // event that triggers formatting.
+            },            
+            case: {
+                casing: 'first',
+                event: 'blur'
+            },
+            compare: {
+                defaultValue: undefined,        // the default value when undefined.
+                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
+                dataType: 'string',             // options are string, date, time, datetime, integer
+                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
+                                                // valid options 'minutes', 'seconds', 'milliseconds'
             }
-            defaults = angular.extend(defaults, obj);
-        };
+            //nicescroll: {
+            //    horizrailenabled: false         // disables horizontal scroll bar.
+            //},
+            //redactor: {
+            //    focus: true,
+            //    plugins: ['fullscreen']
+            //},
+        },
+        get, set;
 
-        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
+    set = function set(key, options) {
+        if(angular.isObject(key)){
+            options = key;
+            key = undefined;
+            defaults = angular.extend(defaults, options);
+        } else {
+            defaults[key] = angular.extend(defaults[key], options);
+        }
+    };
 
-            var treeTemplate =
-                '<ul>' +
-                    '<li ng-repeat="node in nodes track by $index">' +
-                        '<span class="ai-tree-toggle" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
-                            'ng-click="toggle($event, node)"></span>' +
-                        '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
-                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
-                            '[LABEL_TEMPLATE]' +
-                        '</div>' +
-                        '<ai-tree ng-if="node.children" ' +
-                            'ng-show="node.expanded" ' +
-                            'ng-model="node.children" ' +
-                            'ai-tree-options="options" ' +
-                            'class="ai-tree-child"' +
-                            '>' +
-                        '</ai-tree>' +
-                    '</li>' +
-                '</ul>';
+    get = [ function get() {
 
-            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
+        // factory allows for globally
+        // setting widget options.
+        function ModuleFactory(key, options) {
+            options = options || {};
+            if(!defaults[key]) return options;
+            options = angular.extend({}, defaults[key], options);
+            return options;
+        }
+        return ModuleFactory;
 
-            $helpers.getPutTemplate(defaults.template, treeTemplate);
-            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
+    }];
 
-            function ModuleFactory(element, options, attrs){
+    return {
+        $get: get,
+        $set: set
+    };
 
-                var $module = {},
-                    treeModel,
-                    model,
-                    scope;
+})
 
-                if(!element)
-                    return console.error('Cannot configure tree with element of undefined.');
+// simple directive to prevent default
+// on click, for use as attribute/class only.
+.directive('aiPrevent',[ function() {
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+            if(attrs.ngClick){
+                element.on('click', function(e){
+                    e.preventDefault();
+                });
+            }
+        }
+    };
+}])
+    
+//
+//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
+//
+//    return {
+//        restrict: 'AC',
+//        link: function(scope, element, attrs) {
+//
+//            var defaults, options, $module, _attrs;
+//
+//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
+//                'see: http://areaaperta.com/nicescroll');
+//
+//            defaults = angular.copy($widget('nicescroll'));
+//
+//            function init() {
+//                $timeout(function () {
+//                    $module = element.niceScroll(options);
+//                },0);
+//            }
+//
+//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
+//            options = angular.extend(defaults, _attrs, scope.$eval(options));
+//            init();
+//        }
+//    };
+//}])
 
-                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+// ensures handling decimal values.
+.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function(scope, element, attrs, ngModel) {
 
-                options = options || {};
-                scope = $module.scope = options.scope || $rootScope.$new();
-                options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
-                $module.element = scope.element = element;
+            var defaults, options, _attrs, lastVal;
 
-                // the current model may be nested.
-                model = options.model;
-
-                // the root tree model.
-                treeModel = options.tree.options.model;
-
-                // get templates.
-                function getTemplates() {
-                    var promises = [
-                        $helpers.loadTemplate(options.template),
-                        $helpers.loadTemplate(options.labelTemplate)
-                    ];
-                    return $q.all(promises);
+            defaults = angular.copy($widget('number'));
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
+            function parseVal(val){
+                val = $helpers.tryParseFloat(val);  
+                if(val) 
+                    val = val.toFixed(options.places);
+                return val;
+            }
+            
+            // format and set value.
+            function format(val) {
+                if(val !== undefined)  {
+                    val = parseVal(val);
+                    if(!val)
+                        val = parseVal(lastVal);                
                 }
+                if(val === undefined)
+                    val = options.defaultValue !== undefined ? options.defaultValue : '';
+                element.val(val);           
+                ngModel.$modelValue = val;
+                lastVal = val;
+            }
 
-                // get data collection.
-                function loadData(m, cb) {
+            function init() {
+                
+                // bind event call apply
+                // format the value. 
+                // use simple event binding instead
+                // of adding watchers etc.
+                element.unbind(options.event);
+                element.on(options.event, function (e) {
+                    scope.$apply(function () {
+                        format(e.target.value);
+                    });
+                });
+                
+                // use timeout make sure dom is ready.
+                $timeout(function () {
+                    var val = element.val();
+                    if(!val)
+                        if(options.defaultValue !== undefined)
+                            val = options.defaultValue;
+                    format(val);
+                }, 0);                
+            }
+            
+            options = attrs.aiNumber|| attrs.aiNumberOptions;
+            options = angular.extend(defaults, _attrs, scope.$eval(options));
+            
+            init();
+        }
+    };
+}])
 
-                    if(angular.isArray(m))
-                        return cb(m);
+//// Angular wrapper for using Redactor.
+//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
+//    return {
+//        restrict: 'AC',
+//        scope: true,
+//        require: '?ngModel',
+//        link: function (scope, element, attrs) {
+//            var defaults, options, $directive, _attrs;
+//
+//            defaults = angular.copy($widget('redactor'));
+//
+//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+//
+//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
+//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
+//
+//            function init() {
+//                $directive = element.redactor(options);
+//            }
+//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
+//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
+//
+//            init();
+//        }
+//    };
+//}])
 
-                    // if string get via http
-                    if(angular.isString(m)){
-                        $http.get(m, {
-                            params: options.params
-                        }).then(function (res) {
-                            model = res.data;
-                            treeModel = options.tree.options.model = res.data;
-                            cb(res.data);
-                        }, function (res) {
-                            console.error(res);
-                            cb();
-                        });
-                    } else {
-                        cb();
+.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
+
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, casing, _attrs;
+
+            defaults = angular.copy($widget('case'));
+            options = {};
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function getCase(val) {
+                if (!val) return;
+
+                if (casing === 'title')
+                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+                else if (casing === 'first')
+                    return val.charAt(0).toUpperCase() + val.slice(1);
+                else if (casing === 'camel') {
+                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
+                        return group1.toUpperCase();
+                    });
+                }
+                else if (casing === 'pascal')
+                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
+                else if (casing === 'lower')
+                    return val.toLowerCase();
+                else if (casing === 'upper')
+                    return val.toUpperCase();
+                else return val;
+            }
+
+           function applyCase(e){
+
+               scope.$apply(function () {
+                   var val = element.val(),
+                       cased = getCase(val);
+                   if (ngModel) {
+                       ngModel.$modelValue = cased;
+                   } else {
+                       element.val(getCase(val));
+                   }
+               });
+
+            }
+
+            function init() {
+
+                casing = options.casing;
+
+                element.on(options.event, function (e) {
+                    applyCase(e);
+                });
+
+                element.on('keyup', function (e) {
+                    var code = e.which || e.keyCode;
+                    if(code === 13){
+                        /* prevent default or submit could happen
+                        prior to apply case updates model */
+                        e.preventDefault();
+                        applyCase(e);
                     }
+                });
 
-                }
+                $timeout(function () {
+                    applyCase();
+                },100);
 
-                // check if node is a parent node.
-                function isParent(node){
-                    return (node.children && node.children.length);
-                }
+            }
 
-                // iterate children and set active.
-                function toggleChildren(arr, value){
-                    angular.forEach(arr, function (n) {
-                        if(n.children)
-                            toggleChildren(n.children, value);
-                        n.active = value;
-                    });
-                }
+            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
+            if(angular.isString(tmpOpt))
+                options.casing = tmpOpt;
+            if(angular.isObject(tmpOpt))
+                options = scope.$eval(tmpOpt);
+            options = angular.extend(defaults, _attrs, options);
 
-                // normalize data and properties.
-                function normalizeData(arr) {
-                    angular.forEach(arr, function (node) {
-                        node.label = node[options.label];
-                        node.value = node[options.value];
-                        node.children = node[options.children];
-                        node.active = node[options.active] || false;
-                        node.toggle = false;
-                        node.icon = options.icon === false ? false : true;
-                        if(isParent(node)){
-                            node.options = options;
-                            node.expanded = options.expanded || node.expanded || false;
-                            node.toggle = true;
-                        }
-                    });
-                }
+            init();
 
-                // gets all child nodes
-                function getChildren(arr) {
-                    var children = [];
-                    angular.forEach(arr, function (n) {
-                        if(isParent(n)){
-                            var nestedChildren = getChildren(n.children);
-                            children = children.concat(nestedChildren);
+        }
+
+    };
+
+}])
+
+.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
+
+    function checkMoment() {
+        try{
+            var m = moment();
+            return true;
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    function isNumber(val) {
+        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
+    }
+
+    return {
+        restrict: 'AC',
+        require: '^ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, formElem, form, momentLoaded,
+                ngModelCompare, _attrs;
+
+            // check moment is loaded for datetime compares.
+            momentLoaded = checkMoment();
+            defaults = angular.copy($widget('compare'));
+
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function validate(value) {
+
+                var valid;
+
+                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
+
+                    valid = options.defaultValue || '';
+
+                } else {
+
+                    if(options.dataType === 'string') {
+
+                        valid = ngModelCompare.$viewValue === value;
+
+                    } else if(options.dataType === 'integer'){
+
+                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
+                            valid = false;
                         } else {
-                            children.push(n);
+                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
                         }
-                    });
-                    return children;
-                }
 
-                // sets tree checked state.
-                function setState(arr) {
-                    var selected = [];
-                    angular.forEach(arr, function(n) {
-                        if(isParent(n)){
-                            var activeChildren = setState(n.children);
-                            var maxChildren = getChildren(n.children);
-                            if(maxChildren.length === activeChildren.length)
-                                n.state = 'checked';
-                            else if(activeChildren.length > 0)
-                                n.state = 'intermediate';
-                            else
-                                n.state = 'unchecked';
-                            selected = selected.concat(activeChildren);
-                        }else {
-                            if(n.active){
-                                n.state = 'checked';
-                                selected.push(n);
-                            } else {
-                                n.state = 'unchecked';
-                            }
+                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
+
+                        var comp, model, diff, diffMin;
+
+                        comp = ngModelCompare.$viewValue;
+                        model = ngModel.$viewValue;
+
+                        if(options.dataType === 'time'){
+                            comp = '01/01/1970 ' + comp;
+                            model = '01/01/1970 ' + model;
                         }
-                    });
-                    options.tree.selected = selected;
-                    return selected;
-                }
+                        comp = moment(comp);
+                        model = moment(model);
 
-                // expands children nodes if any.
-                function expandChildren(arr, state) {
-                    angular.forEach(arr, function (n) {
-                        if(isParent(n)){
-                            if(state !== undefined)
-                                n.expanded = state
-                            else
-                                n.expanded =! n.expanded;
-                            expandChildren(n.children, state);
+                        if(options.dataType === 'date'){
+
+                            diff = model.diff(comp, 'days');
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'time'){
+
+                            diff = model.diff(comp, options.precision);
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'datetime') {
+
+                            diff = model.diff(comp, 'days');
+                            diffMin = model.diff(comp, options.precision);
+                            valid = (diff === 0) && (diffMin === 0);
+
+                        } else {
+
+                            valid = false;
+
                         }
-                    });
-                }
 
-                // when child nodes are expanded/collapsed.
-                function toggle(event, node, state) {
-                    var isMouseEvent = event instanceof MouseEvent;
-                    if(!isMouseEvent){
-                        state = node;
-                        node = event;
-                        event = null;                    }
-                    if(state === undefined)
-                        node.expanded =! node.expanded;
-                    else
-                        node.expanded = state;
-                    if(undefined !== state || options.expandAll)
-                        expandChildren(node.children, state);
-                    if(angular.isFunction(options.onToggle)){
-                        options.onToggle(node, treeModel, event);
-                    }
-                }
-
-                // get the selected nodes.
-                function selected() {
-                    return options.tree.selected;
-                }
-
-                // select a node
-                function select(event, node) {
-                    var isMouseEvent = event instanceof MouseEvent;
-                    if(!isMouseEvent){
-                        node = event;
-                        event = null;
-                    }
-                    if(isParent(node)) {
-                        node.active =! node.active;
-                        toggleChildren(node.children, node.active);
-                        if(node.active)
-                            toggle(event, node, true);
                     } else {
-                        node.active =! node.active;
+
+                        valid = false;
+
                     }
-                    setState(treeModel);
-                    if(angular.isFunction(options.onSelect)){
-                        options.onSelect(node, treeModel, event);
-                    }
+
                 }
 
-                $module.select = scope.select = select;
-                $module.toggle = scope.toggle = toggle;
-                $module.selected = scope.selected = selected;
+                ngModel.$setValidity('compare', valid);
+                return valid;
+            }
 
-                // initialize the tree view.
-                function init() {
+            function init() {
 
-                    loadData(model, function (data) {
+                formElem = element[0].form;
 
-                        if(!data) return;
+                /* can't continue without the form */
+                if(!formElem) return;
 
-                        // normalize the model properties.
-                        normalizeData(data);
+                form = scope[formElem.name];
+                ngModelCompare = form[options.compareTo] || options.compareTo;
 
-                        // set initial check state.
-                        setState(treeModel);
+                /* must have valid form in scope */
+                if(!form || !options.compareTo || !ngModelCompare) return;
 
-                        $module.nodes = scope.nodes = data;
+                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
+                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
 
-                        getTemplates().then(function(t) {
-
-                            var _template = t[0],
-                                _labelTemplate = t[1];
-                            _template = _template.replace('[LABEL_TEMPLATE]', _labelTemplate);
-                            element.empty().append($helpers.compile(scope, _template));
-
-                            if(angular.isFunction(options.onReady) && !options.tree.ready){
-                                options.onReady(options.tree, treeModel);
-                                options.tree.ready = true;
-                            }
-
-                        });
-
-                        // don't wait for templates.
-                        return $module;
-
-                    });
-                }
-
-                init();
-
-                return $module;
+                ngModel.$formatters.unshift(validate);
+                ngModel.$parsers.unshift(validate);
 
             }
 
-            return ModuleFactory;
+            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
+            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
+                tmpOpt = { compareTo: tmpOpt };
+            else
+                tmpOpt = scope.$eval(tmpOpt);
 
-        }];
+            options = angular.extend({}, defaults, _attrs, tmpOpt);
 
-        return {
-            $get: get,
-            $set: set
-        };
+            init();
 
-    })
-    .directive('aiTree', ['$tree', function ($tree) {
+        }
+    };
+        
+}])
 
-        return {
-            restrict: 'EAC',
-            require: 'ngModel',
-            scope: true,
-            link: function (scope, element, attrs, ngModel) {
+.directive('aiPlaceholder', [ '$widget', function($widget) {
 
-                var defaults, options, $module;
-                defaults = {
-                    scope: scope
-                };
+    // get the previous sibling
+    // to the current element.
+    function prevSibling(elem, ts) {
+        try {
+            var parents = elem.parent(),
+                prevIdx;
+            angular.forEach(parents.children(), function (v,k) {
+                var child = angular.element(v),
+                    _ts = child.attr('_ts_');
+                if(ts.toString() === _ts){
+                    prevIdx = k -1;
+                }
+            });
+            elem.removeAttr('_ts_');
+            if(prevIdx < 0)
+                return { element: angular.element(elem.parent()), method: 'prepend' };
+            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
+        } catch(ex) {
+            return false;
+        }
+    }
 
-                function init() {
-                    $module = $tree(element, options, attrs);
+    // capitalize a string.
+    function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // test if placeholder is supported.
+    function placeholderSupported() {
+        var test = document.createElement('input');
+        return ('placeholder' in test);
+    }
+
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+
+            var placeholder, isNative;
+
+            function init() {
+
+                var label = '<label>{{NAME}}</label>',
+                    ts = new Date().getTime(),
+                    prev;
+
+                placeholder = capitalize(placeholder);
+                
+                if(!isNative && placeholder)
+                    element.attr('placeholder', placeholder);
+
+                // since angular doesn't support .index()
+                // set attr so we can find it when iterating.
+                element.attr('_ts_', ts);
+                prev = prevSibling(element, ts);
+
+                // test if dot notation model name.
+                if(placeholder.indexOf('.') !== -1){
+                    placeholder = placeholder.split('.');
+                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
                 }
 
-                // get local options
-                options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
-
-                // make sure parent scope
-                // doesn't polute child.
-                delete options.scope;
-
-                // save the original scope.
-                options.tree = options.tree || scope;
-
-                options = angular.extend(defaults, options);
-                options.model = scope.$eval(attrs.ngModel);
-
-                init();
+                if(!placeholderSupported() && prev) {
+                    label = label.replace('{{NAME}}', placeholder);
+                    label = angular.element(label);
+                    prev.element[prev.method](label);
+                }
 
             }
-        };
 
-    }]);
+            isNative = element.attr('placeholder');
+            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
+
+            init();
+
+        }
+    };
+}]);
+
 })(window, document);

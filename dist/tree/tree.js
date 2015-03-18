@@ -36,7 +36,7 @@ angular.module('ai.tree', ['ai.helpers'])
                             'ng-click="toggle($event, node)"></span>' +
                         '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
                             '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
-                            '[LABEL_TEMPLATE]' +
+                            '{{LABEL_TEMPLATE}}' +
                         '</div>' +
                         '<ai-tree ng-if="node.children" ' +
                             'ng-show="node.expanded" ' +
@@ -126,7 +126,9 @@ angular.module('ai.tree', ['ai.helpers'])
                 // normalize data and properties.
                 function normalizeData(arr) {
                     angular.forEach(arr, function (node) {
-                        node.label = node[options.label];
+                        // support specifying only values.
+                        // set label to value if label is absent.
+                        node.label = node[options.label || options.value];
                         node.value = node[options.value];
                         node.children = node[options.children];
                         node.active = node[options.active] || false;
@@ -261,7 +263,7 @@ angular.module('ai.tree', ['ai.helpers'])
 
                             var _template = t[0],
                                 _labelTemplate = t[1];
-                            _template = _template.replace('[LABEL_TEMPLATE]', _labelTemplate);
+                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
                             element.empty().append($helpers.compile(scope, _template));
 
                             if(angular.isFunction(options.onReady) && !options.tree.ready){

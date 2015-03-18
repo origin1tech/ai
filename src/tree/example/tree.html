@@ -42,7 +42,12 @@ $scope.tree = {
     },
     onReady: function (tree){
         // tree: the top level scope for the tree.
-    }
+    },
+
+    // model can be array or path to endpoint.
+    // if path tree will lazyloaded.
+    // tracking is done by index so duplicates are supported.
+    model: '/api/tree'
 }
             </pre>
         </div>

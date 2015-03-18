@@ -347,7 +347,6 @@ require([
                 $scope.tree = {
                     model: '/api/tree',
                     onSelect: function (node, model, event) {
-                        console.log($scope.tree);
                     },
                     onReady: function (tree) {
                     }
