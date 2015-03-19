@@ -14,8 +14,9 @@ The Ai library contains the following:
 - table - grid like table directive that supports batch loading, server side order, filtering and much more.
 - tree - a treeview component that supports deep nesting.
 - validate - auto-magically created validation messages or summary for forms.
-- widget - the widget modules contains following widgets: case(forces text case), number(force number with decimal places),
-          compare(compares two values for equality), and placeholder(if browser doesn't support placeholder, adds label).
+- widget - the widget modules contains following widgets: **case**(forces text case), **number**(force number with decimal places),
+          **compare**(compares two values for equality), **placeholder**(if browser doesn't support placeholder, adds label)
+          and **lazyload**(loads scripts within partial views)
 - autoform - extremely dirty not remotely complete directive for prototyping a form quickly.
 
 These modules have been pulled from several active projects, having striped away the opinionated syntax for the given
