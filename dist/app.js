@@ -100,7 +100,8 @@ require([
                 placeholder:{ active: 'markup' },
                 tab:        { active: 'markup' },
                 loader:     { active: 'markup' },
-                tree:       { active: 'markup' }
+                tree:       { active: 'markup' },
+                lazyload:   { active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -187,6 +188,12 @@ require([
             if (area === 'widget') {
                 $scope.decimal = 25;
                 $scope.case = 'timothy';
+                $scope.sayHello = function () {
+                    sayHello();
+                };
+                $scope.sayHelloInline = function () {
+                    sayHelloInline();
+                };
             }
 
             if (area === 'flash') {

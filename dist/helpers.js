@@ -182,6 +182,7 @@ angular.module('ai.helpers', [])
         compile: compile,
         parseAttrs: parseAttrs,
         tryParseFloat: tryParseFloat,
+        tryParseInt: tryParseInt,
         selfHtml: selfHtml,
         toObject: toPlainObject
     };

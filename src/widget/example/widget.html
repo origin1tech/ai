@@ -185,6 +185,67 @@ ai-placeholder does not require any options.
         </div>
 
     </div>
+</div>
+
+<ai-lazyload src="/widget/example/lazyload.js" position="append" ></ai-lazyload>
+<ai-lazyload parent="head">
+    function sayHelloInline() {
+        alert('Hello lazy loaded inline script!');
+    }
+</ai-lazyload>
+
+<h4>Lazy Load JavaScript</h4>
+<div class="form-group">
+    <button class="btn btn-primary" ng-click="sayHello()">Say Hello</button>
+    <button ng-click="sayHelloInline()" class="btn btn-warning">Say Hello Inline</button><br/>
+    <span>This widget lazy loads script in partial view. Click to call method in "lazyload.js"</span>
+</div>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('lazyload:markup') }"><a ng-click="showTab('lazyload:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('lazyload:code') }"><a ng-click="showTab('lazyload:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('lazyload:options') }"><a ng-click="showTab('lazyload:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('lazyload:markup') }" ng-show="tabActive('lazyload:markup')">
+<pre>
+// as an element
+&lt;ai-lazyload src=&quot;/widget/example/lazyload.js&quot; position=&quot;append&quot;&gt;&lt;/ai-lazyload&gt;
+
+// inline in page.
+&lt;script ai-lazyload&gt;
+    function sayHelloInline() {
+        alert('Hello lazy loaded inline script!');
+    }
+&lt;/script&gt;
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('lazyload:code') }" ng-show="tabActive('lazyload:code')">
+<pre>
+$scope.sayHello = function () {
+    sayHello();
+};
+$scope.sayHelloInline = function () {
+    sayHelloInline();
+};
+</pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('lazyload:options') }" ng-show="tabActive('lazyload:options')">
+<pre>
+lazyload: {
+    src: undefined,                 // placeholder option.
+    parent: 'head',                 // the parent element where the script should be insert into.
+    position: 'append'              // either append, prepend or integer to insert script at.
+}
+</pre>
+        </div>
+
+    </div>
 
 </div>
 

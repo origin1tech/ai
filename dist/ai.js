@@ -209,6 +209,7 @@ angular.module('ai.helpers', [])
         compile: compile,
         parseAttrs: parseAttrs,
         tryParseFloat: tryParseFloat,
+        tryParseInt: tryParseInt,
         selfHtml: selfHtml,
         toObject: toPlainObject
     };
@@ -1643,7 +1644,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
                 message: 'Loading',                                 // text to display under loader if value.
-                delay: 400,                                         // the delay in ms before loader is shown.
+                delay: 600,                                         // the delay in ms before loader is shown.
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
                                                                     // default loader is set to hidden.
@@ -6938,6 +6939,11 @@ angular.module('ai.widget', [])
                 dataType: 'string',             // options are string, date, time, datetime, integer
                 precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
                                                 // valid options 'minutes', 'seconds', 'milliseconds'
+            },
+            lazyload: {
+                src: undefined,                 // placeholder option.
+                parent: 'head',                 // the parent element where the script should be insert into.
+                position: 'append'              // either append, prepend or integer to insert script at.
             }
             //nicescroll: {
             //    horizrailenabled: false         // disables horizontal scroll bar.
@@ -7413,6 +7419,77 @@ angular.module('ai.widget', [])
 
         }
     };
+}])
+
+.directive('aiLazyload', [ '$widget', '$helpers', '$rootScope', function($widget, $helpers, $rootScope) {
+    return {
+        restrict: 'EA',
+        scope: false,
+        link: function(scope, elem, attrs) {
+
+            var script, scripts, defaults, options, parentElem, childElem;
+
+            defaults = angular.copy($widget('lazyload'));
+            options = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            options = angular.extend({}, defaults, options);
+
+            // the parent element where
+            // scripts will be inserted.
+            parentElem = $helpers.findElement(options.parent)[0];
+
+            if(!parentElem || !parentElem.appendChild)
+                return console.error('Cannot lazy load script using parent ' + options.parent +
+                                      '. Ensure the dom element exists.');
+
+            // get all scripts in element.
+            scripts = $helpers.findElement('script', document[options.parent]) || [];
+
+            if(options.position === 'prepend')
+                options.position = 0;
+
+            // insert at this position wihtin children.
+            childElem = angular.isNumber(options.position) ? scripts[options.position] : undefined;
+
+            // if no scripts in element just use append.
+            if(!scripts.length || childElem === undefined)
+                options.position = 'append';
+
+            // create script element
+            script = document.createElement('script');
+
+            // check if inline or
+            // is external file.
+            if(undefined === options.src){
+                script.text = elem.text();
+            } else {
+                script.src = options.src;
+            }
+
+            // add the script to parent.
+            if(childElem)
+                parentElem.insertBefore(script, childElem);
+            else
+                parentElem.appendChild(script);
+
+            // remove original element
+            elem.remove();
+
+            function removeScript() {
+                if(script && parentElem.contains(script))
+                    parentElem.removeChild(script);
+            }
+
+            // remove script on route change, prevents dups.
+            $rootScope.$on('$routeChangeSuccess', removeScript);
+
+            // remove lazy loaded script on destroy.
+            scope.$on('destroy', removeScript);
+
+        }
+    };
 }]);
 
+function sayHello() {
+    alert('Hello lazy loaded script!');
+}
 })(window, document);
