@@ -300,6 +300,7 @@ angular.module('ai.tree', ['ai.helpers'])
         return {
             restrict: 'EAC',
             scope: true,
+            require: 'ngModel',
             link: function (scope, element, attrs, ngModel) {
 
                 var defaults, options, $module;
@@ -322,7 +323,7 @@ angular.module('ai.tree', ['ai.helpers'])
                 options.tree = options.tree || scope;
 
                 options = angular.extend(defaults, options);
-                options.model = options.model || scope.$eval(attrs.ngModel);
+                options.model = scope.$eval(attrs.ngModel);
 
                 init();
 
