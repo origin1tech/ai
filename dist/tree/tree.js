@@ -198,8 +198,8 @@ angular.module('ai.tree', ['ai.helpers'])
 
                 // when child nodes are expanded/collapsed.
                 function toggle(event, node, state) {
-                    var isMouseEvent = event instanceof MouseEvent;
-                    if(!isMouseEvent){
+                    var isClick = event && event.type === 'click';
+                    if(!isClick){
                         state = node;
                         node = event;
                         event = null;                    }
@@ -221,8 +221,8 @@ angular.module('ai.tree', ['ai.helpers'])
 
                 // select a node
                 function select(event, node) {
-                    var isMouseEvent = event instanceof MouseEvent;
-                    if(!isMouseEvent){
+                    var isClick = event && event.type === 'click';
+                    if(!isClick){
                         node = event;
                         event = null;
                     }
