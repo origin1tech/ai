@@ -322,7 +322,7 @@ angular.module('ai.tree', ['ai.helpers'])
                 options.tree = options.tree || scope;
 
                 options = angular.extend(defaults, options);
-                options.model = scope.$eval(attrs.ngModel);
+                options.model = options.model || scope.$eval(attrs.ngModel);
 
                 init();
 
