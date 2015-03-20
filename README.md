@@ -75,10 +75,7 @@ configured any of the following ways:
 <div class="ai-loader" name="page"></div>
 ```
 
-You can also mingle any of the above methods above and the library will merge them properly. One thing to **NOTE** is that
-declarative attributes such as **name="page"** for example would be overwritten if "ai-loader-options" were present
-and it contained a "name" property. The library assumes if you've provided a collection of options those are the ones
-you want to use or take priority.
+You can also mingle any of the above methods above and the library will merge them properly.
 
 ###Documentation
 

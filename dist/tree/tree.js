@@ -314,14 +314,6 @@ angular.module('ai.tree', ['ai.helpers'])
                 // get local options
                 options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
 
-                // test if model is passed in options
-                // set to temp variable then delete
-                // to preserve nested models.
-                if(options.model) {
-                    tmpModel = options.model;
-                    delete options.model;
-                }
-
                 // make sure parent scope
                 // doesn't polute child.
                 delete options.scope;
@@ -330,7 +322,7 @@ angular.module('ai.tree', ['ai.helpers'])
                 options.tree = options.tree || scope;
 
                 options = angular.extend(defaults, options);
-                options.model = tmpModel || attrs.ngModel;
+                options.model = attrs.ngModel || options.model;
                 if(!/\//g.test(options.model))
                     options.model = scope.$eval(options.model);
 
