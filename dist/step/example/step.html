@@ -1,0 +1,141 @@
+<h3>{{title}}</h3>
+<hr/>
+<p class="alert alert-warning">
+    With the step wizard you can simplify multi page configuration steps. There are many use cases where the step wizard
+    can be used. You could use it to configure your app, setup a user or perform steps where some sort of setup is
+    required.
+</p>
+<h4>Basic Usage</h4>
+<hr/>
+
+<div>
+    <ai-step ai-step-options="stepOptions"></ai-step>
+</div>
+
+<hr/>
+
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('step:markup')}"><a ng-click="showTab('step:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('step:code') }"><a ng-click="showTab('step:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('step:options') }"><a ng-click="showTab('step:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div ng-class="{ active: tabActive('step:markup') }" ng-show="tabActive('step:markup')">
+            <h4>Markup</h4>
+            <pre>
+&lt;ai-step options=&quot;stepOptions&quot; &gt;&lt;/ai-step&gt;
+-OR-
+&lt;div ai-step options=&quot;stepOptions&quot; &gt;&lt;/div&gt;
+            </pre>
+        </div>
+
+            <div ng-class="{ active: tabActive('step:code') }" ng-show="tabActive('step:code')">
+            <h4>Code</h4>
+            <pre>
+// using directive
+
+$scope.user = {
+    username: 'bob@test.com',
+    password: 'temptemp',
+    first: 'Bob',
+    last: 'Jones'
+};
+
+$scope.userSteps = {
+    steps: {
+        'credentials': { content: '/step/example/step-cred.html' },
+        'name': { content: '/step/example/step-name.html' },
+        'finish': { content: '/step/example/step-finish.html' }
+    },
+
+    onChange: function (idx, step, e) {
+        // on change index, step & event returned.
+    },
+
+    onReady: function (_module){
+       // on load the module is returned.
+    },
+
+    onSubmit: function(_module, e) {
+        // on submit the module and event are returned.
+    }
+
+};
+            </pre>
+
+            <pre>
+// using instance.
+
+angular.module('myModule', [])
+.controller('MyController', ['$scope', '$step', function ($scope, $step) {
+
+    var _steps = {
+        'credentials': { content: '/step/example/step-cred.html' },
+        'name': { content: '/step/example/step-name.html' },
+        'finish': { content: '/step/example/step-finish.html' }
+    };
+
+    // initialize $step wizard.
+    $scope.step = $step(_steps, { // your options  });
+    or simply
+    $scope.step = $step({
+        steps: _steps
+        // other options.
+    });
+
+    // would navigate to 2nd step
+    // in 0 based index array.
+    $scope.to(1); // pass index, step or filter by key/value.
+
+    // would navigate to the next step.
+    // likewise .prev() would do the converse.
+    $scope.next();
+
+}]);
+            </pre>
+        </div>
+
+        <div ng-class="{ active: tabActive('step:options') }" ng-show="tabActive('step:options')">
+            <h4>Options</h4>
+            <pre>
+var defaults = {
+
+    key: '$id',                     // the primary key for the collection of steps.
+    start: 0,                       // the starting index of the step wizard.
+    title: 'true',                  // when true title is auto generated if not set in step object.
+    continue: undefined,            // when true if called step is disabled continue to next enabled.
+    breadcrumb: false,              // when true only header is shown, used as breadcrumb.
+                                    // breadcrumb mode looks for property 'href' to navigate to.
+
+                                    // html templates, can be html or path to template.
+
+    header: 'step-header.tpl.html',   // the header template when using directive.
+    content: 'step-content.tpl.html', // the content template to use when using directive.
+    actions: 'step-actions.tpl.html', // the actions template when using directive.
+
+                                    // hide/show buttons, disable/enable header click events.
+
+    showNumber: undefined,          // when true step number show next to title.
+    showNext: undefined,            // when true next button is created.
+    showPrev: undefined,            // when true prev button is created.
+    showSubmit: undefined,          // when true submit button is created.
+    headTo: undefined,              // when true header can be clicked to navigate.
+
+                                    // all events are called with $module context except onload which passes it.
+
+    onBeforeChange: undefined,      // callback event fired before changing steps.
+    onChange: undefined,            // callback on changed step, returns ({ previous, active }, event)
+    onSubmit: undefined,            // callback on submit returns ({ active }, event)
+    onLoad: undefined               // callback on load returns ($module)
+
+};
+            </pre>
+        </div>
+
+    </div>
+
+</div>

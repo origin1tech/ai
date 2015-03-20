@@ -1,0 +1,221 @@
+$dropdown-min-width:              150px;
+
+$dropdown-caret-top:              45%;
+$dropdown-caret-right:            18px;
+$dropdown-caret-border-color:     #333;
+
+$dropdown-wrapper-zindex:         1060;
+
+$dropdown-items-bg-color:         #fff;
+$dropdown-items-border-color:     rgba(0,0,0,.15);
+$dropdown-items-border-radius:    4px;
+$dropdown-items-padding:          4px;
+
+$dropdown-link-padding:           1px 8px;
+$dropdown-link-active-color:      #eee;
+$dropdown-link-hover-color:       #eee;
+
+
+$dropdown-list-max-height:        250px;
+$dropdown-list-margin:            4px -4px;
+
+@mixin ai-dropdown-mixin($caret-border-color, $items-bg-color, $items-border-color,
+                         $items-border-radius, $link-active-color, $link-hover-color) {
+  
+  min-width: $dropdown-min-width;
+
+  &:focus {
+    z-index: 1061;
+  }
+
+  .caret {
+    &.down {
+      border-color:  $caret-border-color transparent transparent transparent;    
+    }
+    &.up {
+      border-color:  transparent transparent $caret-border-color transparent;   
+    }
+  }
+
+  .ai-dropdown-wrapper {
+    z-index: $dropdown-wrapper-zindex;
+    height: 100%;
+  }
+
+  .ai-dropdown-items {
+
+    z-index: inherit;
+    border: 1px solid $items-border-color;
+    padding: $dropdown-items-padding;
+    background-color: $items-bg-color;
+
+    -webkit-border-bottom-right-radius: $items-border-radius;
+    -webkit-border-bottom-left-radius: $items-border-radius;
+    border-bottom-right-radius: $items-border-radius;
+    border-bottom-left-radius: $items-border-radius;
+
+    li {
+
+      a {       
+        padding: $dropdown-link-padding;
+      }
+      
+      &.active {
+        background-color: $link-active-color;
+      } 
+      &:hover {
+        background-color: $link-hover-color;
+      }
+
+    }
+
+  }
+
+  .ai-dropdown-items > ul {
+    margin: $dropdown-list-margin;
+    max-height: $dropdown-list-max-height;
+  }
+
+  .ai-dropdown-items > div {
+    margin: $dropdown-list-margin;
+    max-height: $dropdown-list-max-height;
+  }
+  
+}
+
+// base styles
+.ai-dropdown {
+
+  @include ai-dropdown-mixin($dropdown-caret-border-color, $dropdown-items-bg-color,
+                             $dropdown-items-border-color, $dropdown-items-border-radius,
+                             $dropdown-link-active-color, $dropdown-link-hover-color);
+
+  position: relative;
+  vertical-align: middle;
+  width: 100%;
+  display: block;
+
+  &.inline {
+    width: auto;
+    display: inline-block;
+  }
+
+  // toggles list.
+  .ai-dropdown-toggle {
+
+    width: inherit;
+    min-width: inherit;
+    position: relative;
+    text-align: left;
+    
+    &.expanded, .btn {
+      -webkit-border-bottom-left-radius: 0;
+      -webkit-border-bottom-right-radius: 0;
+      -moz-border-radius-bottomleft: 0;
+      -moz-border-radius-bottomright: 0;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .selected {
+      display: inline-block;
+    }
+
+    .caret {
+
+      display: inline-block;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      line-height: inherit;
+      vertical-align: middle;
+      position: absolute;
+      right: 18px;
+      top: 45%;
+
+      &.down {
+        border-width: 5px 4px 0 4px;
+      }
+
+      &.up {
+        border-width: 0 4px 5px 4px;
+      }
+
+    }
+
+  }
+
+  // search input.
+  .ai-dropdown-search {
+    &:focus {
+      border: 1px solid #ccc;
+      box-shadow: none;
+    }
+  }
+
+  // used to prevent needing static height
+  .ai-dropdown-wrapper {
+    position: relative;
+    min-width: inherit;
+    width: inherit;
+  }
+
+  // contains all list items
+  .ai-dropdown-items {
+
+    position: absolute;
+    width: inherit;
+    min-width: inherit;
+    top: -1px;
+    left: 0;
+
+    &.shadow {
+      -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
+      box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
+    }
+
+    ul {
+      padding: 0;
+      list-style: none;
+      width: inherit;
+      text-align: left;
+    }
+
+    li {
+
+      display: list-item;
+      text-align: -webkit-match-parent;
+
+      a {
+        display: block;
+        white-space: nowrap;
+        text-decoration: none;
+
+      }
+
+    }
+
+  }
+
+  // base element list.
+  .ai-dropdown-items > ul {
+      overflow-x: hidden;
+      overflow-y: auto;
+  }
+
+  // group element list.
+  .ai-dropdown-items > div {
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    ul {
+      margin-bottom: 0;
+    }
+
+    h5 {
+      margin: 3px 0 1px 4px;
+    }
+
+  }
+
+}
