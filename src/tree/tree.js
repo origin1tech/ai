@@ -295,15 +295,14 @@ angular.module('ai.tree', ['ai.helpers'])
         };
 
     })
-    .directive('aiTree', ['$tree', function ($tree) {
+    .directive('aiTree', ['$tree', '$helpers', function ($tree, $helpers) {
 
         return {
             restrict: 'EAC',
             scope: true,
-            require: 'ngModel',
             link: function (scope, element, attrs, ngModel) {
 
-                var defaults, options, $module;
+                var defaults, options, $module, tmpModel;
                 defaults = {
                     scope: scope
                 };
@@ -315,6 +314,14 @@ angular.module('ai.tree', ['ai.helpers'])
                 // get local options
                 options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
 
+                // test if model is passed in options
+                // set to temp variable then delete
+                // to preserve nested models.
+                if(options.model) {
+                    tmpModel = options.model;
+                    delete options.model;
+                }
+
                 // make sure parent scope
                 // doesn't polute child.
                 delete options.scope;
@@ -323,7 +330,9 @@ angular.module('ai.tree', ['ai.helpers'])
                 options.tree = options.tree || scope;
 
                 options = angular.extend(defaults, options);
-                options.model = scope.$eval(attrs.ngModel);
+                options.model = tmpModel || attrs.ngModel;
+                if(!/\//g.test(options.model))
+                    options.model = scope.$eval(options.model);
 
                 init();
 
