@@ -1965,370 +1965,6 @@ angular.module('ai.loader', [
    
 
 
-
-angular.module('ai.passport.factory', [])
-
-    .provider('$passport', function $passport() {
-
-        var defaults, get, set;
-
-        defaults = {
-            rootName: 'Passport',                               // the name to use on rootscope for passport.
-            levels: {                                           // security levels to string name map.
-                0: '*',
-                1: 'user',
-                2: 'manager',
-                3: 'admin',
-                4: 'superadmin'
-            },            
-            401: true,                                          // set to false to not handle 401 status codes.
-            403: true,                                          // set to false to not handle 403 status codes.
-            paranoid: false,                                    // when true, fails if access level is missing.
-            delimiter: ',',                                     // char to use to separate roles when passing string.
-
-            // passport paths.
-            defaultUrl: '/',                                    // the default path or home page.
-            loginUrl: '/passport/login',                        // path to login form.
-            resetUrl: '/passport/reset',                        // path to password reset form.
-            recoverUrl: '/passport/recover',                    // path to password recovery form.            
-
-            // passport actions
-            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
-            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
-            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
-            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
-            refreshAction: false,                               // when the page is loaded the user may still be
-                                                                // logged in this calls the server to ensure the
-                                                                // active session is reloaded.
-                                                                // ex: 'get /api/passport/refresh'
-
-            // success fail actions.
-            onLoginSuccess: '/',                                // path or func on success.
-            onLoginFailed: '/passport/login',                   // path or func when login fails.
-            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
-            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
-            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
-            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
-            
-            namePrefix: 'Welcome Back ',                        // prefix string to identity.
-            nameParams: [ 'firstName' ]                         // array of user properties which make up the
-                                                                // user's identity or full name, properties are 
-                                                                // separated by a space.
-        };
-
-        set = function set (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
-
-            var instance;
-
-            // nomralize url to method/path object.
-            function urlToObject(url) {
-                var parts = url.split(' '),
-                    obj = { method: 'get' };
-                obj.path =  parts[0];
-                if(parts.length > 1){
-                    obj.method = parts[0];
-                    obj.path = parts[1];
-                }
-                return obj;
-            }
-
-            // convert string roles to levels.
-            function rolesToLevels(source, roles){
-                var arr = [];
-                source = source || [];
-                angular.forEach(roles, function (v) {
-                    if(source[v] !== undefined)
-                        arr.push(source[v]);
-                });
-                return arr;
-            }
-
-            // reverse the levels map setting role values as keys.
-            function reverseMap(levels) {
-                var obj = {};
-                angular.forEach(levels, function (v,k) {
-                    obj[v] = parseFloat(k);
-                });
-                return obj;
-            }
-
-            function ModuleFactory(options) {
-
-                var $module = {};
-                
-                $module.user = null;
-
-                function setOptions(options) {
-
-                    // ensure valid object.
-                    options = options || {};
-
-                    // override options map if exists.
-                    defaults.levels = options.levels || defaults.levels;
-
-                    // merge the options.
-                    $module.options = angular.extend(angular.copy(defaults), options);
-
-                    // normalize/reverse levels map
-                    $module.options.roles = reverseMap($module.options.levels);
-                }
-
-                // login passport credentials.
-                $module.login = function login(data) {
-                    var url = urlToObject($module.options.loginAction);
-                    $http[url.method](url.path, data)
-                        .then(function (res) {
-                            // set to authenticated and merge in passport profile.
-                            //angular.extend(self, res.data);
-                            $module.user = res.data;
-                            if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginSuccess);
-                            }
-                        }, function (res) {
-                            if(angular.isFunction($module.options.onLoginFailed)) {
-                                $module.options.onLoginFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginFailed);
-                            }
-                        });
-                };
-
-                $module.logout = function logout() {        
-                    function done() {
-                        $module.user = null;
-                        $location.path($module.options.loginUrl);
-                        $route.reload();
-                    }
-                    if(angular.isFunction($module.options.logoutAction)){
-                        $module.options.logoutAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.logoutAction);
-                        $http[url.method](url.path).then(function (res) {
-                                done();                               
-                            });
-                    }
-                };
-
-                $module.recover = function recover() {
-                    if(angular.isFunction($module.options.recoverAction)){
-                        $module.options.recoverAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.recoverAction);
-                        $http[url.method](url.path).then(function (res){
-                            if(angular.isFunction($module.options.onRecoverSuccess)) {
-                                $module.options.onRecoverSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverSuccess);
-                            }
-                        }, function () {
-                            if(angular.isFunction($module.options.onRecoverFailed)) {
-                                $module.options.onRecoverFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverFailed);
-                            }
-                        });        
-                    }
-                };               
-                
-                $module.refresh = function refresh() {   
-                    if(!$module.options.refreshAction)
-                        return;
-                    if(angular.isFunction($module.options.refreshAction)){
-                        $module.options.refreshAction.call($module);                            
-                    } else {
-                        var url = urlToObject($module.options.refreshAction);
-                        $http[url.method](url.path).then(function (res){
-                            $module.user = res.data;
-                        });
-                    }
-                };
-
-                $module.reset = function reset() {
-
-                };
-
-                // expects string.
-                $module.hasRole = function hasRole(role) {
-                    var passportRoles = $module.roles || [];
-                    // if string convert to role level.
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // if public return true
-                    if(role === 0)
-                        return true;
-                    return passportRoles.indexOf(role) !== -1;
-                };
-
-                // expects string or array of strings.
-                $module.hasAnyRole = function hasAnyRole(roles) {
-                    var passportRoles = $module.roles || [];
-                    // if a string convert to role levels.
-                    if(angular.isString(roles)){
-                        roles = roles.split($module.options.delimiter);
-                        roles = rolesToLevels($module.options.roles, roles);
-                    }
-                    // if public return true
-                    if(roles.indexOf(0) !== -1)
-                        return true;
-                    return roles.some(function (v) {
-                        return passportRoles.indexOf(v) !== -1;
-                    });
-                };
-
-                // check if meets the minimum roll required.
-                $module.minRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole >= role;
-                };
-
-                // check if role is not greater than.
-                $module.maxRole = function requiresRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole < role;
-                };
-
-                // unauthorized handler.
-                $module.unauthenticated = function unauthenticated() {
-                    var action = $module.options.onUnauthenticated;
-
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-
-                };
-
-                // unauthorized handler.
-                $module.unauthorized = function unauthorized() {
-                    var action = $module.options.onUnauthorized;
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-                };
-                
-                // gets the identity name of the authenticated user.
-                $module.getName = function getName(arr) {
-                    var result = '';
-                    arr = arr || $module.options.nameParams;
-                    if(!$module.user)
-                        return;
-                    angular.forEach(arr, function (v, k){
-                        if($module.user[v]){
-                            if(k === 0)
-                                result += $module.user[v];
-                            else
-                                result += (' ' + $module.user[v]);
-                        }      
-                    });    
-                    return $module.options.namePrefix + result;
-                };
-
-                setOptions(options);
-                
-                $module.refresh();
-
-                return $module;
-
-            }
-
-            function getInstance() {
-                if(!instance)
-                    instance = new ModuleFactory();
-                $rootScope.Passport = instance;
-                return instance;
-            }
-
-            return getInstance();
-           
-        }];
-
-        return {
-            $get: get,
-            $set: set
-        };
-
-    });
-
-// intercepts 401 and 403 errors.
-angular.module('ai.passport.interceptor', [])
-    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                // get passport here to prevent circ dependency.
-                var passport = $injector.get('$passport');
-                // handle unauthenticated response
-                if (res.status === 401 && passport.options['401'])
-                    passport.unauthenticated();
-                if(res.status === 403 && passport.options['403'])
-                    passport.unauthorized();
-                return $q.reject(res);
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$passportInterceptor');
-    }]);
-
-// handles intercepting route when
-// required permissions are not met.
-angular.module('ai.passport.route', [])
-    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
-        $rootScope.$on('$routeChangeStart', function (event, next) {
-            var area = {},
-                route = {},
-                access,
-                authorized;
-            if(next && next.$$route){
-                route = next.$$route;
-                if(route.area)
-                    area = route.area;
-            }
-            access = route.access || area.access;
-            // when paranoid is true require access params
-            // if undefined call unauthorized.
-            // when paranoid is false unauthorized is not called
-            // when access is undefined.
-            if($passport.options.paranoid && access === undefined)
-                return $passport.unauthorized();
-            if(access !== undefined){
-                authorized = $passport.hasAnyRole('*');
-                if(!authorized)
-                    $passport.unauthorized();
-            }
-        });
-    }]);
-
-// imports above modules.
-angular.module('ai.passport', [
-    'ai.passport.factory',
-    'ai.passport.interceptor',
-    'ai.passport.route'
-]);
 angular.module('ai.modal', [])
 
     .provider('$modal', function $modal() {
@@ -3008,6 +2644,370 @@ angular.module('ai.modal', [])
         };
 
     }]);
+
+angular.module('ai.passport.factory', [])
+
+    .provider('$passport', function $passport() {
+
+        var defaults, get, set;
+
+        defaults = {
+            rootName: 'Passport',                               // the name to use on rootscope for passport.
+            levels: {                                           // security levels to string name map.
+                0: '*',
+                1: 'user',
+                2: 'manager',
+                3: 'admin',
+                4: 'superadmin'
+            },            
+            401: true,                                          // set to false to not handle 401 status codes.
+            403: true,                                          // set to false to not handle 403 status codes.
+            paranoid: false,                                    // when true, fails if access level is missing.
+            delimiter: ',',                                     // char to use to separate roles when passing string.
+
+            // passport paths.
+            defaultUrl: '/',                                    // the default path or home page.
+            loginUrl: '/passport/login',                        // path to login form.
+            resetUrl: '/passport/reset',                        // path to password reset form.
+            recoverUrl: '/passport/recover',                    // path to password recovery form.            
+
+            // passport actions
+            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
+            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
+            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
+            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
+            refreshAction: false,                               // when the page is loaded the user may still be
+                                                                // logged in this calls the server to ensure the
+                                                                // active session is reloaded.
+                                                                // ex: 'get /api/passport/refresh'
+
+            // success fail actions.
+            onLoginSuccess: '/',                                // path or func on success.
+            onLoginFailed: '/passport/login',                   // path or func when login fails.
+            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
+            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
+            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
+            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
+            
+            namePrefix: 'Welcome Back ',                        // prefix string to identity.
+            nameParams: [ 'firstName' ]                         // array of user properties which make up the
+                                                                // user's identity or full name, properties are 
+                                                                // separated by a space.
+        };
+
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
+
+            var instance;
+
+            // nomralize url to method/path object.
+            function urlToObject(url) {
+                var parts = url.split(' '),
+                    obj = { method: 'get' };
+                obj.path =  parts[0];
+                if(parts.length > 1){
+                    obj.method = parts[0];
+                    obj.path = parts[1];
+                }
+                return obj;
+            }
+
+            // convert string roles to levels.
+            function rolesToLevels(source, roles){
+                var arr = [];
+                source = source || [];
+                angular.forEach(roles, function (v) {
+                    if(source[v] !== undefined)
+                        arr.push(source[v]);
+                });
+                return arr;
+            }
+
+            // reverse the levels map setting role values as keys.
+            function reverseMap(levels) {
+                var obj = {};
+                angular.forEach(levels, function (v,k) {
+                    obj[v] = parseFloat(k);
+                });
+                return obj;
+            }
+
+            function ModuleFactory(options) {
+
+                var $module = {};
+                
+                $module.user = null;
+
+                function setOptions(options) {
+
+                    // ensure valid object.
+                    options = options || {};
+
+                    // override options map if exists.
+                    defaults.levels = options.levels || defaults.levels;
+
+                    // merge the options.
+                    $module.options = angular.extend(angular.copy(defaults), options);
+
+                    // normalize/reverse levels map
+                    $module.options.roles = reverseMap($module.options.levels);
+                }
+
+                // login passport credentials.
+                $module.login = function login(data) {
+                    var url = urlToObject($module.options.loginAction);
+                    $http[url.method](url.path, data)
+                        .then(function (res) {
+                            // set to authenticated and merge in passport profile.
+                            //angular.extend(self, res.data);
+                            $module.user = res.data;
+                            if(angular.isFunction($module.options.onLoginSuccess)) {
+                                $module.options.onLoginSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onLoginSuccess);
+                            }
+                        }, function (res) {
+                            if(angular.isFunction($module.options.onLoginFailed)) {
+                                $module.options.onLoginFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onLoginFailed);
+                            }
+                        });
+                };
+
+                $module.logout = function logout() {        
+                    function done() {
+                        $module.user = null;
+                        $location.path($module.options.loginUrl);
+                        $route.reload();
+                    }
+                    if(angular.isFunction($module.options.logoutAction)){
+                        $module.options.logoutAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.logoutAction);
+                        $http[url.method](url.path).then(function (res) {
+                                done();                               
+                            });
+                    }
+                };
+
+                $module.recover = function recover() {
+                    if(angular.isFunction($module.options.recoverAction)){
+                        $module.options.recoverAction.call($module);
+                    } else {
+                        var url = urlToObject($module.options.recoverAction);
+                        $http[url.method](url.path).then(function (res){
+                            if(angular.isFunction($module.options.onRecoverSuccess)) {
+                                $module.options.onRecoverSuccess.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverSuccess);
+                            }
+                        }, function () {
+                            if(angular.isFunction($module.options.onRecoverFailed)) {
+                                $module.options.onRecoverFailed.call($module, res);
+                            } else {
+                                $location.path($module.options.onRecoverFailed);
+                            }
+                        });        
+                    }
+                };               
+                
+                $module.refresh = function refresh() {   
+                    if(!$module.options.refreshAction)
+                        return;
+                    if(angular.isFunction($module.options.refreshAction)){
+                        $module.options.refreshAction.call($module);                            
+                    } else {
+                        var url = urlToObject($module.options.refreshAction);
+                        $http[url.method](url.path).then(function (res){
+                            $module.user = res.data;
+                        });
+                    }
+                };
+
+                $module.reset = function reset() {
+
+                };
+
+                // expects string.
+                $module.hasRole = function hasRole(role) {
+                    var passportRoles = $module.roles || [];
+                    // if string convert to role level.
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // if public return true
+                    if(role === 0)
+                        return true;
+                    return passportRoles.indexOf(role) !== -1;
+                };
+
+                // expects string or array of strings.
+                $module.hasAnyRole = function hasAnyRole(roles) {
+                    var passportRoles = $module.roles || [];
+                    // if a string convert to role levels.
+                    if(angular.isString(roles)){
+                        roles = roles.split($module.options.delimiter);
+                        roles = rolesToLevels($module.options.roles, roles);
+                    }
+                    // if public return true
+                    if(roles.indexOf(0) !== -1)
+                        return true;
+                    return roles.some(function (v) {
+                        return passportRoles.indexOf(v) !== -1;
+                    });
+                };
+
+                // check if meets the minimum roll required.
+                $module.minRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole >= role;
+                };
+
+                // check if role is not greater than.
+                $module.maxRole = function requiresRole(role) {
+                    var passportRoles = $module.roles || [],
+                        maxRole;
+                    if(angular.isString(role))
+                        role = $module.options.roles[role] || undefined;
+                    // get the passport's maximum role.
+                    maxRole = Math.max.apply(Math, passportRoles);
+                    return maxRole < role;
+                };
+
+                // unauthorized handler.
+                $module.unauthenticated = function unauthenticated() {
+                    var action = $module.options.onUnauthenticated;
+
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+
+                };
+
+                // unauthorized handler.
+                $module.unauthorized = function unauthorized() {
+                    var action = $module.options.onUnauthorized;
+                    // if func call pass context.
+                    if(angular.isFunction(action))
+                        return action.call($module);
+                    // default to the login url.
+                    $location.path(action || $module.options.loginUrl);
+                };
+                
+                // gets the identity name of the authenticated user.
+                $module.getName = function getName(arr) {
+                    var result = '';
+                    arr = arr || $module.options.nameParams;
+                    if(!$module.user)
+                        return;
+                    angular.forEach(arr, function (v, k){
+                        if($module.user[v]){
+                            if(k === 0)
+                                result += $module.user[v];
+                            else
+                                result += (' ' + $module.user[v]);
+                        }      
+                    });    
+                    return $module.options.namePrefix + result;
+                };
+
+                setOptions(options);
+                
+                $module.refresh();
+
+                return $module;
+
+            }
+
+            function getInstance() {
+                if(!instance)
+                    instance = new ModuleFactory();
+                $rootScope.Passport = instance;
+                return instance;
+            }
+
+            return getInstance();
+           
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    });
+
+// intercepts 401 and 403 errors.
+angular.module('ai.passport.interceptor', [])
+    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+                // get passport here to prevent circ dependency.
+                var passport = $injector.get('$passport');
+                // handle unauthenticated response
+                if (res.status === 401 && passport.options['401'])
+                    passport.unauthenticated();
+                if(res.status === 403 && passport.options['403'])
+                    passport.unauthorized();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$passportInterceptor');
+    }]);
+
+// handles intercepting route when
+// required permissions are not met.
+angular.module('ai.passport.route', [])
+    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
+        $rootScope.$on('$routeChangeStart', function (event, next) {
+            var area = {},
+                route = {},
+                access,
+                authorized;
+            if(next && next.$$route){
+                route = next.$$route;
+                if(route.area)
+                    area = route.area;
+            }
+            access = route.access || area.access;
+            // when paranoid is true require access params
+            // if undefined call unauthorized.
+            // when paranoid is false unauthorized is not called
+            // when access is undefined.
+            if($passport.options.paranoid && access === undefined)
+                return $passport.unauthorized();
+            if(access !== undefined){
+                authorized = $passport.hasAnyRole('*');
+                if(!authorized)
+                    $passport.unauthorized();
+            }
+        });
+    }]);
+
+// imports above modules.
+angular.module('ai.passport', [
+    'ai.passport.factory',
+    'ai.passport.interceptor',
+    'ai.passport.route'
+]);
 angular.module('ai.step', ['ai.helpers'])
 
 .provider('$step', function $step() {
@@ -5695,6 +5695,339 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
         };
 
     }]);
+angular.module('ai.tree', ['ai.helpers'])
+    .provider('$tree', function $tree() {
+
+        var defaults = {
+            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
+            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
+            label: 'label',                             // the property used for display.
+            value: 'value',                             // the property used for value.
+            children: 'children',                       // the property used for child elements.
+            active: 'active',                           // the property used to indicated the element is checked or active.
+            method: 'get',                              // when and endpoint is specified in model.
+            params: {},                                 // params to be passed when model is an endpoint.
+            icon: true,                                 // when NOT false icon is displayed left of label.
+            expanded: false,                            // when true tree loads with all nodes expanded.
+            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
+            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
+            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
+            onReady: undefined                          // callback when loaded.
+        }, get, set;
+
+        set = function set(key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
+
+            var treeTemplate =
+                '<ul>' +
+                    '<li ng-repeat="node in nodes track by $index">' +
+                        '<span class="ai-tree-caret" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
+                            'ng-click="toggle($event, node)"></span>' +
+                        '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
+                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
+                            '{{LABEL_TEMPLATE}}' +
+                        '</div>' +
+                        '<ai-tree ng-if="node.children" ' +
+                            'ng-show="node.expanded" ' +
+                            'ng-model="node.children" ' +
+                            'ai-tree-options="options" ' +
+                            'class="ai-tree-child"' +
+                            '>' +
+                        '</ai-tree>' +
+                    '</li>' +
+                '</ul>';
+
+            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
+
+            $helpers.getPutTemplate(defaults.template, treeTemplate);
+            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
+
+            function ModuleFactory(element, options, attrs){
+
+                var $module = {},
+                    treeModel,
+                    model,
+                    scope;
+
+                if(!element)
+                    return console.error('Cannot configure tree with element of undefined.');
+
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                options = options || {};
+                scope = $module.scope = options.scope || $rootScope.$new();
+                options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
+                $module.element = scope.element = element;
+
+                // the current model may be nested.
+                model = options.model;
+
+                // the root tree model.
+                treeModel = options.tree.options.model;
+
+                // get templates.
+                function getTemplates() {
+                    var promises = [
+                        $helpers.loadTemplate(options.template),
+                        $helpers.loadTemplate(options.labelTemplate)
+                    ];
+                    return $q.all(promises);
+                }
+
+                // get data collection.
+                function loadData(m, cb) {
+
+                    if(angular.isArray(m))
+                        return cb(m);
+
+                    // if string get via http
+                    if(angular.isString(m)){
+                        $http.get(m, {
+                            params: options.params
+                        }).then(function (res) {
+                            model = res.data;
+                            treeModel = options.tree.options.model = res.data;
+                            cb(res.data);
+                        }, function (res) {
+                            console.error(res);
+                            cb();
+                        });
+                    } else {
+                        cb();
+                    }
+
+                }
+
+                // check if node is a parent node.
+                function isParent(node){
+                    return (node.children && node.children.length);
+                }
+
+                // iterate children and set active.
+                function toggleChildren(arr, value){
+                    angular.forEach(arr, function (n) {
+                        if(n.children)
+                            toggleChildren(n.children, value);
+                        n.active = value;
+                    });
+                }
+
+                // normalize data and properties.
+                function normalizeData(arr) {
+                    angular.forEach(arr, function (node) {
+                        // support specifying only values.
+                        // set label to value if label is absent.
+                        node.label = node[options.label || options.value];
+                        node.value = node[options.value];
+                        node.children = node[options.children];
+                        node.active = node[options.active] || false;
+                        node.toggle = false;
+                        node.icon = options.icon === false ? false : true;
+                        if(isParent(node)){
+                            node.options = options;
+                            node.expanded = options.expanded || node.expanded || false;
+                            node.toggle = true;
+                        }
+                    });
+                }
+
+                // gets all child nodes
+                function getChildren(arr) {
+                    var children = [];
+                    angular.forEach(arr, function (n) {
+                        if(isParent(n)){
+                            var nestedChildren = getChildren(n.children);
+                            children = children.concat(nestedChildren);
+                        } else {
+                            children.push(n);
+                        }
+                    });
+                    return children;
+                }
+
+                // sets tree checked state.
+                function setState(arr) {
+                    var selected = [];
+                    angular.forEach(arr, function(n) {
+                        if(isParent(n)){
+                            var activeChildren = setState(n.children);
+                            var maxChildren = getChildren(n.children);
+                            if(maxChildren.length === activeChildren.length)
+                                n.state = 'checked';
+                            else if(activeChildren.length > 0)
+                                n.state = 'intermediate';
+                            else
+                                n.state = 'unchecked';
+                            selected = selected.concat(activeChildren);
+                        }else {
+                            if(n.active){
+                                n.state = 'checked';
+                                selected.push(n);
+                            } else {
+                                n.state = 'unchecked';
+                            }
+                        }
+                    });
+                    options.tree.selected = selected;
+                    return selected;
+                }
+
+                // expands children nodes if any.
+                function expandChildren(arr, state) {
+                    angular.forEach(arr, function (n) {
+                        if(isParent(n)){
+                            if(state !== undefined)
+                                n.expanded = state
+                            else
+                                n.expanded =! n.expanded;
+                            expandChildren(n.children, state);
+                        }
+                    });
+                }
+
+                // when child nodes are expanded/collapsed.
+                function toggle(event, node, state) {
+                    var isMouseEvent = event instanceof MouseEvent;
+                    if(!isMouseEvent){
+                        state = node;
+                        node = event;
+                        event = null;                    }
+                    if(state === undefined)
+                        node.expanded =! node.expanded;
+                    else
+                        node.expanded = state;
+                    if(undefined !== state || options.expandAll)
+                        expandChildren(node.children, state);
+                    if(angular.isFunction(options.onToggle)){
+                        options.onToggle(node, treeModel, event);
+                    }
+                }
+
+                // get the selected nodes.
+                function selected() {
+                    return options.tree.selected;
+                }
+
+                // select a node
+                function select(event, node) {
+                    var isMouseEvent = event instanceof MouseEvent;
+                    if(!isMouseEvent){
+                        node = event;
+                        event = null;
+                    }
+                    if(isParent(node)) {
+                        node.active =! node.active;
+                        toggleChildren(node.children, node.active);
+                        if(node.active)
+                            toggle(event, node, true);
+                    } else {
+                        node.active =! node.active;
+                    }
+                    setState(treeModel);
+                    if(angular.isFunction(options.onSelect)){
+                        options.onSelect(node, treeModel, event);
+                    }
+                }
+
+                $module.select = scope.select = select;
+                $module.toggle = scope.toggle = toggle;
+                $module.selected = scope.selected = selected;
+
+                // initialize the tree view.
+                function init() {
+
+                    loadData(model, function (data) {
+
+                        if(!data) return;
+
+                        // normalize the model properties.
+                        normalizeData(data);
+
+                        // set initial check state.
+                        setState(treeModel);
+
+                        $module.nodes = scope.nodes = data;
+
+                        getTemplates().then(function(t) {
+
+                            var _template = t[0],
+                                _labelTemplate = t[1];
+                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
+                            element.empty().append($helpers.compile(scope, _template));
+
+                            if(angular.isFunction(options.onReady) && !options.tree.ready){
+                                options.onReady(options.tree, treeModel);
+                                options.tree.ready = true;
+                            }
+
+                        });
+
+                        // don't wait for templates.
+                        return $module;
+
+                    });
+                }
+
+                init();
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    })
+    .directive('aiTree', ['$tree', function ($tree) {
+
+        return {
+            restrict: 'EAC',
+            require: 'ngModel',
+            scope: true,
+            link: function (scope, element, attrs, ngModel) {
+
+                var defaults, options, $module;
+                defaults = {
+                    scope: scope
+                };
+
+                function init() {
+                    $module = $tree(element, options, attrs);
+                }
+
+                // get local options
+                options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
+
+                // make sure parent scope
+                // doesn't polute child.
+                delete options.scope;
+
+                // save the original scope.
+                options.tree = options.tree || scope;
+
+                options = angular.extend(defaults, options);
+                options.model = scope.$eval(attrs.ngModel);
+
+                init();
+
+            }
+        };
+
+    }]);
 var form = angular.module('ai.validate', ['ai.helpers'])
 .provider('$validate', function $validate() {
 
@@ -7159,337 +7492,4 @@ angular.module('ai.widget', [])
 function sayHello() {
     alert('Hello lazy loaded script!');
 }
-angular.module('ai.tree', ['ai.helpers'])
-    .provider('$tree', function $tree() {
-
-        var defaults = {
-            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
-            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
-            label: 'label',                             // the property used for display.
-            value: 'value',                             // the property used for value.
-            children: 'children',                       // the property used for child elements.
-            active: 'active',                           // the property used to indicated the element is checked or active.
-            method: 'get',                              // when and endpoint is specified in model.
-            params: {},                                 // params to be passed when model is an endpoint.
-            icon: true,                                 // when NOT false icon is displayed left of label.
-            expanded: false,                            // when true tree loads with all nodes expanded.
-            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
-            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
-            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
-            onReady: undefined                          // callback when loaded.
-        }, get, set;
-
-        set = function set(key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
-
-            var treeTemplate =
-                '<ul>' +
-                    '<li ng-repeat="node in nodes track by $index">' +
-                        '<span class="ai-tree-caret" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
-                            'ng-click="toggle($event, node)"></span>' +
-                        '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
-                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
-                            '{{LABEL_TEMPLATE}}' +
-                        '</div>' +
-                        '<ai-tree ng-if="node.children" ' +
-                            'ng-show="node.expanded" ' +
-                            'ng-model="node.children" ' +
-                            'ai-tree-options="options" ' +
-                            'class="ai-tree-child"' +
-                            '>' +
-                        '</ai-tree>' +
-                    '</li>' +
-                '</ul>';
-
-            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
-
-            $helpers.getPutTemplate(defaults.template, treeTemplate);
-            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
-
-            function ModuleFactory(element, options, attrs){
-
-                var $module = {},
-                    treeModel,
-                    model,
-                    scope;
-
-                if(!element)
-                    return console.error('Cannot configure tree with element of undefined.');
-
-                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-                options = options || {};
-                scope = $module.scope = options.scope || $rootScope.$new();
-                options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
-                $module.element = scope.element = element;
-
-                // the current model may be nested.
-                model = options.model;
-
-                // the root tree model.
-                treeModel = options.tree.options.model;
-
-                // get templates.
-                function getTemplates() {
-                    var promises = [
-                        $helpers.loadTemplate(options.template),
-                        $helpers.loadTemplate(options.labelTemplate)
-                    ];
-                    return $q.all(promises);
-                }
-
-                // get data collection.
-                function loadData(m, cb) {
-
-                    if(angular.isArray(m))
-                        return cb(m);
-
-                    // if string get via http
-                    if(angular.isString(m)){
-                        $http.get(m, {
-                            params: options.params
-                        }).then(function (res) {
-                            model = res.data;
-                            treeModel = options.tree.options.model = res.data;
-                            cb(res.data);
-                        }, function (res) {
-                            console.error(res);
-                            cb();
-                        });
-                    } else {
-                        cb();
-                    }
-
-                }
-
-                // check if node is a parent node.
-                function isParent(node){
-                    return (node.children && node.children.length);
-                }
-
-                // iterate children and set active.
-                function toggleChildren(arr, value){
-                    angular.forEach(arr, function (n) {
-                        if(n.children)
-                            toggleChildren(n.children, value);
-                        n.active = value;
-                    });
-                }
-
-                // normalize data and properties.
-                function normalizeData(arr) {
-                    angular.forEach(arr, function (node) {
-                        // support specifying only values.
-                        // set label to value if label is absent.
-                        node.label = node[options.label || options.value];
-                        node.value = node[options.value];
-                        node.children = node[options.children];
-                        node.active = node[options.active] || false;
-                        node.toggle = false;
-                        node.icon = options.icon === false ? false : true;
-                        if(isParent(node)){
-                            node.options = options;
-                            node.expanded = options.expanded || node.expanded || false;
-                            node.toggle = true;
-                        }
-                    });
-                }
-
-                // gets all child nodes
-                function getChildren(arr) {
-                    var children = [];
-                    angular.forEach(arr, function (n) {
-                        if(isParent(n)){
-                            var nestedChildren = getChildren(n.children);
-                            children = children.concat(nestedChildren);
-                        } else {
-                            children.push(n);
-                        }
-                    });
-                    return children;
-                }
-
-                // sets tree checked state.
-                function setState(arr) {
-                    var selected = [];
-                    angular.forEach(arr, function(n) {
-                        if(isParent(n)){
-                            var activeChildren = setState(n.children);
-                            var maxChildren = getChildren(n.children);
-                            if(maxChildren.length === activeChildren.length)
-                                n.state = 'checked';
-                            else if(activeChildren.length > 0)
-                                n.state = 'intermediate';
-                            else
-                                n.state = 'unchecked';
-                            selected = selected.concat(activeChildren);
-                        }else {
-                            if(n.active){
-                                n.state = 'checked';
-                                selected.push(n);
-                            } else {
-                                n.state = 'unchecked';
-                            }
-                        }
-                    });
-                    options.tree.selected = selected;
-                    return selected;
-                }
-
-                // expands children nodes if any.
-                function expandChildren(arr, state) {
-                    angular.forEach(arr, function (n) {
-                        if(isParent(n)){
-                            if(state !== undefined)
-                                n.expanded = state
-                            else
-                                n.expanded =! n.expanded;
-                            expandChildren(n.children, state);
-                        }
-                    });
-                }
-
-                // when child nodes are expanded/collapsed.
-                function toggle(event, node, state) {
-                    var isMouseEvent = event instanceof MouseEvent;
-                    if(!isMouseEvent){
-                        state = node;
-                        node = event;
-                        event = null;                    }
-                    if(state === undefined)
-                        node.expanded =! node.expanded;
-                    else
-                        node.expanded = state;
-                    if(undefined !== state || options.expandAll)
-                        expandChildren(node.children, state);
-                    if(angular.isFunction(options.onToggle)){
-                        options.onToggle(node, treeModel, event);
-                    }
-                }
-
-                // get the selected nodes.
-                function selected() {
-                    return options.tree.selected;
-                }
-
-                // select a node
-                function select(event, node) {
-                    var isMouseEvent = event instanceof MouseEvent;
-                    if(!isMouseEvent){
-                        node = event;
-                        event = null;
-                    }
-                    if(isParent(node)) {
-                        node.active =! node.active;
-                        toggleChildren(node.children, node.active);
-                        if(node.active)
-                            toggle(event, node, true);
-                    } else {
-                        node.active =! node.active;
-                    }
-                    setState(treeModel);
-                    if(angular.isFunction(options.onSelect)){
-                        options.onSelect(node, treeModel, event);
-                    }
-                }
-
-                $module.select = scope.select = select;
-                $module.toggle = scope.toggle = toggle;
-                $module.selected = scope.selected = selected;
-
-                // initialize the tree view.
-                function init() {
-
-                    loadData(model, function (data) {
-
-                        if(!data) return;
-
-                        // normalize the model properties.
-                        normalizeData(data);
-
-                        // set initial check state.
-                        setState(treeModel);
-
-                        $module.nodes = scope.nodes = data;
-
-                        getTemplates().then(function(t) {
-
-                            var _template = t[0],
-                                _labelTemplate = t[1];
-                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
-                            element.empty().append($helpers.compile(scope, _template));
-
-                            if(angular.isFunction(options.onReady) && !options.tree.ready){
-                                options.onReady(options.tree, treeModel);
-                                options.tree.ready = true;
-                            }
-
-                        });
-
-                        // don't wait for templates.
-                        return $module;
-
-                    });
-                }
-
-                init();
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $get: get,
-            $set: set
-        };
-
-    })
-    .directive('aiTree', ['$tree', function ($tree) {
-
-        return {
-            restrict: 'EAC',
-            require: 'ngModel',
-            scope: true,
-            link: function (scope, element, attrs, ngModel) {
-
-                var defaults, options, $module;
-                defaults = {
-                    scope: scope
-                };
-
-                function init() {
-                    $module = $tree(element, options, attrs);
-                }
-
-                // get local options
-                options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
-
-                // make sure parent scope
-                // doesn't polute child.
-                delete options.scope;
-
-                // save the original scope.
-                options.tree = options.tree || scope;
-
-                options = angular.extend(defaults, options);
-                options.model = scope.$eval(attrs.ngModel);
-
-                init();
-
-            }
-        };
-
-    }]);
 })(window, document);

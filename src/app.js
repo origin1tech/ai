@@ -25,7 +25,7 @@ require([
         //'/modal': 'Native modal dialog.',
         '/table': 'Bind local or remote data to table/grid.',
         '/validate': 'Form validation with auto model binding.',
-        '/widget': 'Various widgets - casing, number, compare, placeholder',
+        '/widget': 'Various widgets - casing, number, compare, placeholder and lazyload',
         '/step': 'Creates form step wizard.',
         '/loader': 'Shows loading message/spinner on ajax calls.',
         '/tree': 'Treeview element.'

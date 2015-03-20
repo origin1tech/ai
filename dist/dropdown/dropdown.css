@@ -4,12 +4,14 @@
   vertical-align: middle;
   width: 100%;
   display: block; }
+  .ai-dropdown:focus {
+    z-index: 1061; }
   .ai-dropdown .caret.down {
     border-color: #333 transparent transparent transparent; }
   .ai-dropdown .caret.up {
     border-color: transparent transparent #333 transparent; }
   .ai-dropdown .ai-dropdown-wrapper {
-    z-index: 1061;
+    z-index: 1060;
     height: 100%; }
   .ai-dropdown .ai-dropdown-items {
     z-index: inherit;

@@ -4,7 +4,7 @@ $dropdown-caret-top:              45%;
 $dropdown-caret-right:            18px;
 $dropdown-caret-border-color:     #333;
 
-$dropdown-wrapper-zindex:         1061;
+$dropdown-wrapper-zindex:         1060;
 
 $dropdown-items-bg-color:         #fff;
 $dropdown-items-border-color:     rgba(0,0,0,.15);
@@ -23,6 +23,10 @@ $dropdown-list-margin:            4px -4px;
                          $items-border-radius, $link-active-color, $link-hover-color) {
   
   min-width: $dropdown-min-width;
+
+  &:focus {
+    z-index: 1061;
+  }
 
   .caret {
     &.down {
