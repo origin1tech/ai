@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.1.6
+* Version: 0.1.7
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -3182,6 +3182,8 @@ angular.module('ai.step', ['ai.helpers'])
                         .then(function(res) {
                             if(res) done();
                         });
+                } else {
+                    done();
                 }
 
                 function done() {

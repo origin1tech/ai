@@ -175,6 +175,8 @@ angular.module('ai.step', ['ai.helpers'])
                         .then(function(res) {
                             if(res) done();
                         });
+                } else {
+                    done();
                 }
 
                 function done() {
