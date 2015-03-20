@@ -5996,7 +5996,6 @@ angular.module('ai.tree', ['ai.helpers'])
 
         return {
             restrict: 'EAC',
-            require: 'ngModel',
             scope: true,
             link: function (scope, element, attrs, ngModel) {
 
