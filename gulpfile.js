@@ -138,6 +138,7 @@ gulp.task('serve', ['build'], function() {
         root: './dist',
         livereload: true,
         fallback: 'dist/index.html',
+        host: '10.10.20.35',
         // quick hack for demo the loader.
         middleware: function (conn, options){
             return [ function (req, res, next) {

@@ -319,7 +319,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     initialized = false;
 
                     // allow passing element in options.
-                    if($helpers.isPlainObject(element)){
+                    if(arguments.length < 3){
                         attrs = options;
                         options = element;
                         element = options.element;
@@ -327,10 +327,9 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
                     attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
-                    scope = (options.scope && options.scope.$new()) || $rootScope.$new();
-                    //scope = options.scope || $rootScope.$new();
+                    scope = options.scope || $rootScope.$new();
                     options = angular.extend({}, defaults, attrs, options);
-
+                    options.element = options.element || element;
 
                     // gets list of user defined templates for table
                     function userTemplates(promises) {
@@ -1466,6 +1465,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                                 // replace our original element
                                 //element.replaceWith(table);
                                 element.html(template);
+
                                 $helpers.compile(scope, element.contents());
 
                                 // find loader element
@@ -1512,6 +1512,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
         return {
             restrict: 'EAC',
+            scope: true,
             link: function link(scope, element, attrs) {
 
                 var defaults, options, $module;
@@ -1525,6 +1526,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     /* initialize the new table */
                     $module = $table(element, options, attrs);
 
+                    // todo probably shouldn't live here.
                     $module.ready(function() {
                         scope.instance = this;
                     });
