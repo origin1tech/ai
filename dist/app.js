@@ -4,7 +4,6 @@ require([
     'table/table',
     'widget/widget',
     'flash/flash',
-    'modal/modal',
     'validate/validate',
     'storage/storage',
     'passport/passport',
@@ -22,7 +21,6 @@ require([
         '/autoform': 'Handy during dev to quickly create a form.',
         '/dropdown': 'Advanced customizable dropdown directive.',
         '/flash': 'Allows for showing flash/popup messages.',
-        //'/modal': 'Native modal dialog.',
         '/table': 'Bind local or remote data to table/grid.',
         '/validate': 'Form validation with auto model binding.',
         '/widget': 'Various widgets - casing, number, compare, placeholder and lazyload',
@@ -40,7 +38,7 @@ require([
     });
 
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
-        'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.modal', 'ai.flash',
+        'ai.storage', 'ai.dropdown', 'ai.widget', 'ai.flash',
         'ai.passport', 'ai.validate', 'ai.autoform', 'ai.loader', 'ai.tree']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider', '$loaderProvider',
@@ -78,8 +76,8 @@ require([
     }]);
 
     controller = [
-        '$rootScope', '$scope', '$route', '$flash', '$step', '$modal', '$storage', '$location', '$http', '$loader',
-        function ($rootScope, $scope, $route, $flash, $step, $modal, $storage, $location, $http, $loader) {
+        '$rootScope', '$scope', '$route', '$flash', '$step', '$storage', '$location', '$http', '$loader',
+        function ($rootScope, $scope, $route, $flash, $step, $storage, $location, $http, $loader) {
             var current = $route.current,
                 route = current.$$route,
                 params = current.params,
@@ -93,12 +91,10 @@ require([
                 decimal:    { active: 'markup' },
                 casing:     { active: 'markup' },
                 compare:    { active: 'markup' },
-                modal:      { active: 'markup' },
                 storage:    { active: 'markup' },
                 dropdown:   { active: 'markup' },
                 autoform:   { active: 'markup' },
                 placeholder:{ active: 'markup' },
-                tab:        { active: 'markup' },
                 loader:     { active: 'markup' },
                 tree:       { active: 'markup' },
                 lazyload:   { active: 'markup' }
@@ -228,17 +224,6 @@ require([
                     }
                 };
 
-            }
-
-            if (area === 'modal'){
-                var modalConf = {
-                    title: 'Instance Modal',
-                    content: 'I was shown using instance from source code.'
-                };
-                var modal = new $modal(modalConf);
-                $scope.showModal = function () {
-                    modal.show();
-                };
             }
 
             if (area === 'storage'){
