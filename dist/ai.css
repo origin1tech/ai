@@ -309,14 +309,14 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
 
 .ai-list {
   min-width: 150px;
-  outline: none;
+  outline: 0 !important;
   position: relative;
   vertical-align: middle;
   width: 100%;
   display: block; }
-  .ai-list:focus {
+  .ai-list:focus, .ai-list:active {
     z-index: 1061;
-    outline: none; }
+    outline: 0 !important; }
   .ai-list .caret.down {
     border-color: #333 transparent transparent transparent; }
   .ai-list .caret.up {
@@ -346,9 +346,9 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
     margin: 4px -4px;
     max-height: 250px; }
   .ai-list .ai-list-toggle {
-    outline: none; }
-    .ai-list .ai-list-toggle:focus {
-      outline: none; }
+    outline: 0 !important; }
+    .ai-list .ai-list-toggle:focus, .ai-list .ai-list-toggle:active {
+      outline: 0 !important; }
   .ai-list.inline {
     width: auto;
     display: inline-block; }
@@ -401,7 +401,8 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
         display: block;
         white-space: nowrap;
         text-decoration: none;
-        color: inherit; }
+        color: inherit;
+        cursor: pointer; }
         .ai-list .ai-list-items li a:hover {
           color: inherit; }
   .ai-list .ai-list-items > ul {

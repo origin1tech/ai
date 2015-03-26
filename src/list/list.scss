@@ -22,11 +22,11 @@ $list-list-margin:            4px -4px;
                          $items-border-radius, $link-active-color, $link-hover-color) {
 
   min-width: $list-min-width;
-  outline: none;
+  outline: 0 !important;
 
-  &:focus {
+  &:focus, &:active {
     z-index: 1061;
-    outline: none;
+    outline: 0 !important;
   }
 
   .caret {
@@ -85,9 +85,9 @@ $list-list-margin:            4px -4px;
   }
 
   .ai-list-toggle {
-    outline: none;
-    &:focus {
-      outline: none;
+    outline: 0 !important;
+    &:focus, &:active {
+      outline: 0 !important;
     }
   }
 
@@ -202,6 +202,7 @@ $list-list-margin:            4px -4px;
         white-space: nowrap;
         text-decoration: none;
         color: inherit;
+        cursor: pointer;
         &:hover {
           color: inherit;
         }
