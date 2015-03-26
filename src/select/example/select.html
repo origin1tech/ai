@@ -11,17 +11,17 @@
 
     <div class="form-group">
         <label style="display: block;">Basic List (displayed inline)</label>
-        <input type="text" class="form-control" ai-dropdown ng-model="ddSimpleSel" ai-dropdown-options="ddSimple" />
+        <input type="text" class="form-control" ai-select ng-model="ddSimpleSel" ai-select-options="ddSimple" />
     </div>
 
     <div class="form-group">
         <label style="display: block;">List by Group</label>
-        <input type="text" class="form-control" ai-dropdown ng-model="ddAdvSel" ai-dropdown-options="ddAdv" />
+        <input type="text" class="form-control" ai-select ng-model="ddAdvSel" ai-select-options="ddAdv" />
     </div>
 
     <div class="form-group">
         <label style="display: block;">Remote Source (w/ validation)</label>
-        <input type="text" class="form-control" ai-dropdown ng-model="ddRemoteSel" ai-dropdown-options="ddRemote" required/>
+        <input type="text" class="form-control" ai-select ng-model="ddRemoteSel" ai-select-options="ddRemote" required/>
     </div>
 
     <ai-validate-summary></ai-validate-summary>
@@ -32,30 +32,30 @@
 <div class="tabpanel">
 
     <ul class="nav nav-tabs">
-        <li ng-class="{ active: tabActive('dropdown:markup') }"><a ng-click="showTab('dropdown:markup')">Markup</a></li>
-        <li ng-class="{ active: tabActive('dropdown:code') }"><a ng-click="showTab('dropdown:code')">Code</a></li>
-        <li ng-class="{ active: tabActive('dropdown:options') }"><a ng-click="showTab('dropdown:options')">Options</a></li>
+        <li ng-class="{ active: tabActive('select:markup') }"><a ng-click="showTab('select:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('select:code') }"><a ng-click="showTab('select:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('select:options') }"><a ng-click="showTab('select:options')">Options</a></li>
     </ul>
 
     <div class="tab-content">
 
-        <div ng-class="{ active: tabActive('dropdown:markup') }" ng-show="tabActive('dropdown:markup')">
+        <div ng-class="{ active: tabActive('select:markup') }" ng-show="tabActive('select:markup')">
 <pre>
 &lt;form name=&quot;ddForm&quot; ai-validate-form&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;Basic List&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddSimpleSel&quot; ai-dropdown-options=&quot;ddSimple&quot; /&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-select ng-model=&quot;ddSimpleSel&quot; ai-select-options=&quot;ddSimple&quot; /&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;List by Group&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddAdvSel&quot; ai-dropdown-options=&quot;ddAdv&quot; /&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-select ng-model=&quot;ddAdvSel&quot; ai-select-options=&quot;ddAdv&quot; /&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;Remote Source&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-dropdown ng-model=&quot;ddRemoteSel&quot; ai-dropdown-options=&quot;ddRemote&quot; required/&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-select ng-model=&quot;ddRemoteSel&quot; ai-select-options=&quot;ddRemote&quot; required/&gt;
     &lt;/div&gt;
 
     &lt;ai-validate-summary&gt;&lt;/ai-validate-summary&gt;
@@ -64,9 +64,9 @@
 </pre>
         </div>
 
-        <div ng-class="{ active: tabActive('dropdown:code') }" ng-show="tabActive('dropdown:code')">
+        <div ng-class="{ active: tabActive('select:code') }" ng-show="tabActive('select:code')">
 <pre>
-// basic dropdown example.
+// basic select example.
 $scope.ddSimple = {
     text: 'name',
     value: 'email',
@@ -94,12 +94,12 @@ $scope.ddAdvSel = 'ellis@gmail.com';
 $scope.ddRemote = {
     text: 'name',
     value: 'email',
-    source: '/dropdown/example/data.json'
+    source: '/select/example/data.json'
 };
 </pre>
         </div>
 
-        <div ng-class="{ active: tabActive('dropdown:options') }" ng-show="tabActive('dropdown:options')">
+        <div ng-class="{ active: tabActive('select:options') }" ng-show="tabActive('select:options')">
 <pre>
 var defaults = {
 
@@ -107,20 +107,20 @@ var defaults = {
     value: 'value',                         // property to use for model values default is text.
     display: false,                         // alt property to use for display values.
     capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
-    searchable: undefined,                  // indicates that the dropdown is searchable.
+    searchable: undefined,                  // indicates that the select is searchable.
     placeholder: 'Please Select',           // placeholder text shown on null value.
-    btnClass: 'btn-default',                // the class to add to the button which triggers dropdown.
+    btnClass: 'btn-default',                // the class to add to the button which triggers select.
     allowNull: undefined,                   // when true user can select placeholder/null value.
     inline: false,                          // positions element inline.
     shadow: undefined,                      // when true adds shadow to bottom of list.
 
-    template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
+    template: 'select.tpl.html',          // the template to use for the select control.
     itemTemplate:
-        'dropdown-item.tpl.html',           // template used for list items.
+        'select-item.tpl.html',           // template used for list items.
     itemGroupTemplate:
-        'dropdown-item-group.tpl.html',
+        'select-item-group.tpl.html',
     searchTemplate:
-        'dropdown-search.tpl.html',         // template used for searching list.
+        'select-search.tpl.html',         // template used for searching list.
     addClass: false,                        // adds a class the top level of the component.
 
     source: [],                             // data source can be csv, object, array of string/object or url.
@@ -135,10 +135,10 @@ var defaults = {
     selectClear: undefined,                 // after selecting value clear item.
     closeClear: undefined,                  // when searchable and on toggle close clear query filter.
     blurClose: undefined,                   // when true list is closed on blur event.
-    closePrevious: undefined,               // when not false previously opened dropdowns are closed.
+    closePrevious: undefined,               // when not false previously opened selects are closed.
 
                                             // all callbacks are returned with $module context.
-    onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
+    onToggled: false,                       // on toggle select state. injects(toggle state, event).
     onSelected: false,                      // callback on select. injects(selected, ngModel, event).
     onFilter: false,                        // callback on filter. injects (filter, event).
     onGroup: false,                         // callback fired on grouping injects (distinct groups, data).

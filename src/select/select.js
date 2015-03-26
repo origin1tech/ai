@@ -1,6 +1,6 @@
-angular.module('ai.dropdown', ['ai.helpers'])
+angular.module('ai.select', ['ai.helpers'])
 
-.provider('$dropdown', function $dropdown(){
+.provider('$select', function $select(){
 
     var defaults = {
 
@@ -8,20 +8,20 @@ angular.module('ai.dropdown', ['ai.helpers'])
             value: 'value',                         // property to use for model values default is text.
             display: false,                         // alt property to use for display values.
             capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
-            searchable: undefined,                  // indicates that the dropdown is searchable.
+            searchable: undefined,                  // indicates that the select is searchable.
             placeholder: 'Please Select',           // placeholder text shown on null value.
-            btnClass: 'btn-default',                // the class to add to the button which triggers dropdown.
+            btnClass: 'btn-default',                // the class to add to the button which triggers select.
             allowNull: undefined,                   // when true user can select placeholder/null value.
             inline: false,                          // positions element inline.
             shadow: undefined,                      // when true adds shadow to bottom of list.
 
-            template: 'dropdown.tpl.html',          // the template to use for the dropdown control.
+            template: 'select.tpl.html',          // the template to use for the select control.
             itemTemplate:
-                'dropdown-item.tpl.html',           // template used for list items.
+                'select-item.tpl.html',           // template used for list items.
             itemGroupTemplate:
-                'dropdown-item-group.tpl.html',
+                'select-item-group.tpl.html',
             searchTemplate:
-                'dropdown-search.tpl.html',         // template used for searching list.
+                'select-search.tpl.html',         // template used for searching list.
             addClass: false,                        // adds a class the top level of the component.
 
             source: [],                             // data source can be csv, object, array of string/object or url.
@@ -36,10 +36,10 @@ angular.module('ai.dropdown', ['ai.helpers'])
             selectClear: undefined,                 // after selecting value clear item.
             closeClear: undefined,                  // when searchable and on toggle close clear query filter.
             blurClose: undefined,                   // when true list is closed on blur event.
-            closePrevious: undefined,               // when not false previously opened dropdowns are closed.
+            closePrevious: undefined,               // when not false previously opened selects are closed.
 
                                                     // all callbacks are returned with $module context.
-            onToggled: false,                       // on toggle dropdown state. injects(toggle state, event).
+            onToggled: false,                       // on toggle select state. injects(toggle state, event).
             onSelected: false,                      // callback on select. injects(selected, ngModel, event).
             onFilter: false,                        // callback on filter. injects (filter, event).
             onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
@@ -58,12 +58,12 @@ angular.module('ai.dropdown', ['ai.helpers'])
 
     get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
 
-         var baseTemplate = '<button type="button" class="btn ai-dropdown-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
+         var baseTemplate = '<button type="button" class="btn ai-select-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
                                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
                                 '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
                             '</button>' +
-                            '<div class="ai-dropdown-wrapper">' +
-                                '<div class="ai-dropdown-items" ng-show="expanded">' +
+                            '<div class="ai-select-wrapper">' +
+                                '<div class="ai-select-items" ng-show="expanded">' +
                                 '</div>' +
                             '</div>';
 
@@ -89,14 +89,14 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                 '</div>';
 
 
-        var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="ai-dropdown-search form-control" placeholder="search"/>';
+        var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="ai-select-search form-control" placeholder="search"/>';
         
         $helpers.getPutTemplate(defaults.template, baseTemplate);
         $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
         $helpers.getPutTemplate(defaults.itemGroupTemplate, itemGroupTemplate);
         $helpers.getPutTemplate(defaults.searchTemplate, searchTemplate);
 
-        var activeDropdowns = [];
+        var activeSelects = [];
 
         // module factory.
         function ModuleFactory(element, options, attrs) {
@@ -106,7 +106,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
 
             var $module = {},
                 scope,
-                dropdown,
+                select,
                 button,
                 search,
                 items,
@@ -289,10 +289,10 @@ angular.module('ai.dropdown', ['ai.helpers'])
             }
 
             function beforeToggle(ts) {
-                angular.forEach(activeDropdowns, function (dd, idx) {
+                angular.forEach(activeSelects, function (dd, idx) {
                     if(dd.ts !== ts){
                         dd.options.scope.expanded = false;
-                        activeDropdowns.splice(idx, 1);
+                        activeSelects.splice(idx, 1);
                     }
                 });
             }
@@ -306,8 +306,8 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 if(!scope.expanded && options.closeClear === true)
                     clearFilter();
                 if(scope.expanded){
-                    dropdown[0].focus();
-                    activeDropdowns.push($module);
+                    select[0].focus();
+                    activeSelects.push($module);
                 }
                 // if a function callback on toggle.
                 if(angular.isFunction(options.onToggled))
@@ -373,7 +373,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 scope.filter = filter;
 
                 scope.$on('destroy', function () {
-                    activeDropdowns = [];
+                    activeSelects = [];
                 });
 
                 // parse ngDisabled if exists.
@@ -409,7 +409,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                 itemsHtml = '';
 
                             // create outer wrapper element.
-                            dropdown = '<div tabindex="-1"{{ATTRS}}></div>';
+                            select = '<div tabindex="-1"{{ATTRS}}></div>';
 
                             // check for ng-show
                             if(vis.ngShow)
@@ -426,37 +426,37 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             // add ng-if, ng-show, ng-hide
                             // attrs if provided from orig element.
                             // the parent scope is applied.
-                            dropdown = dropdown.replace('{{ATTRS}}', visAttrs);
+                            select = select.replace('{{ATTRS}}', visAttrs);
 
                             // compile with parent scope for ng-attrs.
-                            dropdown = angular.element($helpers.compile(scope.$parent, dropdown));
+                            select = angular.element($helpers.compile(scope.$parent, select));
 
                             // add primary class for styling.
-                            dropdown.addClass('ai-dropdown');
+                            select.addClass('ai-select');
 
                             // check if block display.
                             if(options.inline)
-                                dropdown.addClass('inline');
+                                select.addClass('inline');
 
                             // if group add class to main element.
                             if(options.groupKey)
-                                dropdown.addClass('group');
+                                select.addClass('group');
 
                             // if additional class add it.
                             if(options.addClass)
-                                dropdown.addClass(options.addClass);
+                                select.addClass(options.addClass);
 
                             // replace the orig. element.
                             // use after as jqlite doesn't
                             // support .before();
                             var prev = options.before;
-                            prev.element[prev.method](dropdown);
+                            prev.element[prev.method](select);
 
                             // set content to template html.
-                            dropdown.html(res[0]);
+                            select.html(res[0]);
 
                             // get the items container.
-                            items = $helpers.findElement('.ai-dropdown-items', dropdown[0], true);
+                            items = $helpers.findElement('.ai-select-items', select[0], true);
                             items = angular.element(items);
 
                             if(options.shadow !== false)
@@ -471,14 +471,14 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             items.html(itemsHtml);
 
                             // get reference to button.
-                            button = $helpers.findElement('button:first-child', dropdown[0], true);
+                            button = $helpers.findElement('button:first-child', select[0], true);
                             button = angular.element(button);
                             button.addClass(options.btnClass);
 
                             if(options.blurClose !== false) {
                                 // find search input
                                 // add listener if blurClose
-                                search = $helpers.findElement('input', dropdown[0], true);
+                                search = $helpers.findElement('input', select[0], true);
                                 if(search){
                                     search = angular.element(search);
                                     search.on('blur', function (e) {
@@ -492,7 +492,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
                                 }
 
                                 // check for on blur event.
-                                dropdown.on('blur', function (e) {
+                                select.on('blur', function (e) {
                                     e.preventDefault();
                                     if(scope.expanded && !e.relatedTarget){
                                         scope.$apply(function () {
@@ -515,8 +515,29 @@ angular.module('ai.dropdown', ['ai.helpers'])
                             if(vis.ngDisabled)
                                 parseDisabled(vis.ngDisabled);
 
+                            // we need to monitor ngDisabled if exists
+                            // as it may change all other attrs
+                            // are applied to either outer div with parent
+                            // scope or remain on the original input element.
+                            if(attrs.ngDisabled) {
+                                scope.$watch(attrs.ngDisabled, function (newVal, oldVal){
+                                    if(newVal === oldVal) return;
+                                    scope.parseDisabled(newVal);
+                                });
+                            }
+
+                            // watch model to set selected.
+                            scope.$watch(attrs.ngModel, function (newVal, oldVal) {
+                                if((!initialized && undefined !== newVal) || newVal !== oldVal){
+                                    var item = scope.find(newVal);
+                                    if(!item || (item.value === scope.selected.value)) return;
+                                    scope.select(null, item, true);
+                                    initialized = true;
+                                }
+                            });
+
                             // compile the contents.
-                            $helpers.compile(scope, dropdown.contents());
+                            $helpers.compile(scope, select.contents());
 
                             // if onload callback.
                             if(angular.isFunction(options.onReady))
@@ -547,7 +568,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
 
 })
 
-.directive('aiDropdown', [ '$dropdown', function ($dropdown) {
+.directive('aiSelect', [ '$select', function ($select) {
 
     // get the previous sibling
     // to the current element.
@@ -622,38 +643,17 @@ angular.module('ai.dropdown', ['ai.helpers'])
                 element.css({ display: 'none'});
 
                 // instantiate the module.
-                $module = $dropdown(element, options, attrs);
-
-                // we need to monitor ngDisabled if exists
-                // as it may change all other attrs
-                // are applied to either outer div with parent
-                // scope or remain on the original input element.
-                if(attrs.ngDisabled) {
-                    scope.$watch(attrs.ngDisabled, function (newVal, oldVal){
-                        if(newVal === oldVal) return;
-                        scope.parseDisabled(newVal);
-                    });
-                }
-
-                // watch model to set selected.
-                scope.$watch(attrs.ngModel, function (newVal, oldVal) {
-                    if((!initialized && undefined !== newVal) || newVal !== oldVal){
-                        var item = scope.find(newVal);
-                        if(!item || (item.value === scope.selected.value)) return;
-                        scope.select(null, item, true);
-                        initialized = true;
-                    }
-                });
+                $module = $select(element, options, attrs);
 
             }
 
             // verify valid element type.
             tagName = element.prop('tagName').toLowerCase();
             if(tagName !== 'input')
-                return console.error('Invalid element, ai-dropdown requires an input element with ng-model.');
+                return console.error('Invalid element, ai-select requires an input element with ng-model.');
 
             // get options and model.
-            options = scope.$eval(attrs.aiDropdown || attrs.aiDropdownOptions);
+            options = scope.$eval(attrs.aiSelect || attrs.aiSelectOptions);
             options = angular.extend(defaults, options);
 
             // define the source & model data.
@@ -661,7 +661,7 @@ angular.module('ai.dropdown', ['ai.helpers'])
             options.model = ngModel;
 
             if(undefined === options.source)
-                return console.error('ai-dropdown failed to initialize, invalid model.');
+                return console.error('ai-select failed to initialize, invalid model.');
             init();
 
         }

@@ -2,11 +2,16 @@
 
 A library of directive widgets/providers for creating an intuitive ui experience for users based on Bootstrap.
 
+##Breaking Change v0.1.9
+
+ai.dropdown module is now ai.select resulting in the dependency being changed from $dropdown to $select. This will
+prevent conflicts with modules from [ui-bootstrap](https://angular-ui.github.io/bootstrap/) and [angular-strap](http://mgcrea.github.io/angular-strap/).
+
 ###Included
 
 The Ai library contains the following: 
 
-- dropdown - a dropdown/select element that filters data from an object, an array or server endpoint.
+- select - a dropdown/select element that filters data from an object, an array or server endpoint.
 - flash - a utily for displaying flash messages or alerts, also intercepts http errors when enabled.
 - loader - simple directive to show a "page loading" image, svg and/or text.
 - step - a step wizard for stepping through forms culminating at a submit action.
