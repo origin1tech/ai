@@ -38,8 +38,6 @@ $list-list-margin:            4px -4px;
     }
   }
 
-
-
   .ai-list-wrapper {
     z-index: $list-wrapper-zindex;
     height: 100%;
@@ -179,12 +177,9 @@ $list-list-margin:            4px -4px;
     min-width: inherit;
     top: 4px;
     left: 0;
-
-    &.shadow {
-      -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
-      box-shadow: 0 4px 5px rgba(0, 0, 0, .15);
-    }
-
+    -webkit-box-shadow: 0px 1px 8px 0px rgba(0,0,0,0.3);
+    -moz-box-shadow: 0px 1px 8px 0px rgba(0,0,0,0.3);
+    box-shadow: 0px 1px 8px 0px rgba(0,0,0,0.3);
     ul {
       padding: 0;
       list-style: none;

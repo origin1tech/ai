@@ -8,20 +8,19 @@ angular.module('ai.list', ['ai.helpers'])
             value: 'value',                         // property to use for model values default is text.
             display: false,                         // alt property to use for display values.
             capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
-            searchable: undefined,                  // indicates that the list is searchable.
+            searchable: false,                      // indicates that the list is searchable.
             placeholder: 'Please Select',           // placeholder text shown on null value.
             btnClass: 'btn-default',                // the class to add to the button which triggers list.
             allowNull: undefined,                   // when true user can select placeholder/null value.
             inline: false,                          // positions element inline.
-            shadow: undefined,                      // when true adds shadow to bottom of list.
 
-            template: 'list.tpl.html',          // the template to use for the list control.
+            template: 'list.tpl.html',              // the template to use for the list control.
             itemTemplate:
-                'list-item.tpl.html',           // template used for list items.
+                'list-item.tpl.html',               // template used for list items.
             itemGroupTemplate:
                 'list-item-group.tpl.html',
             searchTemplate:
-                'list-search.tpl.html',         // template used for searching list.
+                'list-search.tpl.html',             // template used for searching list.
             addClass: false,                        // adds a class the top level of the component.
 
             source: [],                             // data source can be csv, object, array of string/object or url.
@@ -38,7 +37,8 @@ angular.module('ai.list', ['ai.helpers'])
             blurClose: undefined,                   // when true list is closed on blur event.
             closePrevious: undefined,               // when not false previously opened lists are closed.
 
-            // all callbacks are returned with $module context.
+            // all callbacks are returned
+            // with $module context.
             onToggled: false,                       // on toggle list state. injects(toggle state, event).
             onSelected: false,                      // callback on select. injects(selected, ngModel, event).
             onFilter: false,                        // callback on filter. injects (filter, event).
@@ -58,7 +58,8 @@ angular.module('ai.list', ['ai.helpers'])
 
         get = [ '$q', '$parse', '$filter', '$http', '$helpers', '$timeout', function get($q, $parse, $filter, $http, $helpers, $timeout) {
 
-            var baseTemplate = '<button type="button" class="btn ai-list-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
+            var baseTemplate = '<button type="button" class="btn ai-list-toggle" ng-click="toggle($event, ts)" ' +
+                'ng-class="{expanded: expanded}">' +
                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
                 '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
                 '</button>' +
@@ -89,7 +90,8 @@ angular.module('ai.list', ['ai.helpers'])
                 '</div>';
 
 
-            var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="ai-list-search form-control" placeholder="search"/>';
+            var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" ' +
+                'class="ai-list-search form-control" placeholder="search"/>';
 
             $helpers.getPutTemplate(defaults.template, baseTemplate);
             $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
@@ -132,9 +134,9 @@ angular.module('ai.list', ['ai.helpers'])
                     // if string split to array.
                     if(angular.isString(data))
                         data = $helpers.trim(data).split(',');
-                    // if data object is object literal
-                    // convert to an array of objects.
-                    if(angular.isObject(data)){
+                     //if data object is object literal
+                     //convert to an array of objects.
+                    if(angular.isObject(data) && !angular.isArray(data)){
                         var tmpData = [];
                         angular.forEach(data, function (v,k) {
                             var obj = {};
@@ -473,9 +475,6 @@ angular.module('ai.list', ['ai.helpers'])
                                 // get the items container.
                                 items = $helpers.findElement('.ai-list-items', list[0], true);
                                 items = angular.element(items);
-
-                                if(options.shadow !== false)
-                                    items.addClass('shadow');
 
                                 // add items and search if required.
                                 if(options.searchable !== false)
