@@ -12,7 +12,7 @@ angular.module('ai.list', ['ai.helpers'])
             placeholder: 'Please Select',           // placeholder text shown on null value.
             btnClass: 'btn-default',                // the class to add to the button which triggers list.
             allowNull: undefined,                   // when true user can select placeholder/null value.
-            inline: false,                          // positions element inline.
+            addClass: undefined,                    // class to add to ai-list primary element.
 
             template: 'list.tpl.html',              // the template to use for the list control.
             itemTemplate:
@@ -21,7 +21,6 @@ angular.module('ai.list', ['ai.helpers'])
                 'list-item-group.tpl.html',
             searchTemplate:
                 'list-search.tpl.html',             // template used for searching list.
-            addClass: false,                        // adds a class the top level of the component.
 
             source: [],                             // data source can be csv, object, array of string/object or url.
             params: {},                             // object of data params to pass with server requests.
@@ -43,7 +42,7 @@ angular.module('ai.list', ['ai.helpers'])
             onSelected: false,                      // callback on select. injects(selected, ngModel, event).
             onFilter: false,                        // callback on filter. injects (filter, event).
             onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
-            onReady: false                           // callback on directive loaded. returns
+            onReady: false                          // callback on directive loaded. returns
 
         }, get, set;
 
@@ -450,10 +449,6 @@ angular.module('ai.list', ['ai.helpers'])
 
                                 // add primary class for styling.
                                 list.addClass('ai-list');
-
-                                // check if block display.
-                                if(options.inline)
-                                    list.addClass('inline');
 
                                 // if group add class to main element.
                                 if(options.groupKey)
