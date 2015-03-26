@@ -401,7 +401,10 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
       .ai-list .ai-list-items li a {
         display: block;
         white-space: nowrap;
-        text-decoration: none; }
+        text-decoration: none;
+        color: inherit; }
+        .ai-list .ai-list-items li a:hover {
+          color: inherit; }
   .ai-list .ai-list-items > ul {
     overflow-x: hidden;
     overflow-y: auto; }
