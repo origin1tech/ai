@@ -190,6 +190,10 @@ $list-list-margin:            4px -4px;
         display: block;
         white-space: nowrap;
         text-decoration: none;
+        color: inherit;
+        &:hover {
+          color: inherit;
+        }
 
       }
 
