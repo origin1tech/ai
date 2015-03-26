@@ -309,12 +309,14 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
 
 .ai-list {
   min-width: 150px;
+  outline: none;
   position: relative;
   vertical-align: middle;
   width: 100%;
   display: block; }
   .ai-list:focus {
-    z-index: 1061; }
+    z-index: 1061;
+    outline: none; }
   .ai-list .caret.down {
     border-color: #333 transparent transparent transparent; }
   .ai-list .caret.up {
@@ -343,6 +345,10 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
   .ai-list .ai-list-items > div {
     margin: 4px -4px;
     max-height: 250px; }
+  .ai-list .ai-list-toggle {
+    outline: none; }
+    .ai-list .ai-list-toggle:focus {
+      outline: none; }
   .ai-list.inline {
     width: auto;
     display: inline-block; }
@@ -351,13 +357,6 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
     min-width: inherit;
     position: relative;
     text-align: left; }
-    .ai-list .ai-list-toggle.expanded, .ai-list .ai-list-toggle .btn {
-      -webkit-border-bottom-left-radius: 0;
-      -webkit-border-bottom-right-radius: 0;
-      -moz-border-radius-bottomleft: 0;
-      -moz-border-radius-bottomright: 0;
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0; }
     .ai-list .ai-list-toggle .selected {
       display: inline-block; }
     .ai-list .ai-list-toggle .caret {
@@ -385,7 +384,7 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
     position: absolute;
     width: inherit;
     min-width: inherit;
-    top: -1px;
+    top: 4px;
     left: 0; }
     .ai-list .ai-list-items.shadow {
       -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, 0.15);

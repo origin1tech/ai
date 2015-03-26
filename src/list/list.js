@@ -303,8 +303,11 @@ angular.module('ai.list', ['ai.helpers'])
                         beforeToggle(ts);
                     scope.expanded =! scope.expanded;
                     $module.expanded = scope.expanded;
-                    if(!scope.expanded && options.closeClear === true)
+                    if(!scope.expanded && options.closeClear === true){
                         clearFilter();
+                        button[0].blur();
+                    }
+
                     if(scope.expanded){
                         list[0].focus();
                         activeLists.push($module);
@@ -520,14 +523,14 @@ angular.module('ai.list', ['ai.helpers'])
                                 // are applied to either outer div with parent
                                 // scope or remain on the original input element.
                                 if(attrs.ngDisabled) {
-                                    scope.$watch(attrs.ngDisabled, function (newVal, oldVal){
+                                    scope.$watch(function () { return attrs.ngDisabled; }, function (newVal, oldVal){
                                         if(newVal === oldVal) return;
                                         scope.parseDisabled(newVal);
                                     });
                                 }
 
                                 // watch model to set selected.
-                                scope.$watch(attrs.ngModel, function (newVal, oldVal) {
+                                scope.$watch(function () { return attrs.ngModel; }, function (newVal, oldVal) {
                                     if(newVal !== oldVal && newVal !== undefined){
                                         var item = scope.find(newVal);
                                         if(!item || (item.value === scope.selected.value)) return;

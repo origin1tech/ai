@@ -15,7 +15,6 @@ $list-link-padding:           1px 8px;
 $list-link-active-color:      #eee;
 $list-link-hover-color:       #eee;
 
-
 $list-list-max-height:        250px;
 $list-list-margin:            4px -4px;
 
@@ -23,9 +22,11 @@ $list-list-margin:            4px -4px;
                          $items-border-radius, $link-active-color, $link-hover-color) {
 
   min-width: $list-min-width;
+  outline: none;
 
   &:focus {
     z-index: 1061;
+    outline: none;
   }
 
   .caret {
@@ -83,6 +84,13 @@ $list-list-margin:            4px -4px;
     max-height: $list-list-max-height;
   }
 
+  .ai-list-toggle {
+    outline: none;
+    &:focus {
+      outline: none;
+    }
+  }
+
 }
 
 // base styles
@@ -112,12 +120,12 @@ $list-list-margin:            4px -4px;
 
 
     &.expanded, .btn {
-      -webkit-border-bottom-left-radius: 0;
-      -webkit-border-bottom-right-radius: 0;
-      -moz-border-radius-bottomleft: 0;
-      -moz-border-radius-bottomright: 0;
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
+      //-webkit-border-bottom-left-radius: 0;
+      //-webkit-border-bottom-right-radius: 0;
+      //-moz-border-radius-bottomleft: 0;
+      //-moz-border-radius-bottomright: 0;
+      //border-bottom-left-radius: 0;
+      //border-bottom-right-radius: 0;
     }
 
     .selected {
@@ -169,7 +177,7 @@ $list-list-margin:            4px -4px;
     position: absolute;
     width: inherit;
     min-width: inherit;
-    top: -1px;
+    top: 4px;
     left: 0;
 
     &.shadow {
