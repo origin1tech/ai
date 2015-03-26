@@ -46,7 +46,7 @@ $summary-font-size:                 85%;
   transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s;
 }
 
-input.ng-invalid.ng-dirty, select.ng-invalid.ng-dirty, textarea.ng-invalid.ng-dirty
+input.ng-invalid.ng-dirty, select.ng-invalid.ng-dirty, textarea.ng-invalid.ng-dirty, button.ng-invalid
 {
   &:not(:focus) {
     outline: 0;
@@ -61,7 +61,7 @@ input.ng-invalid.ng-dirty, select.ng-invalid.ng-dirty, textarea.ng-invalid.ng-di
 
 form.ng-submitted {
   
-  input.ng-invalid, select.ng-invalid, textarea.ng-invalid {
+  input.ng-invalid, select.ng-invalid, textarea.ng-invalid, button.ng-invalid {
     &:not(:focus) {
       outline: 0;
       border-color: rgba(255, 1, 1, 0.8);

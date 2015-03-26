@@ -10,8 +10,8 @@
 <form name="ddForm" ai-validate-form>
 
     <div class="form-group">
-        <label style="display: block;">Basic List (displayed inline)</label>
-        <input type="text" class="form-control" ai-list ng-model="ddSimpleSel" ai-list-options="ddSimple" />
+        <label style="display: block;">Basic List (displayed inline, auto close false)</label>
+        <input type="text" class="form-control" ai-list ng-model="ddSimpleSel" ai-list-options="ddSimple" required />
     </div>
 
     <div class="form-group">
@@ -32,14 +32,14 @@
 <div class="tabpanel">
 
     <ul class="nav nav-tabs">
-        <li ng-class="{ active: tabActive('select:markup') }"><a ng-click="showTab('select:markup')">Markup</a></li>
-        <li ng-class="{ active: tabActive('select:code') }"><a ng-click="showTab('select:code')">Code</a></li>
-        <li ng-class="{ active: tabActive('select:options') }"><a ng-click="showTab('select:options')">Options</a></li>
+        <li ng-class="{ active: tabActive('list:markup') }"><a ng-click="showTab('list:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('list:code') }"><a ng-click="showTab('list:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('list:options') }"><a ng-click="showTab('list:options')">Options</a></li>
     </ul>
 
     <div class="tab-content">
 
-        <div ng-class="{ active: tabActive('select:markup') }" ng-show="tabActive('select:markup')">
+        <div ng-class="{ active: tabActive('list:markup') }" ng-show="tabActive('list:markup')">
 <pre>
 &lt;form name=&quot;ddForm&quot; ai-validate-form&gt;
 

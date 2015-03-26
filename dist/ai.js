@@ -20,7 +20,8 @@ angular.module('ai', [
     'ai.step',
     'ai.storage',
     'ai.table',
-    'ai.widget'  
+    'ai.widget',
+    'ai.validate'
 ]);
 angular.module('ai.helpers', [])
 
@@ -1017,7 +1018,7 @@ angular.module('ai.list', ['ai.helpers'])
             defaults = angular.extend(defaults, obj);
         };
 
-        get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
+        get = [ '$q', '$parse', '$filter', '$http', '$helpers', '$timeout', function get($q, $parse, $filter, $http, $helpers, $timeout) {
 
             var baseTemplate = '<button type="button" class="btn ai-list-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
                 '<span class="selected" ng-bind="selected.display">Please Select</span>' +
@@ -1496,6 +1497,20 @@ angular.module('ai.list', ['ai.helpers'])
                                     }
                                 });
 
+                                // todo probably need to monitor other ng- class states.
+                                scope.$watch(function () { return options.model.$invalid; },
+                                    function (newVal, oldVal) {
+                                    var model = options.model;
+                                    if(model.$touched){
+                                        button.addClass('ng-invalid');
+                                        button.removeClass('ng-valid');
+                                    }
+                                    if(model.$valid){
+                                        button.removeClass('ng-invalid');
+                                        button.addClass('ng-valid');
+                                    }
+                                });
+
                                 // compile the contents.
                                 $helpers.compile(scope, list.contents());
 
@@ -1603,8 +1618,6 @@ angular.module('ai.list', ['ai.helpers'])
 
                     // instantiate the module.
                     $module = $list(element, options, attrs);
-
-
 
                 }
 

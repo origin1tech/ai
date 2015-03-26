@@ -244,6 +244,7 @@ require([
                     text: 'name',
                     value: 'email',
                     inline: true,
+                    blurClose: false,
                     source: [
                         {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
                         {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'},
