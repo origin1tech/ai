@@ -132,6 +132,18 @@ angular.module('ai.list', ['ai.helpers'])
                     // if string split to array.
                     if(angular.isString(data))
                         data = $helpers.trim(data).split(',');
+                    // if data object is object literal
+                    // convert to an array of objects.
+                    if(angular.isObject(data)){
+                        var tmpData = [];
+                        angular.forEach(data, function (v,k) {
+                            var obj = {};
+                            obj[options.text] = v;
+                            obj[options.value] = k;
+                            tmpData.push(obj);
+                        });
+                        data = tmpData;
+                    }
                     if(options.allowNull !== false && angular.isArray(_collection))
                         _collection.push(nullItem);
                     if(options.allowNull !== false && angular.isObject(_collection))
