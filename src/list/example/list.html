@@ -11,17 +11,17 @@
 
     <div class="form-group">
         <label style="display: block;">Basic List (displayed inline)</label>
-        <input type="text" class="form-control" ai-select ng-model="ddSimpleSel" ai-select-options="ddSimple" />
+        <input type="text" class="form-control" ai-list ng-model="ddSimpleSel" ai-list-options="ddSimple" />
     </div>
 
     <div class="form-group">
         <label style="display: block;">List by Group</label>
-        <input type="text" class="form-control" ai-select ng-model="ddAdvSel" ai-select-options="ddAdv" />
+        <input type="text" class="form-control" ai-list ng-model="ddAdvSel" ai-list-options="ddAdv" />
     </div>
 
     <div class="form-group">
         <label style="display: block;">Remote Source (w/ validation)</label>
-        <input type="text" class="form-control" ai-select ng-model="ddRemoteSel" ai-select-options="ddRemote" required/>
+        <input type="text" class="form-control" ai-list ng-model="ddRemoteSel" ai-list-options="ddRemote" required/>
     </div>
 
     <ai-validate-summary></ai-validate-summary>
@@ -45,17 +45,17 @@
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;Basic List&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-select ng-model=&quot;ddSimpleSel&quot; ai-select-options=&quot;ddSimple&quot; /&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-list ng-model=&quot;ddSimpleSel&quot; ai-list-options=&quot;ddSimple&quot; /&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;List by Group&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-select ng-model=&quot;ddAdvSel&quot; ai-select-options=&quot;ddAdv&quot; /&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-list ng-model=&quot;ddAdvSel&quot; ai-list-options=&quot;ddAdv&quot; /&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;form-group&quot;&gt;
         &lt;label&gt;Remote Source&lt;/label&gt;
-        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-select ng-model=&quot;ddRemoteSel&quot; ai-select-options=&quot;ddRemote&quot; required/&gt;
+        &lt;input type=&quot;text&quot; class=&quot;form-control&quot; ai-list ng-model=&quot;ddRemoteSel&quot; ai-list-options=&quot;ddRemote&quot; required/&gt;
     &lt;/div&gt;
 
     &lt;ai-validate-summary&gt;&lt;/ai-validate-summary&gt;
@@ -64,9 +64,9 @@
 </pre>
         </div>
 
-        <div ng-class="{ active: tabActive('select:code') }" ng-show="tabActive('select:code')">
+        <div ng-class="{ active: tabActive('list:code') }" ng-show="tabActive('list:code')">
 <pre>
-// basic select example.
+// basic list example.
 $scope.ddSimple = {
     text: 'name',
     value: 'email',
@@ -94,12 +94,12 @@ $scope.ddAdvSel = 'ellis@gmail.com';
 $scope.ddRemote = {
     text: 'name',
     value: 'email',
-    source: '/select/example/data.json'
+    source: '/list/example/data.json'
 };
 </pre>
         </div>
 
-        <div ng-class="{ active: tabActive('select:options') }" ng-show="tabActive('select:options')">
+        <div ng-class="{ active: tabActive('list:options') }" ng-show="tabActive('list:options')">
 <pre>
 var defaults = {
 
@@ -107,20 +107,20 @@ var defaults = {
     value: 'value',                         // property to use for model values default is text.
     display: false,                         // alt property to use for display values.
     capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
-    searchable: undefined,                  // indicates that the select is searchable.
+    searchable: undefined,                  // indicates that the list is searchable.
     placeholder: 'Please Select',           // placeholder text shown on null value.
-    btnClass: 'btn-default',                // the class to add to the button which triggers select.
-    allowNull: undefined,                   // when true user can select placeholder/null value.
+    btnClass: 'btn-default',                // the class to add to the button which triggers list.
+    allowNull: undefined,                   // when true user can list placeholder/null value.
     inline: false,                          // positions element inline.
     shadow: undefined,                      // when true adds shadow to bottom of list.
 
-    template: 'select.tpl.html',          // the template to use for the select control.
+    template: 'list.tpl.html',              // the template to use for the list control.
     itemTemplate:
-        'select-item.tpl.html',           // template used for list items.
+        'list-item.tpl.html',               // template used for list items.
     itemGroupTemplate:
-        'select-item-group.tpl.html',
+        'list-item-group.tpl.html',
     searchTemplate:
-        'select-search.tpl.html',         // template used for searching list.
+        'list-search.tpl.html',             // template used for searching list.
     addClass: false,                        // adds a class the top level of the component.
 
     source: [],                             // data source can be csv, object, array of string/object or url.
@@ -131,15 +131,15 @@ var defaults = {
     groupKey: false,                        // the parent primary key to find children by.
     groupDisplay: false,                    // used to display the group name.
 
-    selectClose: undefined,                 // if not false list is closed after selection.
-    selectClear: undefined,                 // after selecting value clear item.
+    listClose: undefined,                   // if not false list is closed after listion.
+    listClear: undefined,                   // after listing value clear item.
     closeClear: undefined,                  // when searchable and on toggle close clear query filter.
     blurClose: undefined,                   // when true list is closed on blur event.
-    closePrevious: undefined,               // when not false previously opened selects are closed.
+    closePrevious: undefined,               // when not false previously opened lists are closed.
 
                                             // all callbacks are returned with $module context.
-    onToggled: false,                       // on toggle select state. injects(toggle state, event).
-    onSelected: false,                      // callback on select. injects(selected, ngModel, event).
+    onToggled: false,                       // on toggle list state. injects(toggle state, event).
+    onSelected: false,                      // callback on list. injects(selected, ngModel, event).
     onFilter: false,                        // callback on filter. injects (filter, event).
     onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
     onReady: false                           // callback on directive loaded. returns

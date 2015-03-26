@@ -7,7 +7,7 @@ require([
     'validate/validate',
     'storage/storage',
     'passport/passport',
-    'select/select',
+    'list/list',
     'autoform/autoform',
     'loader/loader',
     'tree/tree'
@@ -19,7 +19,7 @@ require([
         //'/passport': 'Simplifies handling authentication within Angular app.',
         '/storage': 'Use local storage with auto cookie fallback.',
         '/autoform': 'Handy during dev to quickly create a form.',
-        '/select': 'Advanced customizable dropdown directive.',
+        '/list': 'Advanced customizable dropdown directive.',
         '/flash': 'Allows for showing flash/popup messages.',
         '/table': 'Bind local or remote data to table/grid.',
         '/validate': 'Form validation with auto model binding.',
@@ -38,7 +38,7 @@ require([
     });
 
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
-        'ai.storage', 'ai.select', 'ai.widget', 'ai.flash',
+        'ai.storage', 'ai.list', 'ai.widget', 'ai.flash',
         'ai.passport', 'ai.validate', 'ai.autoform', 'ai.loader', 'ai.tree']);
 
     app.config(['$routeProvider', '$locationProvider', '$passportProvider', '$loaderProvider',
@@ -92,7 +92,7 @@ require([
                 casing:     { active: 'markup' },
                 compare:    { active: 'markup' },
                 storage:    { active: 'markup' },
-                select:     { active: 'markup' },
+                list:       { active: 'markup' },
                 autoform:   { active: 'markup' },
                 placeholder:{ active: 'markup' },
                 loader:     { active: 'markup' },
@@ -237,7 +237,7 @@ require([
                 };
             }
 
-            if (area === 'select'){
+            if (area === 'list'){
 
                 // basic dropdown example.
                 $scope.ddSimple = {
@@ -295,7 +295,7 @@ require([
                 $scope.ddRemote = {
                     text: 'name',
                     value: 'email',
-                    source: '/select/example/data.json'
+                    source: '/list/example/data.json'
                 };
 
             }

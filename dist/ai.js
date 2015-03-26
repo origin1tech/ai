@@ -13,7 +13,7 @@
 angular.module('ai', [
     'ai.helpers',
     'ai.autoform',
-    'ai.select',
+    'ai.list',
     'ai.flash',
     'ai.loader',
     'ai.passport',
@@ -959,6 +959,679 @@ angular.module('ai.flash', [
     'ai.flash.interceptor'
 ]);
 
+angular.module('ai.list', ['ai.helpers'])
+
+    .provider('$list', function $list(){
+
+        var defaults = {
+
+            text: 'text',                           // property to use for text values.
+            value: 'value',                         // property to use for model values default is text.
+            display: false,                         // alt property to use for display values.
+            capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
+            searchable: undefined,                  // indicates that the list is searchable.
+            placeholder: 'Please Select',           // placeholder text shown on null value.
+            btnClass: 'btn-default',                // the class to add to the button which triggers list.
+            allowNull: undefined,                   // when true user can select placeholder/null value.
+            inline: false,                          // positions element inline.
+            shadow: undefined,                      // when true adds shadow to bottom of list.
+
+            template: 'list.tpl.html',          // the template to use for the list control.
+            itemTemplate:
+                'list-item.tpl.html',           // template used for list items.
+            itemGroupTemplate:
+                'list-item-group.tpl.html',
+            searchTemplate:
+                'list-search.tpl.html',         // template used for searching list.
+            addClass: false,                        // adds a class the top level of the component.
+
+            source: [],                             // data source can be csv, object, array of string/object or url.
+            params: {},                             // object of data params to pass with server requests.
+            queryParam: 'q',                        // the param key used to query on server requests.
+            method: 'get',                          // the method to use for requests.
+
+            groupKey: false,                        // the parent primary key to find children by.
+            groupDisplay: false,                    // used to display the group name.
+
+            selectClose: undefined,                 // if not false list is closed after selection.
+            selectClear: undefined,                 // after selecting value clear item.
+            closeClear: undefined,                  // when searchable and on toggle close clear query filter.
+            blurClose: undefined,                   // when true list is closed on blur event.
+            closePrevious: undefined,               // when not false previously opened lists are closed.
+
+            // all callbacks are returned with $module context.
+            onToggled: false,                       // on toggle list state. injects(toggle state, event).
+            onSelected: false,                      // callback on select. injects(selected, ngModel, event).
+            onFilter: false,                        // callback on filter. injects (filter, event).
+            onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
+            onReady: false                           // callback on directive loaded. returns
+
+        }, get, set;
+
+        set = function set(key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
+
+            var baseTemplate = '<button type="button" class="btn ai-list-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
+                '<span class="selected" ng-bind="selected.display">Please Select</span>' +
+                '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
+                '</button>' +
+                '<div class="ai-list-wrapper">' +
+                '<div class="ai-list-items" ng-show="expanded">' +
+                '</div>' +
+                '</div>';
+
+            // item template must be wrapped
+            // with outer <ul>.
+            var itemTemplate =  '<ul>' +
+                '<li ng-repeat="item in items" ng-class="{ active: item.active }">' +
+                '<a ng-click="select($event, item)">{{item.display}}</a>' +
+                '</li>' +
+                '</ul>';
+
+            // item group template must be
+            // wrapped in outer <div>
+            var itemGroupTemplate = '<div>' +
+                '<div ng-repeat="group in items" ng-if="!group.hidden">' +
+                '<h5 ng-bind="group.display" ng-show="group.display"></h5>' +
+                '<ul>' +
+                '<li ng-repeat="item in group.items" ng-class="{ active: item.active }">' +
+                '<a ng-click="select($event, item)">{{item.display}}</a>' +
+                '</li>' +
+                '</ul>' +
+                '</div>' +
+                '</div>';
+
+
+            var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="ai-list-search form-control" placeholder="search"/>';
+
+            $helpers.getPutTemplate(defaults.template, baseTemplate);
+            $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
+            $helpers.getPutTemplate(defaults.itemGroupTemplate, itemGroupTemplate);
+            $helpers.getPutTemplate(defaults.searchTemplate, searchTemplate);
+
+            var activeLists = [];
+
+            // module factory.
+            function ModuleFactory(element, options, attrs) {
+
+                if((!element && !$helpers.isElement(element)) || !options.source)
+                    return;
+
+                var $module = {},
+                    scope,
+                    list,
+                    button,
+                    search,
+                    items,
+                    nullItem;
+
+                // parse out relevant options
+                // from attributes.
+
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                options = options || {};
+                $module.scope = scope = options.scope || $rootScope.$new();
+                $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
+
+                nullItem = { text: options.placeholder, value: '', display: options.placeholder };
+
+                // normalize source data to same type.
+                function normalizeData(data) {
+                    if(!data)
+                        return [];
+                    var _collection = options.groupKey ? {} : [],
+                        display;
+                    // if string split to array.
+                    if(angular.isString(data))
+                        data = $helpers.trim(data).split(',');
+                    if(options.allowNull !== false && angular.isArray(_collection))
+                        _collection.push(nullItem);
+                    if(options.allowNull !== false && angular.isObject(_collection))
+                        _collection._placeholder = {
+                            key: 'placeholder',
+                            display: false,
+                            hidden: false,
+                            items: [nullItem]
+                        };
+                    angular.forEach(data, function (v,k) {
+                        if(angular.isString(v)) {
+                            display = v = $helpers.trim(v);
+                            if(options.capitalize !== false)
+                                display = v.charAt(0).toUpperCase() + v.slice(1);
+                            // simple string just push to collection.
+                            _collection.push({ text: v, value: v, display: display });
+                        }
+                        if(angular.isObject(v)) {
+                            var item = v,
+                                displayKey = options.display || options.text;
+                            item.text = v[options.text];
+                            item.text = item.text.charAt(0).toUpperCase() + item.text.slice(1);
+                            item.value = v[options.value] || item.text;
+                            item.display = v[displayKey];
+                            if(options.capitalize !== false)
+                                item.display =  item.display.charAt(0).toUpperCase() + item.display.slice(1);
+                            if(!options.groupKey) {
+                                _collection.push(item);
+                            } else {
+                                var groupKey = v[options.groupKey],
+                                    groupDisplay = v[options.groupDisplay || options.groupKey];
+                                if(options.capitalize !== false)
+                                    groupDisplay = groupDisplay.charAt(0).toUpperCase() + groupDisplay.slice(1);
+                                _collection[groupKey] = _collection[groupKey] ||
+                                { key: groupKey, display: groupDisplay, hidden: false };
+                                _collection[groupKey].items = data.filter(function(i) {
+                                    return i[options.groupKey] === groupKey;
+                                });
+                            }
+                        }
+                    });
+
+                    return _collection;
+                }
+
+                // build params for server request.
+                function buildParams(params, q) {
+                    params = params || {};
+                    if(q)
+                        params[options.queryParam] = q;
+                    return params;
+                }
+
+                // load data using promise.
+                function loadData(q) {
+                    if(angular.isString(options.source)){
+                        var method = options.method,
+                            params = buildParams(options.params, q);
+                        return $q.when($http[method](options.source, { params: params }))
+                            .then(function(res) {
+                                return normalizeData(res.data);
+                            });
+                    } else {
+                        var defer = $q.defer();
+                        defer.resolve(normalizeData(options.source));
+                        return defer.promise;
+                    }
+                }
+
+                // parse ngDisabled if present.
+                function parseDisabled(newVal) {
+                    if(!button || undefined === newVal)
+                        return;
+                    var isDisabled = $parse(newVal)(scope.$parent);
+                    if(isDisabled)
+                        button.attr('disabled', 'disabled');
+                    else
+                        button.removeAttr('disabled');
+                }
+
+                // clears active items.
+                function clearActive() {
+                    angular.forEach(scope.items, function (item) {
+                        if(!options.groupKey) {
+                            item.active = false;
+                        } else {
+                            if(item.items){
+                                angular.forEach(item.items, function (groupItem) {
+                                    groupItem.active = false;
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // clear the search filter.
+                function clearFilter() {
+                    $module.q = scope.q = '';
+                    filter(null, scope.q);
+                }
+
+                // find item by value.
+                function find(value) {
+                    if(!value) return;
+                    var found;
+                    if(!options.groupKey){
+                        found = scope.items.filter(function (item){
+                            return item.value === value;
+                        })[0];
+                        return found;
+                    } else {
+                        angular.forEach(scope.items, function (group) {
+                            if(!found) {
+                                found = group.items.filter(function(item) {
+                                    return item.value === value;
+                                })[0];
+                            }
+                        });
+                        return found;
+                    }
+                }
+
+                // select item.
+                function select(event, item, suppress) {
+                    var _item = { text: options.placeholder, value: '', display: options.placeholder };
+                    // clear active item flag.
+                    clearActive();
+                    // if not clear on select
+                    // otherwise set back to
+                    // default placeholder.
+                    if(!options.selectClear){
+                        if(item) {
+                            _item = item;
+                            _item.active = true;
+                        }
+                    }
+                    $module.selected = scope.selected = _item;
+                    // update ngModel value.
+                    if(options.model && !suppress) {
+                        var model = options.model;
+                        // set val too make sure ui updates.
+                        element.val(_item.value);
+                        model.$setViewValue(_item.value);
+                        if(model.$setTouched)
+                            model.$setTouched(true);
+                    }
+                    // if on select close toggle list.
+                    if(options.selectClose !== false && !suppress)
+                        toggle();
+                    // clear the filter.
+                    clearFilter();
+                    // callback on select funciton.
+                    if(angular.isFunction(options.onSelected))
+                        options.onSelected.call($module, _item, options.model, event);
+                }
+
+                function beforeToggle(ts) {
+                    angular.forEach(activeLists, function (dd, idx) {
+                        if(dd.ts !== ts){
+                            dd.options.scope.expanded = false;
+                            activeLists.splice(idx, 1);
+                        }
+                    });
+                }
+
+                // toggle the list.
+                function toggle(event, ts) {
+                    if(ts && (options.closePrevious !== false))
+                        beforeToggle(ts);
+                    scope.expanded =! scope.expanded;
+                    $module.expanded = scope.expanded;
+                    if(!scope.expanded && options.closeClear === true)
+                        clearFilter();
+                    if(scope.expanded){
+                        list[0].focus();
+                        activeLists.push($module);
+                    }
+                    // if a function callback on toggle.
+                    if(angular.isFunction(options.onToggled))
+                        options.onToggled.call($module, scope.expanded, event);
+                    // closing so clear filter.
+                    if(options.searchable !== false && !scope.expanded && angular.isFunction(options.closeClear))
+                        $module.q = scope.q = undefined;
+                }
+
+                // filter the collection.
+                function filter(event, q) {
+                    var filtered = scope.source;
+                    if(angular.isFunction(options.onFilter)){
+                        filtered = options.onFilter.call($module, filtered, event);
+                    } else {
+                        if(!options.groupKey){
+                            // filtering std list.
+                            filtered = $filter('filter')(scope.source, q);
+                        } else {
+                            // filtering group list.
+                            angular.forEach(filtered, function(v,k) {
+                                var _items = $filter('filter')(v.items, q);
+                                v.hidden = !_items.length;
+                            });
+                        }
+                    }
+                    $module.items = scope.items = filtered;
+                }
+
+                // initialize the module.
+                function init() {
+
+                    var promises = [];
+
+                    // set scope/method vars.
+                    $module.selected = scope.selected = nullItem;
+                    $module.expanded = scope.expanded = false;
+                    $module.q = scope.q = undefined;
+
+                    // timestamp used as an id.
+                    $module.ts = scope.ts = options.ts;
+
+                    // set scope/module methods.
+                    $module.toggle = scope.toggle = toggle;
+                    $module.find = scope.find = find;
+                    $module.beforeToggle = scope.beforeToggle = beforeToggle;
+                    // if calling by instance
+                    // no event so pass null apply args.
+                    $module.select = function () {
+                        var args = Array.prototype.slice.call(arguments, 0);
+                        args = [null].concat(args);
+                        select.apply(this, args);
+                    };
+                    scope.select = select;
+
+                    // when calling by instance
+                    // no event so pass null apply args.
+                    $module.filter = function () {
+                        var args = Array.prototype.slice.call(arguments, 0);
+                        args = [null].concat(args);
+                        filter.apply(this, args);
+                    };
+                    scope.filter = filter;
+
+                    scope.$on('destroy', function () {
+                        activeLists = [];
+                    });
+
+                    // parse ngDisabled if exists.
+                    $module.parseDisabled = scope.parseDisabled = parseDisabled;
+
+                    // load data.
+                    loadData().then(function (res) {
+
+                        // add data collection to scope.
+                        // store original collection.
+                        // and filtered item collection.
+                        $module.source = scope.source = res;
+                        $module.items = scope.items = res;
+
+                        // add template promises to queue.
+                        promises.push($helpers.loadTemplate(options.template || ''));
+                        promises.push($helpers.loadTemplate(options.searchTemplate || ''));
+
+                        // add group or base items template.
+                        if(options.groupKey)
+                            promises.push($helpers.loadTemplate(options.itemGroupTemplate || ''));
+                        else
+                            promises.push($helpers.loadTemplate(options.itemTemplate || ''));
+
+                        // build the templates.
+                        $q.all(promises).then(function(res) {
+
+                            // replace with new template.
+                            if(res && res.length) {
+
+                                var vis = options.visibility,
+                                    visAttrs = '',
+                                    itemsHtml = '';
+
+                                // create outer wrapper element.
+                                list = '<div tabindex="-1"{{ATTRS}}></div>';
+
+                                // check for ng-show
+                                if(vis.ngShow)
+                                    visAttrs += ' ng-show="' + vis.ngShow + '"';
+
+                                // check for ng-hide
+                                if(vis.ngHide)
+                                    visAttrs += ' ng-hide="' + vis.ngHide + '"';
+
+                                // check for ng-if
+                                if(vis.ngIf)
+                                    visAttrs += ' ng-if="' + vis.ngIf + '"';
+
+                                // add ng-if, ng-show, ng-hide
+                                // attrs if provided from orig element.
+                                // the parent scope is applied.
+                                list = list.replace('{{ATTRS}}', visAttrs);
+
+                                // compile with parent scope for ng-attrs.
+                                list = angular.element($helpers.compile(scope.$parent, list));
+
+                                // add primary class for styling.
+                                list.addClass('ai-list');
+
+                                // check if block display.
+                                if(options.inline)
+                                    list.addClass('inline');
+
+                                // if group add class to main element.
+                                if(options.groupKey)
+                                    list.addClass('group');
+
+                                // if additional class add it.
+                                if(options.addClass)
+                                    list.addClass(options.addClass);
+
+                                // replace the orig. element.
+                                // use after as jqlite doesn't
+                                // support .before();
+                                var prev = options.before;
+                                prev.element[prev.method](list);
+
+                                // set content to template html.
+                                list.html(res[0]);
+
+                                // get the items container.
+                                items = $helpers.findElement('.ai-list-items', list[0], true);
+                                items = angular.element(items);
+
+                                if(options.shadow !== false)
+                                    items.addClass('shadow');
+
+                                // add items and search if required.
+                                if(options.searchable !== false)
+                                    itemsHtml += res[1];
+
+                                // add items template.
+                                itemsHtml += res[2];
+                                items.html(itemsHtml);
+
+                                // get reference to button.
+                                button = $helpers.findElement('button:first-child', list[0], true);
+                                button = angular.element(button);
+                                button.addClass(options.btnClass);
+
+                                if(options.blurClose !== false) {
+                                    // find search input
+                                    // add listener if blurClose
+                                    search = $helpers.findElement('input', list[0], true);
+                                    if(search){
+                                        search = angular.element(search);
+                                        search.on('blur', function (e) {
+                                            e.preventDefault();
+                                            if(!e.relatedTarget && scope.expanded){
+                                                scope.$apply(function () {
+                                                    toggle(e);
+                                                });
+                                            }
+                                        });
+                                    }
+
+                                    // check for on blur event.
+                                    list.on('blur', function (e) {
+                                        e.preventDefault();
+                                        if(scope.expanded && !e.relatedTarget){
+                                            scope.$apply(function () {
+                                                toggle(e);
+                                            });
+                                        }
+                                    });
+
+                                }
+
+                                // disable button
+                                if(vis.disabled)
+                                    button.attr('disabled', 'disabled');
+
+                                // set button to readonly.
+                                if(vis.readonly)
+                                    button.attr('readonly', 'readonly');
+
+                                // parse ng-disabled.
+                                if(vis.ngDisabled)
+                                    parseDisabled(vis.ngDisabled);
+
+                                // we need to monitor ngDisabled if exists
+                                // as it may change all other attrs
+                                // are applied to either outer div with parent
+                                // scope or remain on the original input element.
+                                if(attrs.ngDisabled) {
+                                    scope.$watch(attrs.ngDisabled, function (newVal, oldVal){
+                                        if(newVal === oldVal) return;
+                                        scope.parseDisabled(newVal);
+                                    });
+                                }
+
+                                // watch model to set selected.
+                                scope.$watch(attrs.ngModel, function (newVal, oldVal) {
+                                    if((!initialized && undefined !== newVal) || newVal !== oldVal){
+                                        var item = scope.find(newVal);
+                                        if(!item || (item.value === scope.selected.value)) return;
+                                        scope.select(null, item, true);
+                                        initialized = true;
+                                    }
+                                });
+
+                                // compile the contents.
+                                $helpers.compile(scope, list.contents());
+
+                                // if onload callback.
+                                if(angular.isFunction(options.onReady))
+                                    options.onReady.call($module);
+
+                            }
+
+                        });
+
+                    });
+
+                    // don't wait for template just return;
+                    return $module;
+
+                }
+
+                return init();
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    })
+
+    .directive('aiList', [ '$list', function ($list) {
+
+        // get the previous sibling
+        // to the current element.
+        function prevSibling(elem, ts) {
+            try {
+                var parents = elem.parent(),
+                    prevIdx;
+                angular.forEach(parents.children(), function (v,k) {
+                    var child = angular.element(v),
+                        _ts = child.attr('_ts_');
+                    if(ts.toString() === _ts){
+                        prevIdx = k -1;
+                    }
+                });
+                elem.removeAttr('_ts_');
+                if(prevIdx < 0)
+                    return { element: angular.element(elem.parent()), method: 'prepend' };
+                return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
+            } catch(ex) {
+                return false;
+            }
+        }
+
+        return {
+            restrict: 'EAC',
+            scope: true,
+            require: 'ngModel',
+            link: function (scope, element, attrs, ngModel){
+
+                var defaults, options, $module, model,
+                    tagName, initialized, ts;
+
+                initialized = false;
+                ts = new Date().getTime();
+
+                defaults = {
+                    scope: scope,
+                    ts: ts
+                };
+
+                function init() {
+
+                    // get previous sibling for appending.
+                    element.attr('_ts_', ts);
+
+                    options.before = prevSibling(element, ts);
+
+                    // save visibility attrs to object.
+                    options.visibility = {
+                        disabled: false,
+                        readonly: false,
+                        ngHide: attrs.ngHide,
+                        ngShow: attrs.ngShow,
+                        ngIf: attrs.ngIf,
+                        ngDisabled: attrs.ngDisabled
+                    };
+
+                    // disabled does not contain value
+                    // if preset set to true.
+                    if(attrs.disabled)
+                        options.visibility.disabled = true;
+
+                    // readonly does not contain value
+                    // if preset set to true.
+                    if(attrs.readonly)
+                        options.visibility.readonly = true;
+
+                    // save ref to orig input element.
+                    options.input = element;
+
+                    // hide the orig. element.
+                    element.css({ display: 'none'});
+
+                    // instantiate the module.
+                    $module = $list(element, options, attrs);
+
+
+
+                }
+
+                // verify valid element type.
+                tagName = element.prop('tagName').toLowerCase();
+                if(tagName !== 'input')
+                    return console.error('Invalid element, ai-list requires an input element with ng-model.');
+
+                // get options and model.
+                options = scope.$eval(attrs.aiList || attrs.aiListOptions);
+                options = angular.extend(defaults, options);
+
+                // define the source & model data.
+                options.source = options.source || scope.$eval(attrs.source);
+                options.model = ngModel;
+
+                if(undefined === options.source)
+                    return console.error('ai-list failed to initialize, invalid model.');
+                init();
+
+            }
+
+        };
+
+    }]);
 angular.module('ai.loader.factory', ['ai.helpers'])
 
     .provider('$loader', function $loader() {
@@ -1654,678 +2327,6 @@ angular.module('ai.passport', [
     'ai.passport.interceptor',
     'ai.passport.route'
 ]);
-angular.module('ai.select', ['ai.helpers'])
-
-.provider('$select', function $select(){
-
-    var defaults = {
-
-            text: 'text',                           // property to use for text values.
-            value: 'value',                         // property to use for model values default is text.
-            display: false,                         // alt property to use for display values.
-            capitalize: undefined,                  // if true display is capitalized. (group is cap also if used).
-            searchable: undefined,                  // indicates that the select is searchable.
-            placeholder: 'Please Select',           // placeholder text shown on null value.
-            btnClass: 'btn-default',                // the class to add to the button which triggers select.
-            allowNull: undefined,                   // when true user can select placeholder/null value.
-            inline: false,                          // positions element inline.
-            shadow: undefined,                      // when true adds shadow to bottom of list.
-
-            template: 'select.tpl.html',          // the template to use for the select control.
-            itemTemplate:
-                'select-item.tpl.html',           // template used for list items.
-            itemGroupTemplate:
-                'select-item-group.tpl.html',
-            searchTemplate:
-                'select-search.tpl.html',         // template used for searching list.
-            addClass: false,                        // adds a class the top level of the component.
-
-            source: [],                             // data source can be csv, object, array of string/object or url.
-            params: {},                             // object of data params to pass with server requests.
-            queryParam: 'q',                        // the param key used to query on server requests.
-            method: 'get',                          // the method to use for requests.
-
-            groupKey: false,                        // the parent primary key to find children by.
-            groupDisplay: false,                    // used to display the group name.
-
-            selectClose: undefined,                 // if not false list is closed after selection.
-            selectClear: undefined,                 // after selecting value clear item.
-            closeClear: undefined,                  // when searchable and on toggle close clear query filter.
-            blurClose: undefined,                   // when true list is closed on blur event.
-            closePrevious: undefined,               // when not false previously opened selects are closed.
-
-                                                    // all callbacks are returned with $module context.
-            onToggled: false,                       // on toggle select state. injects(toggle state, event).
-            onSelected: false,                      // callback on select. injects(selected, ngModel, event).
-            onFilter: false,                        // callback on filter. injects (filter, event).
-            onGroup: false,                         // callback fired on grouping injects (distinct groups, data).
-            onReady: false                           // callback on directive loaded. returns
-
-        }, get, set;
-
-    set = function set(key, value) {
-        var obj = key;
-        if(arguments.length > 1){
-            obj = {};
-            obj[key] = value;
-        }
-        defaults = angular.extend(defaults, obj);
-    };
-
-    get = [ '$q', '$parse', '$filter', '$http', '$helpers', function get($q, $parse, $filter, $http, $helpers) {
-
-         var baseTemplate = '<button type="button" class="btn ai-select-toggle" ng-click="toggle($event, ts)" ng-class="{expanded: expanded}">' +
-                                '<span class="selected" ng-bind="selected.display">Please Select</span>' +
-                                '<span class="caret" ng-class="{ down: !expanded, up: expanded }"></span>' +
-                            '</button>' +
-                            '<div class="ai-select-wrapper">' +
-                                '<div class="ai-select-items" ng-show="expanded">' +
-                                '</div>' +
-                            '</div>';
-
-        // item template must be wrapped
-        // with outer <ul>.
-        var itemTemplate =  '<ul>' +
-                                '<li ng-repeat="item in items" ng-class="{ active: item.active }">' +
-                                    '<a ng-click="select($event, item)">{{item.display}}</a>' +
-                                '</li>' +
-                            '</ul>';
-
-        // item group template must be
-        // wrapped in outer <div>
-        var itemGroupTemplate = '<div>' +
-                                    '<div ng-repeat="group in items" ng-if="!group.hidden">' +
-                                        '<h5 ng-bind="group.display" ng-show="group.display"></h5>' +
-                                        '<ul>' +
-                                            '<li ng-repeat="item in group.items" ng-class="{ active: item.active }">' +
-                                                '<a ng-click="select($event, item)">{{item.display}}</a>' +
-                                            '</li>' +
-                                        '</ul>' +
-                                    '</div>' +
-                                '</div>';
-
-
-        var searchTemplate =  '<input type="text" ng-model="q" ng-change="filter($event, q)" class="ai-select-search form-control" placeholder="search"/>';
-        
-        $helpers.getPutTemplate(defaults.template, baseTemplate);
-        $helpers.getPutTemplate(defaults.itemTemplate, itemTemplate);
-        $helpers.getPutTemplate(defaults.itemGroupTemplate, itemGroupTemplate);
-        $helpers.getPutTemplate(defaults.searchTemplate, searchTemplate);
-
-        var activeSelects = [];
-
-        // module factory.
-        function ModuleFactory(element, options, attrs) {
-
-            if((!element && !$helpers.isElement(element)) || !options.source)
-                return;
-
-            var $module = {},
-                scope,
-                select,
-                button,
-                search,
-                items,
-                nullItem;
-
-            // parse out relevant options
-            // from attributes.
-
-            attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
-
-            nullItem = { text: options.placeholder, value: '', display: options.placeholder };
-
-            // normalize source data to same type.
-            function normalizeData(data) {
-                if(!data)
-                    return [];
-                var _collection = options.groupKey ? {} : [],
-                    display;
-                // if string split to array.
-                if(angular.isString(data))
-                    data = $helpers.trim(data).split(',');
-                if(options.allowNull !== false && angular.isArray(_collection))
-                    _collection.push(nullItem);
-                if(options.allowNull !== false && angular.isObject(_collection))
-                    _collection._placeholder = {
-                        key: 'placeholder',
-                        display: false,
-                        hidden: false,
-                        items: [nullItem]
-                    };
-                angular.forEach(data, function (v,k) {
-                    if(angular.isString(v)) {
-                        display = v = $helpers.trim(v);
-                        if(options.capitalize !== false)
-                            display = v.charAt(0).toUpperCase() + v.slice(1);
-                        // simple string just push to collection.
-                        _collection.push({ text: v, value: v, display: display });
-                    }
-                    if(angular.isObject(v)) {
-                        var item = v,
-                            displayKey = options.display || options.text;
-                        item.text = v[options.text];
-                        item.text = item.text.charAt(0).toUpperCase() + item.text.slice(1);
-                        item.value = v[options.value] || item.text;
-                        item.display = v[displayKey];
-                        if(options.capitalize !== false)
-                            item.display =  item.display.charAt(0).toUpperCase() + item.display.slice(1);
-                        if(!options.groupKey) {
-                            _collection.push(item);
-                        } else {
-                            var groupKey = v[options.groupKey],
-                                groupDisplay = v[options.groupDisplay || options.groupKey];
-                            if(options.capitalize !== false)
-                                groupDisplay = groupDisplay.charAt(0).toUpperCase() + groupDisplay.slice(1);
-                            _collection[groupKey] = _collection[groupKey] ||
-                                { key: groupKey, display: groupDisplay, hidden: false };
-                            _collection[groupKey].items = data.filter(function(i) {
-                                return i[options.groupKey] === groupKey;
-                            });
-                        }
-                    }
-                });
-
-                return _collection;
-            }
-
-            // build params for server request.
-            function buildParams(params, q) {
-                params = params || {};
-                if(q)
-                    params[options.queryParam] = q;
-                return params;
-            }
-
-            // load data using promise.
-            function loadData(q) {
-                if(angular.isString(options.source)){
-                    var method = options.method,
-                        params = buildParams(options.params, q);
-                    return $q.when($http[method](options.source, { params: params }))
-                        .then(function(res) {
-                            return normalizeData(res.data);
-                        });
-                } else {
-                    var defer = $q.defer();
-                    defer.resolve(normalizeData(options.source));
-                    return defer.promise;
-                }
-            }
-
-            // parse ngDisabled if present.
-            function parseDisabled(newVal) {
-                if(!button || undefined === newVal)
-                    return;
-                var isDisabled = $parse(newVal)(scope.$parent);
-                if(isDisabled)
-                    button.attr('disabled', 'disabled');
-                else
-                    button.removeAttr('disabled');
-            }
-
-            // clears active items.
-            function clearActive() {
-                angular.forEach(scope.items, function (item) {
-                    if(!options.groupKey) {
-                        item.active = false;
-                    } else {
-                        if(item.items){
-                            angular.forEach(item.items, function (groupItem) {
-                                groupItem.active = false;
-                            });
-                        }
-                    }
-                });
-            }
-
-            // clear the search filter.
-            function clearFilter() {
-                $module.q = scope.q = '';
-                filter(null, scope.q);
-            }
-
-            // find item by value.
-            function find(value) {
-                if(!value) return;
-                var found;
-                if(!options.groupKey){
-                    found = scope.items.filter(function (item){
-                        return item.value === value;
-                    })[0];
-                    return found;
-                } else {
-                    angular.forEach(scope.items, function (group) {
-                        if(!found) {
-                            found = group.items.filter(function(item) {
-                                return item.value === value;
-                            })[0];
-                        }
-                    });
-                    return found;
-                }
-            }
-
-            // select item.
-            function select(event, item, suppress) {
-                var _item = { text: options.placeholder, value: '', display: options.placeholder };
-                // clear active item flag.
-                clearActive();
-                // if not clear on select
-                // otherwise set back to
-                // default placeholder.
-                if(!options.selectClear){
-                    if(item) {
-                        _item = item;
-                        _item.active = true;
-                    }
-                }
-                $module.selected = scope.selected = _item;
-                // update ngModel value.
-                if(options.model && !suppress) {
-                    var model = options.model;
-                    // set val too make sure ui updates.
-                    element.val(_item.value);
-                    model.$setViewValue(_item.value);
-                    if(model.$setTouched)
-                        model.$setTouched(true);
-                }
-                // if on select close toggle list.
-                if(options.selectClose !== false && !suppress)
-                    toggle();
-                // clear the filter.
-                clearFilter();
-                // callback on select funciton.
-                if(angular.isFunction(options.onSelected))
-                    options.onSelected.call($module, _item, options.model, event);
-            }
-
-            function beforeToggle(ts) {
-                angular.forEach(activeSelects, function (dd, idx) {
-                    if(dd.ts !== ts){
-                        dd.options.scope.expanded = false;
-                        activeSelects.splice(idx, 1);
-                    }
-                });
-            }
-
-            // toggle the list.
-            function toggle(event, ts) {
-                if(ts && (options.closePrevious !== false))
-                    beforeToggle(ts);
-                scope.expanded =! scope.expanded;
-                $module.expanded = scope.expanded;
-                if(!scope.expanded && options.closeClear === true)
-                    clearFilter();
-                if(scope.expanded){
-                    select[0].focus();
-                    activeSelects.push($module);
-                }
-                // if a function callback on toggle.
-                if(angular.isFunction(options.onToggled))
-                    options.onToggled.call($module, scope.expanded, event);
-                // closing so clear filter.
-                if(options.searchable !== false && !scope.expanded && angular.isFunction(options.closeClear))
-                    $module.q = scope.q = undefined;
-            }
-
-            // filter the collection.
-            function filter(event, q) {
-                var filtered = scope.source;
-                if(angular.isFunction(options.onFilter)){
-                    filtered = options.onFilter.call($module, filtered, event);
-                } else {
-                    if(!options.groupKey){
-                        // filtering std list.
-                        filtered = $filter('filter')(scope.source, q);
-                    } else {
-                        // filtering group list.
-                        angular.forEach(filtered, function(v,k) {
-                            var _items = $filter('filter')(v.items, q);
-                            v.hidden = !_items.length;
-                        });
-                    }
-                }
-                $module.items = scope.items = filtered;
-            }
-
-            // initialize the module.
-            function init() {
-
-                var promises = [];
-
-                // set scope/method vars.
-                $module.selected = scope.selected = nullItem;
-                $module.expanded = scope.expanded = false;
-                $module.q = scope.q = undefined;
-
-                // timestamp used as an id.
-                $module.ts = scope.ts = options.ts;
-
-                // set scope/module methods.
-                $module.toggle = scope.toggle = toggle;
-                $module.find = scope.find = find;
-                $module.beforeToggle = scope.beforeToggle = beforeToggle;
-                // if calling by instance
-                // no event so pass null apply args.
-                $module.select = function () {
-                    var args = Array.prototype.slice.call(arguments, 0);
-                    args = [null].concat(args);
-                    select.apply(this, args);
-                };
-                scope.select = select;
-
-                // when calling by instance
-                // no event so pass null apply args.
-                $module.filter = function () {
-                    var args = Array.prototype.slice.call(arguments, 0);
-                    args = [null].concat(args);
-                    filter.apply(this, args);
-                };
-                scope.filter = filter;
-
-                scope.$on('destroy', function () {
-                    activeSelects = [];
-                });
-
-                // parse ngDisabled if exists.
-                $module.parseDisabled = scope.parseDisabled = parseDisabled;
-
-                // load data.
-                loadData().then(function (res) {
-
-                    // add data collection to scope.
-                    // store original collection.
-                    // and filtered item collection.
-                    $module.source = scope.source = res;
-                    $module.items = scope.items = res;
-
-                    // add template promises to queue.
-                    promises.push($helpers.loadTemplate(options.template || ''));
-                    promises.push($helpers.loadTemplate(options.searchTemplate || ''));
-
-                    // add group or base items template.
-                    if(options.groupKey)
-                        promises.push($helpers.loadTemplate(options.itemGroupTemplate || ''));
-                    else
-                        promises.push($helpers.loadTemplate(options.itemTemplate || ''));
-
-                    // build the templates.
-                    $q.all(promises).then(function(res) {
-
-                        // replace with new template.
-                        if(res && res.length) {
-
-                            var vis = options.visibility,
-                                visAttrs = '',
-                                itemsHtml = '';
-
-                            // create outer wrapper element.
-                            select = '<div tabindex="-1"{{ATTRS}}></div>';
-
-                            // check for ng-show
-                            if(vis.ngShow)
-                                visAttrs += ' ng-show="' + vis.ngShow + '"';
-
-                            // check for ng-hide
-                            if(vis.ngHide)
-                                visAttrs += ' ng-hide="' + vis.ngHide + '"';
-
-                            // check for ng-if
-                            if(vis.ngIf)
-                                visAttrs += ' ng-if="' + vis.ngIf + '"';
-
-                            // add ng-if, ng-show, ng-hide
-                            // attrs if provided from orig element.
-                            // the parent scope is applied.
-                            select = select.replace('{{ATTRS}}', visAttrs);
-
-                            // compile with parent scope for ng-attrs.
-                            select = angular.element($helpers.compile(scope.$parent, select));
-
-                            // add primary class for styling.
-                            select.addClass('ai-select');
-
-                            // check if block display.
-                            if(options.inline)
-                                select.addClass('inline');
-
-                            // if group add class to main element.
-                            if(options.groupKey)
-                                select.addClass('group');
-
-                            // if additional class add it.
-                            if(options.addClass)
-                                select.addClass(options.addClass);
-
-                            // replace the orig. element.
-                            // use after as jqlite doesn't
-                            // support .before();
-                            var prev = options.before;
-                            prev.element[prev.method](select);
-
-                            // set content to template html.
-                            select.html(res[0]);
-
-                            // get the items container.
-                            items = $helpers.findElement('.ai-select-items', select[0], true);
-                            items = angular.element(items);
-
-                            if(options.shadow !== false)
-                                items.addClass('shadow');
-
-                            // add items and search if required.
-                            if(options.searchable !== false)
-                                itemsHtml += res[1];
-
-                            // add items template.
-                            itemsHtml += res[2];
-                            items.html(itemsHtml);
-
-                            // get reference to button.
-                            button = $helpers.findElement('button:first-child', select[0], true);
-                            button = angular.element(button);
-                            button.addClass(options.btnClass);
-
-                            if(options.blurClose !== false) {
-                                // find search input
-                                // add listener if blurClose
-                                search = $helpers.findElement('input', select[0], true);
-                                if(search){
-                                    search = angular.element(search);
-                                    search.on('blur', function (e) {
-                                        e.preventDefault();
-                                        if(!e.relatedTarget && scope.expanded){
-                                            scope.$apply(function () {
-                                                toggle(e);
-                                            });
-                                        }
-                                    });
-                                }
-
-                                // check for on blur event.
-                                select.on('blur', function (e) {
-                                    e.preventDefault();
-                                    if(scope.expanded && !e.relatedTarget){
-                                        scope.$apply(function () {
-                                            toggle(e);
-                                        });
-                                    }
-                                });
-
-                            }
-
-                            // disable button
-                            if(vis.disabled)
-                                button.attr('disabled', 'disabled');
-
-                            // set button to readonly.
-                            if(vis.readonly)
-                                button.attr('readonly', 'readonly');
-
-                            // parse ng-disabled.
-                            if(vis.ngDisabled)
-                                parseDisabled(vis.ngDisabled);
-
-                            // we need to monitor ngDisabled if exists
-                            // as it may change all other attrs
-                            // are applied to either outer div with parent
-                            // scope or remain on the original input element.
-                            if(attrs.ngDisabled) {
-                                scope.$watch(attrs.ngDisabled, function (newVal, oldVal){
-                                    if(newVal === oldVal) return;
-                                    scope.parseDisabled(newVal);
-                                });
-                            }
-
-                            // watch model to set selected.
-                            scope.$watch(attrs.ngModel, function (newVal, oldVal) {
-                                if((!initialized && undefined !== newVal) || newVal !== oldVal){
-                                    var item = scope.find(newVal);
-                                    if(!item || (item.value === scope.selected.value)) return;
-                                    scope.select(null, item, true);
-                                    initialized = true;
-                                }
-                            });
-
-                            // compile the contents.
-                            $helpers.compile(scope, select.contents());
-
-                            // if onload callback.
-                            if(angular.isFunction(options.onReady))
-                                options.onReady.call($module);
-
-                        }
-
-                    });
-
-                });
-
-                // don't wait for template just return;
-                return $module;
-
-            }
-
-            return init();
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-
-.directive('aiSelect', [ '$select', function ($select) {
-
-    // get the previous sibling
-    // to the current element.
-    function prevSibling(elem, ts) {
-        try {
-            var parents = elem.parent(),
-                prevIdx;
-            angular.forEach(parents.children(), function (v,k) {
-                var child = angular.element(v),
-                    _ts = child.attr('_ts_');
-                if(ts.toString() === _ts){
-                    prevIdx = k -1;
-                }
-            });
-            elem.removeAttr('_ts_');
-            if(prevIdx < 0)
-                return { element: angular.element(elem.parent()), method: 'prepend' };
-            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    return {
-        restrict: 'EAC',
-        scope: true,
-        require: 'ngModel',
-        link: function (scope, element, attrs, ngModel){
-
-            var defaults, options, $module, model,
-                tagName, initialized, ts;
-
-            initialized = false;
-            ts = new Date().getTime();
-
-            defaults = {
-                scope: scope,
-                ts: ts
-            };
-
-            function init() {
-
-                // get previous sibling for appending.
-                element.attr('_ts_', ts);
-
-                options.before = prevSibling(element, ts);
-
-                // save visibility attrs to object.
-                options.visibility = {
-                    disabled: false,
-                    readonly: false,
-                    ngHide: attrs.ngHide,
-                    ngShow: attrs.ngShow,
-                    ngIf: attrs.ngIf,
-                    ngDisabled: attrs.ngDisabled
-                };
-
-                // disabled does not contain value
-                // if preset set to true.
-                if(attrs.disabled)
-                    options.visibility.disabled = true;
-
-                // readonly does not contain value
-                // if preset set to true.
-                if(attrs.readonly)
-                    options.visibility.readonly = true;
-
-                // save ref to orig input element.
-                options.input = element;
-
-                // hide the orig. element.
-                element.css({ display: 'none'});
-
-                // instantiate the module.
-                $module = $select(element, options, attrs);
-
-            }
-
-            // verify valid element type.
-            tagName = element.prop('tagName').toLowerCase();
-            if(tagName !== 'input')
-                return console.error('Invalid element, ai-select requires an input element with ng-model.');
-
-            // get options and model.
-            options = scope.$eval(attrs.aiSelect || attrs.aiSelectOptions);
-            options = angular.extend(defaults, options);
-
-            // define the source & model data.
-            options.source = options.source || scope.$eval(attrs.source);
-            options.model = ngModel;
-
-            if(undefined === options.source)
-                return console.error('ai-select failed to initialize, invalid model.');
-            init();
-
-        }
-
-    };
-
-}]);
-
 angular.module('ai.step', ['ai.helpers'])
 
 .provider('$step', function $step() {
@@ -3173,340 +3174,6 @@ angular.module('ai.storage', [])
 
     });
 
-angular.module('ai.tree', ['ai.helpers'])
-    .provider('$tree', function $tree() {
-
-        var defaults = {
-            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
-            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
-            label: 'label',                             // the property used for display.
-            value: 'value',                             // the property used for value.
-            children: 'children',                       // the property used for child elements.
-            active: 'active',                           // the property used to indicated the element is checked or active.
-            method: 'get',                              // when and endpoint is specified in model.
-            params: {},                                 // params to be passed when model is an endpoint.
-            icon: true,                                 // when NOT false icon is displayed left of label.
-            expanded: false,                            // when true tree loads with all nodes expanded.
-            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
-            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
-            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
-            onReady: undefined                          // callback when loaded.
-        }, get, set;
-
-        set = function set(key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
-
-            var treeTemplate =
-                '<ul>' +
-                    '<li ng-repeat="node in nodes track by $index">' +
-                        '<span class="ai-tree-caret" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
-                            'ng-click="toggle($event, node)"></span>' +
-                        '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
-                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
-                            '{{LABEL_TEMPLATE}}' +
-                        '</div>' +
-                        '<ai-tree ng-if="node.children" ' +
-                            'ng-show="node.expanded" ' +
-                            'ng-model="node.children" ' +
-                            'ai-tree-options="options" ' +
-                            'class="ai-tree-child"' +
-                            '>' +
-                        '</ai-tree>' +
-                    '</li>' +
-                '</ul>';
-
-            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
-
-            $helpers.getPutTemplate(defaults.template, treeTemplate);
-            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
-
-            function ModuleFactory(element, options, attrs){
-
-                var $module = {},
-                    treeModel,
-                    model,
-                    scope;
-
-                if(!element)
-                    return console.error('Cannot configure tree with element of undefined.');
-
-                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-                options = options || {};
-                scope = $module.scope = options.scope || $rootScope.$new();
-                options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
-                $module.element = scope.element = element;
-
-                // the current model may be nested.
-                model = options.model;
-
-                // the root tree model.
-                treeModel = options.tree.options.model;
-
-                // get templates.
-                function getTemplates() {
-                    var promises = [
-                        $helpers.loadTemplate(options.template),
-                        $helpers.loadTemplate(options.labelTemplate)
-                    ];
-                    return $q.all(promises);
-                }
-
-                // get data collection.
-                function loadData(m, cb) {
-
-                    if(angular.isArray(m))
-                        return cb(m);
-
-                    // if string get via http
-                    if(angular.isString(m)){
-                        $http.get(m, {
-                            params: options.params
-                        }).then(function (res) {
-                            model = res.data;
-                            treeModel = options.tree.options.model = res.data;
-                            cb(res.data);
-                        }, function (res) {
-                            console.error(res);
-                            cb();
-                        });
-                    } else {
-                        cb();
-                    }
-
-                }
-
-                // check if node is a parent node.
-                function isParent(node){
-                    return (node.children && node.children.length);
-                }
-
-                // iterate children and set active.
-                function toggleChildren(arr, value){
-                    angular.forEach(arr, function (n) {
-                        if(n.children)
-                            toggleChildren(n.children, value);
-                        n.active = value;
-                    });
-                }
-
-                // normalize data and properties.
-                function normalizeData(arr) {
-                    angular.forEach(arr, function (node) {
-                        // support specifying only values.
-                        // set label to value if label is absent.
-                        node.label = node[options.label || options.value];
-                        node.value = node[options.value];
-                        node.children = node[options.children];
-                        node.active = node[options.active] || false;
-                        node.toggle = false;
-                        node.icon = options.icon === false ? false : true;
-                        if(isParent(node)){
-                            node.options = options;
-                            node.expanded = options.expanded || node.expanded || false;
-                            node.toggle = true;
-                        }
-                    });
-                }
-
-                // gets all child nodes
-                function getChildren(arr) {
-                    var children = [];
-                    angular.forEach(arr, function (n) {
-                        if(isParent(n)){
-                            var nestedChildren = getChildren(n.children);
-                            children = children.concat(nestedChildren);
-                        } else {
-                            children.push(n);
-                        }
-                    });
-                    return children;
-                }
-
-                // sets tree checked state.
-                function setState(arr) {
-                    var selected = [];
-                    angular.forEach(arr, function(n) {
-                        if(isParent(n)){
-                            var activeChildren = setState(n.children);
-                            var maxChildren = getChildren(n.children);
-                            if(maxChildren.length === activeChildren.length)
-                                n.state = 'checked';
-                            else if(activeChildren.length > 0)
-                                n.state = 'intermediate';
-                            else
-                                n.state = 'unchecked';
-                            selected = selected.concat(activeChildren);
-                        }else {
-                            if(n.active){
-                                n.state = 'checked';
-                                selected.push(n);
-                            } else {
-                                n.state = 'unchecked';
-                            }
-                        }
-                    });
-                    options.tree.selected = selected;
-                    return selected;
-                }
-
-                // expands children nodes if any.
-                function expandChildren(arr, state) {
-                    angular.forEach(arr, function (n) {
-                        if(isParent(n)){
-                            if(state !== undefined)
-                                n.expanded = state
-                            else
-                                n.expanded =! n.expanded;
-                            expandChildren(n.children, state);
-                        }
-                    });
-                }
-
-                // when child nodes are expanded/collapsed.
-                function toggle(event, node, state) {
-                    var isClick = event && event.type === 'click';
-                    if(!isClick){
-                        state = node;
-                        node = event;
-                        event = null;                    }
-                    if(state === undefined)
-                        node.expanded =! node.expanded;
-                    else
-                        node.expanded = state;
-                    if(undefined !== state || options.expandAll)
-                        expandChildren(node.children, state);
-                    if(angular.isFunction(options.onToggle)){
-                        options.onToggle(node, treeModel, event);
-                    }
-                }
-
-                // get the selected nodes.
-                function selected() {
-                    return options.tree.selected;
-                }
-
-                // select a node
-                function select(event, node) {
-                    var isClick = event && event.type === 'click';
-                    if(!isClick){
-                        node = event;
-                        event = null;
-                    }
-                    if(isParent(node)) {
-                        node.active =! node.active;
-                        toggleChildren(node.children, node.active);
-                        if(node.active)
-                            toggle(event, node, true);
-                    } else {
-                        node.active =! node.active;
-                    }
-                    setState(treeModel);
-                    if(angular.isFunction(options.onSelect)){
-                        options.onSelect(node, treeModel, event);
-                    }
-                }
-
-                $module.select = scope.select = select;
-                $module.toggle = scope.toggle = toggle;
-                $module.selected = scope.selected = selected;
-
-                // initialize the tree view.
-                function init() {
-
-                    loadData(model, function (data) {
-
-                        if(!data) return;
-
-                        // normalize the model properties.
-                        normalizeData(data);
-
-                        // set initial check state.
-                        setState(treeModel);
-
-                        $module.nodes = scope.nodes = data;
-
-                        getTemplates().then(function(t) {
-
-                            var _template = t[0],
-                                _labelTemplate = t[1];
-                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
-                            element.empty().append($helpers.compile(scope, _template));
-
-                            if(angular.isFunction(options.onReady) && !options.tree.ready){
-                                options.onReady(options.tree, treeModel);
-                                options.tree.ready = true;
-                            }
-
-                        });
-
-                        // don't wait for templates.
-                        return $module;
-
-                    });
-                }
-
-                init();
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $get: get,
-            $set: set
-        };
-
-    })
-    .directive('aiTree', ['$tree', '$helpers', function ($tree, $helpers) {
-
-        return {
-            restrict: 'EAC',
-            scope: true,
-            link: function (scope, element, attrs, ngModel) {
-
-                var defaults, options, $module, tmpModel;
-                defaults = {
-                    scope: scope
-                };
-
-                function init() {
-                    $module = $tree(element, options, attrs);
-                }
-
-                // get local options
-                options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
-
-                // make sure parent scope
-                // doesn't polute child.
-                delete options.scope;
-
-                // save the original scope.
-                options.tree = options.tree || scope;
-
-                options = angular.extend(defaults, options);
-                options.model = attrs.ngModel || options.model;
-                if(angular.isString(options.model) && !/\//g.test(options.model))
-                    options.model = scope.$eval(options.model);
-
-                init();
-
-            }
-        };
-
-    }]);
 
 angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
@@ -5344,6 +5011,340 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     }
                 });
 
+
+                init();
+
+            }
+        };
+
+    }]);
+angular.module('ai.tree', ['ai.helpers'])
+    .provider('$tree', function $tree() {
+
+        var defaults = {
+            template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
+            labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
+            label: 'label',                             // the property used for display.
+            value: 'value',                             // the property used for value.
+            children: 'children',                       // the property used for child elements.
+            active: 'active',                           // the property used to indicated the element is checked or active.
+            method: 'get',                              // when and endpoint is specified in model.
+            params: {},                                 // params to be passed when model is an endpoint.
+            icon: true,                                 // when NOT false icon is displayed left of label.
+            expanded: false,                            // when true tree loads with all nodes expanded.
+            expandAll: false,                           // when true all child nodes are expanded when either expanded or parent selects all.
+            onSelect: undefined,                        // callback when item is clicked returns node, treeModel & event.
+            onToggle: undefined,                        // callback when expanded/collapsed returns node, treeModel & event.
+            onReady: undefined                          // callback when loaded.
+        }, get, set;
+
+        set = function set(key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
+
+            var treeTemplate =
+                '<ul>' +
+                    '<li ng-repeat="node in nodes track by $index">' +
+                        '<span class="ai-tree-caret" ng-class="{expanded: node.expanded}" ng-show="node.toggle" ' +
+                            'ng-click="toggle($event, node)"></span>' +
+                        '<div class="ai-tree-item" ng-click="select($event, node)" ng-class="node.state">' +
+                            '<span class="ai-tree-icon" ng-if="node.icon"></span>' +
+                            '{{LABEL_TEMPLATE}}' +
+                        '</div>' +
+                        '<ai-tree ng-if="node.children" ' +
+                            'ng-show="node.expanded" ' +
+                            'ng-model="node.children" ' +
+                            'ai-tree-options="options" ' +
+                            'class="ai-tree-child"' +
+                            '>' +
+                        '</ai-tree>' +
+                    '</li>' +
+                '</ul>';
+
+            var labelTemplate = '<span class="ai-tree-label" ng-bind="node.label"></span>';
+
+            $helpers.getPutTemplate(defaults.template, treeTemplate);
+            $helpers.getPutTemplate(defaults.labelTemplate, labelTemplate);
+
+            function ModuleFactory(element, options, attrs){
+
+                var $module = {},
+                    treeModel,
+                    model,
+                    scope;
+
+                if(!element)
+                    return console.error('Cannot configure tree with element of undefined.');
+
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                options = options || {};
+                scope = $module.scope = options.scope || $rootScope.$new();
+                options = $module.options = scope.options = angular.extend({}, defaults, options, attrs);
+                $module.element = scope.element = element;
+
+                // the current model may be nested.
+                model = options.model;
+
+                // the root tree model.
+                treeModel = options.tree.options.model;
+
+                // get templates.
+                function getTemplates() {
+                    var promises = [
+                        $helpers.loadTemplate(options.template),
+                        $helpers.loadTemplate(options.labelTemplate)
+                    ];
+                    return $q.all(promises);
+                }
+
+                // get data collection.
+                function loadData(m, cb) {
+
+                    if(angular.isArray(m))
+                        return cb(m);
+
+                    // if string get via http
+                    if(angular.isString(m)){
+                        $http.get(m, {
+                            params: options.params
+                        }).then(function (res) {
+                            model = res.data;
+                            treeModel = options.tree.options.model = res.data;
+                            cb(res.data);
+                        }, function (res) {
+                            console.error(res);
+                            cb();
+                        });
+                    } else {
+                        cb();
+                    }
+
+                }
+
+                // check if node is a parent node.
+                function isParent(node){
+                    return (node.children && node.children.length);
+                }
+
+                // iterate children and set active.
+                function toggleChildren(arr, value){
+                    angular.forEach(arr, function (n) {
+                        if(n.children)
+                            toggleChildren(n.children, value);
+                        n.active = value;
+                    });
+                }
+
+                // normalize data and properties.
+                function normalizeData(arr) {
+                    angular.forEach(arr, function (node) {
+                        // support specifying only values.
+                        // set label to value if label is absent.
+                        node.label = node[options.label || options.value];
+                        node.value = node[options.value];
+                        node.children = node[options.children];
+                        node.active = node[options.active] || false;
+                        node.toggle = false;
+                        node.icon = options.icon === false ? false : true;
+                        if(isParent(node)){
+                            node.options = options;
+                            node.expanded = options.expanded || node.expanded || false;
+                            node.toggle = true;
+                        }
+                    });
+                }
+
+                // gets all child nodes
+                function getChildren(arr) {
+                    var children = [];
+                    angular.forEach(arr, function (n) {
+                        if(isParent(n)){
+                            var nestedChildren = getChildren(n.children);
+                            children = children.concat(nestedChildren);
+                        } else {
+                            children.push(n);
+                        }
+                    });
+                    return children;
+                }
+
+                // sets tree checked state.
+                function setState(arr) {
+                    var selected = [];
+                    angular.forEach(arr, function(n) {
+                        if(isParent(n)){
+                            var activeChildren = setState(n.children);
+                            var maxChildren = getChildren(n.children);
+                            if(maxChildren.length === activeChildren.length)
+                                n.state = 'checked';
+                            else if(activeChildren.length > 0)
+                                n.state = 'intermediate';
+                            else
+                                n.state = 'unchecked';
+                            selected = selected.concat(activeChildren);
+                        }else {
+                            if(n.active){
+                                n.state = 'checked';
+                                selected.push(n);
+                            } else {
+                                n.state = 'unchecked';
+                            }
+                        }
+                    });
+                    options.tree.selected = selected;
+                    return selected;
+                }
+
+                // expands children nodes if any.
+                function expandChildren(arr, state) {
+                    angular.forEach(arr, function (n) {
+                        if(isParent(n)){
+                            if(state !== undefined)
+                                n.expanded = state
+                            else
+                                n.expanded =! n.expanded;
+                            expandChildren(n.children, state);
+                        }
+                    });
+                }
+
+                // when child nodes are expanded/collapsed.
+                function toggle(event, node, state) {
+                    var isClick = event && event.type === 'click';
+                    if(!isClick){
+                        state = node;
+                        node = event;
+                        event = null;                    }
+                    if(state === undefined)
+                        node.expanded =! node.expanded;
+                    else
+                        node.expanded = state;
+                    if(undefined !== state || options.expandAll)
+                        expandChildren(node.children, state);
+                    if(angular.isFunction(options.onToggle)){
+                        options.onToggle(node, treeModel, event);
+                    }
+                }
+
+                // get the selected nodes.
+                function selected() {
+                    return options.tree.selected;
+                }
+
+                // select a node
+                function select(event, node) {
+                    var isClick = event && event.type === 'click';
+                    if(!isClick){
+                        node = event;
+                        event = null;
+                    }
+                    if(isParent(node)) {
+                        node.active =! node.active;
+                        toggleChildren(node.children, node.active);
+                        if(node.active)
+                            toggle(event, node, true);
+                    } else {
+                        node.active =! node.active;
+                    }
+                    setState(treeModel);
+                    if(angular.isFunction(options.onSelect)){
+                        options.onSelect(node, treeModel, event);
+                    }
+                }
+
+                $module.select = scope.select = select;
+                $module.toggle = scope.toggle = toggle;
+                $module.selected = scope.selected = selected;
+
+                // initialize the tree view.
+                function init() {
+
+                    loadData(model, function (data) {
+
+                        if(!data) return;
+
+                        // normalize the model properties.
+                        normalizeData(data);
+
+                        // set initial check state.
+                        setState(treeModel);
+
+                        $module.nodes = scope.nodes = data;
+
+                        getTemplates().then(function(t) {
+
+                            var _template = t[0],
+                                _labelTemplate = t[1];
+                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
+                            element.empty().append($helpers.compile(scope, _template));
+
+                            if(angular.isFunction(options.onReady) && !options.tree.ready){
+                                options.onReady(options.tree, treeModel);
+                                options.tree.ready = true;
+                            }
+
+                        });
+
+                        // don't wait for templates.
+                        return $module;
+
+                    });
+                }
+
+                init();
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $get: get,
+            $set: set
+        };
+
+    })
+    .directive('aiTree', ['$tree', '$helpers', function ($tree, $helpers) {
+
+        return {
+            restrict: 'EAC',
+            scope: true,
+            link: function (scope, element, attrs, ngModel) {
+
+                var defaults, options, $module, tmpModel;
+                defaults = {
+                    scope: scope
+                };
+
+                function init() {
+                    $module = $tree(element, options, attrs);
+                }
+
+                // get local options
+                options = (scope.$eval(attrs.aiTree || attrs.aiTreeOptions)) || {};
+
+                // make sure parent scope
+                // doesn't polute child.
+                delete options.scope;
+
+                // save the original scope.
+                options.tree = options.tree || scope;
+
+                options = angular.extend(defaults, options);
+                options.model = attrs.ngModel || options.model;
+                if(angular.isString(options.model) && !/\//g.test(options.model))
+                    options.model = scope.$eval(options.model);
 
                 init();
 

@@ -307,22 +307,22 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
   .ai-step-actions .submit {
     margin-left: 75px; }
 
-.ai-select {
+.ai-list {
   min-width: 150px;
   position: relative;
   vertical-align: middle;
   width: 100%;
   display: block; }
-  .ai-select:focus {
+  .ai-list:focus {
     z-index: 1061; }
-  .ai-select .caret.down {
+  .ai-list .caret.down {
     border-color: #333 transparent transparent transparent; }
-  .ai-select .caret.up {
+  .ai-list .caret.up {
     border-color: transparent transparent #333 transparent; }
-  .ai-select .ai-select-wrapper {
+  .ai-list .ai-list-wrapper {
     z-index: 1060;
     height: 100%; }
-  .ai-select .ai-select-items {
+  .ai-list .ai-list-items {
     z-index: inherit;
     border: 1px solid rgba(0, 0, 0, 0.15);
     padding: 4px;
@@ -331,36 +331,36 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
     -webkit-border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
     border-bottom-left-radius: 4px; }
-    .ai-select .ai-select-items li a {
+    .ai-list .ai-list-items li a {
       padding: 1px 8px; }
-    .ai-select .ai-select-items li.active {
+    .ai-list .ai-list-items li.active {
       background-color: #eee; }
-    .ai-select .ai-select-items li:hover {
+    .ai-list .ai-list-items li:hover {
       background-color: #eee; }
-  .ai-select .ai-select-items > ul {
+  .ai-list .ai-list-items > ul {
     margin: 4px -4px;
     max-height: 250px; }
-  .ai-select .ai-select-items > div {
+  .ai-list .ai-list-items > div {
     margin: 4px -4px;
     max-height: 250px; }
-  .ai-select.inline {
+  .ai-list.inline {
     width: auto;
     display: inline-block; }
-  .ai-select .ai-select-toggle {
+  .ai-list .ai-list-toggle {
     width: inherit;
     min-width: inherit;
     position: relative;
     text-align: left; }
-    .ai-select .ai-select-toggle.expanded, .ai-select .ai-select-toggle .btn {
+    .ai-list .ai-list-toggle.expanded, .ai-list .ai-list-toggle .btn {
       -webkit-border-bottom-left-radius: 0;
       -webkit-border-bottom-right-radius: 0;
       -moz-border-radius-bottomleft: 0;
       -moz-border-radius-bottomright: 0;
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0; }
-    .ai-select .ai-select-toggle .selected {
+    .ai-list .ai-list-toggle .selected {
       display: inline-block; }
-    .ai-select .ai-select-toggle .caret {
+    .ai-list .ai-list-toggle .caret {
       display: inline-block;
       width: 0;
       height: 0;
@@ -370,47 +370,47 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
       position: absolute;
       right: 18px;
       top: 45%; }
-      .ai-select .ai-select-toggle .caret.down {
+      .ai-list .ai-list-toggle .caret.down {
         border-width: 5px 4px 0 4px; }
-      .ai-select .ai-select-toggle .caret.up {
+      .ai-list .ai-list-toggle .caret.up {
         border-width: 0 4px 5px 4px; }
-  .ai-select .ai-select-search:focus {
+  .ai-list .ai-list-search:focus {
     border: 1px solid #ccc;
     box-shadow: none; }
-  .ai-select .ai-select-wrapper {
+  .ai-list .ai-list-wrapper {
     position: relative;
     min-width: inherit;
     width: inherit; }
-  .ai-select .ai-select-items {
+  .ai-list .ai-list-items {
     position: absolute;
     width: inherit;
     min-width: inherit;
     top: -1px;
     left: 0; }
-    .ai-select .ai-select-items.shadow {
+    .ai-list .ai-list-items.shadow {
       -webkit-box-shadow: 0 4px 5px rgba(0, 0, 0, 0.15);
       box-shadow: 0 4px 5px rgba(0, 0, 0, 0.15); }
-    .ai-select .ai-select-items ul {
+    .ai-list .ai-list-items ul {
       padding: 0;
       list-style: none;
       width: inherit;
       text-align: left; }
-    .ai-select .ai-select-items li {
+    .ai-list .ai-list-items li {
       display: list-item;
       text-align: -webkit-match-parent; }
-      .ai-select .ai-select-items li a {
+      .ai-list .ai-list-items li a {
         display: block;
         white-space: nowrap;
         text-decoration: none; }
-  .ai-select .ai-select-items > ul {
+  .ai-list .ai-list-items > ul {
     overflow-x: hidden;
     overflow-y: auto; }
-  .ai-select .ai-select-items > div {
+  .ai-list .ai-list-items > div {
     overflow-x: hidden;
     overflow-y: auto; }
-    .ai-select .ai-select-items > div ul {
+    .ai-list .ai-list-items > div ul {
       margin-bottom: 0; }
-    .ai-select .ai-select-items > div h5 {
+    .ai-list .ai-list-items > div h5 {
       margin: 3px 0 1px 4px; }
 
 .select-none, .ai-loader.ai-loader-page > div, .ai-loader.ai-loader-page p, .ai-loader.ai-loader-page svg, ai-loader.ai-loader-page > div, ai-loader.ai-loader-page p, ai-loader.ai-loader-page svg, [ai-loader].ai-loader-page > div, [ai-loader].ai-loader-page p, [ai-loader].ai-loader-page svg {

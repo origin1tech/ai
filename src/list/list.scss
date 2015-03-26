@@ -1,28 +1,28 @@
-$select-min-width:              150px;
+$list-min-width:              150px;
 
-$select-caret-top:              45%;
-$select-caret-right:            18px;
-$select-caret-border-color:     #333;
+$list-caret-top:              45%;
+$list-caret-right:            18px;
+$list-caret-border-color:     #333;
 
-$select-wrapper-zindex:         1060;
+$list-wrapper-zindex:         1060;
 
-$select-items-bg-color:         #fff;
-$select-items-border-color:     rgba(0,0,0,.15);
-$select-items-border-radius:    4px;
-$select-items-padding:          4px;
+$list-items-bg-color:         #fff;
+$list-items-border-color:     rgba(0,0,0,.15);
+$list-items-border-radius:    4px;
+$list-items-padding:          4px;
 
-$select-link-padding:           1px 8px;
-$select-link-active-color:      #eee;
-$select-link-hover-color:       #eee;
+$list-link-padding:           1px 8px;
+$list-link-active-color:      #eee;
+$list-link-hover-color:       #eee;
 
 
-$select-list-max-height:        250px;
-$select-list-margin:            4px -4px;
+$list-list-max-height:        250px;
+$list-list-margin:            4px -4px;
 
-@mixin ai-select-mixin($caret-border-color, $items-bg-color, $items-border-color,
+@mixin ai-list-mixin($caret-border-color, $items-bg-color, $items-border-color,
                          $items-border-radius, $link-active-color, $link-hover-color) {
-  
-  min-width: $select-min-width;
+
+  min-width: $list-min-width;
 
   &:focus {
     z-index: 1061;
@@ -30,23 +30,23 @@ $select-list-margin:            4px -4px;
 
   .caret {
     &.down {
-      border-color:  $caret-border-color transparent transparent transparent;    
+      border-color:  $caret-border-color transparent transparent transparent;
     }
     &.up {
-      border-color:  transparent transparent $caret-border-color transparent;   
+      border-color:  transparent transparent $caret-border-color transparent;
     }
   }
 
-  .ai-select-wrapper {
-    z-index: $select-wrapper-zindex;
+  .ai-list-wrapper {
+    z-index: $list-wrapper-zindex;
     height: 100%;
   }
 
-  .ai-select-items {
+  .ai-list-items {
 
     z-index: inherit;
     border: 1px solid $items-border-color;
-    padding: $select-items-padding;
+    padding: $list-items-padding;
     background-color: $items-bg-color;
 
     -webkit-border-bottom-right-radius: $items-border-radius;
@@ -56,13 +56,13 @@ $select-list-margin:            4px -4px;
 
     li {
 
-      a {       
-        padding: $select-link-padding;
+      a {
+        padding: $list-link-padding;
       }
-      
+
       &.active {
         background-color: $link-active-color;
-      } 
+      }
       &:hover {
         background-color: $link-hover-color;
       }
@@ -71,24 +71,24 @@ $select-list-margin:            4px -4px;
 
   }
 
-  .ai-select-items > ul {
-    margin: $select-list-margin;
-    max-height: $select-list-max-height;
+  .ai-list-items > ul {
+    margin: $list-list-margin;
+    max-height: $list-list-max-height;
   }
 
-  .ai-select-items > div {
-    margin: $select-list-margin;
-    max-height: $select-list-max-height;
+  .ai-list-items > div {
+    margin: $list-list-margin;
+    max-height: $list-list-max-height;
   }
-  
+
 }
 
 // base styles
-.ai-select {
+.ai-list {
 
-  @include ai-select-mixin($select-caret-border-color, $select-items-bg-color,
-                             $select-items-border-color, $select-items-border-radius,
-                             $select-link-active-color, $select-link-hover-color);
+  @include ai-list-mixin($list-caret-border-color, $list-items-bg-color,
+          $list-items-border-color, $list-items-border-radius,
+          $list-link-active-color, $list-link-hover-color);
 
   position: relative;
   vertical-align: middle;
@@ -101,13 +101,13 @@ $select-list-margin:            4px -4px;
   }
 
   // toggles list.
-  .ai-select-toggle {
+  .ai-list-toggle {
 
     width: inherit;
     min-width: inherit;
     position: relative;
     text-align: left;
-    
+
     &.expanded, .btn {
       -webkit-border-bottom-left-radius: 0;
       -webkit-border-bottom-right-radius: 0;
@@ -146,7 +146,7 @@ $select-list-margin:            4px -4px;
   }
 
   // search input.
-  .ai-select-search {
+  .ai-list-search {
     &:focus {
       border: 1px solid #ccc;
       box-shadow: none;
@@ -154,14 +154,14 @@ $select-list-margin:            4px -4px;
   }
 
   // used to prevent needing static height
-  .ai-select-wrapper {
+  .ai-list-wrapper {
     position: relative;
     min-width: inherit;
     width: inherit;
   }
 
   // contains all list items
-  .ai-select-items {
+  .ai-list-items {
 
     position: absolute;
     width: inherit;
@@ -198,13 +198,13 @@ $select-list-margin:            4px -4px;
   }
 
   // base element list.
-  .ai-select-items > ul {
-      overflow-x: hidden;
-      overflow-y: auto;
+  .ai-list-items > ul {
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   // group element list.
-  .ai-select-items > div {
+  .ai-list-items > div {
     overflow-x: hidden;
     overflow-y: auto;
 

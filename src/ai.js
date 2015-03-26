@@ -1,7 +1,7 @@
 angular.module('ai', [
     'ai.helpers',
     'ai.autoform',
-    'ai.select',
+    'ai.list',
     'ai.flash',
     'ai.loader',
     'ai.passport',
