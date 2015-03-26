@@ -237,7 +237,7 @@ angular.module('ai.list', ['ai.helpers'])
                 function find(value) {
                     if(!value) return;
                     var found;
-                    if(!options.groupKey){
+                    if(!options.groupKey && scope.items){
                         found = scope.items.filter(function (item){
                             return item.value === value;
                         })[0];
@@ -518,26 +518,6 @@ angular.module('ai.list', ['ai.helpers'])
                                 if(vis.ngDisabled)
                                     parseDisabled(vis.ngDisabled);
 
-                                // we need to monitor ngDisabled if exists
-                                // as it may change all other attrs
-                                // are applied to either outer div with parent
-                                // scope or remain on the original input element.
-                                if(attrs.ngDisabled) {
-                                    scope.$watch(function () { return attrs.ngDisabled; }, function (newVal, oldVal){
-                                        if(newVal === oldVal) return;
-                                        scope.parseDisabled(newVal);
-                                    });
-                                }
-
-                                // watch model to set selected.
-                                scope.$watch(function () { return attrs.ngModel; }, function (newVal, oldVal) {
-                                    if(newVal !== oldVal && newVal !== undefined){
-                                        var item = scope.find(newVal);
-                                        if(!item || (item.value === scope.selected.value)) return;
-                                        scope.select(null, item, true);
-                                    }
-                                });
-
                                 // todo probably need to monitor other ng- class states.
                                 scope.$watch(function () { return options.model.$invalid; },
                                     function (newVal, oldVal) {
@@ -615,7 +595,7 @@ angular.module('ai.list', ['ai.helpers'])
             link: function (scope, element, attrs, ngModel){
 
                 var defaults, options, $module, model,
-                    tagName, ts;
+                    tagName, ts, initialized;
 
                 ts = new Date().getTime();
 
@@ -659,6 +639,26 @@ angular.module('ai.list', ['ai.helpers'])
 
                     // instantiate the module.
                     $module = $list(element, options, attrs);
+
+                    // we need to monitor ngDisabled if exists
+                    // as it may change all other attrs
+                    // are applied to either outer div with parent
+                    // scope or remain on the original input element.
+                    if(attrs.ngDisabled) {
+                        scope.$watch(function () { return attrs.ngDisabled; }, function (newVal, oldVal){
+                            if(newVal === oldVal) return;
+                            scope.parseDisabled(newVal);
+                        });
+                    }
+
+                    scope.$watch(attrs.ngModel, function (newVal, oldVal) {
+                        if((!initialized && undefined !== newVal) || newVal !== oldVal){
+                            var item = scope.find(newVal);
+                            if(!item || (item.value === scope.selected.value)) return;
+                            scope.select(null, item, true);
+                            initialized = true;
+                        }
+                    });
 
                 }
 

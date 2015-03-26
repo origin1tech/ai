@@ -298,6 +298,7 @@ require([
                     value: 'email',
                     source: '/list/example/data.json'
                 };
+                $scope.ddRemoteSel = 'anderson.larry@mail.com';
 
             }
 
