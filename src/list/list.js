@@ -528,11 +528,10 @@ angular.module('ai.list', ['ai.helpers'])
 
                                 // watch model to set selected.
                                 scope.$watch(attrs.ngModel, function (newVal, oldVal) {
-                                    if((!initialized && undefined !== newVal) || newVal !== oldVal){
+                                    if(newVal !== oldVal && newVal !== undefined){
                                         var item = scope.find(newVal);
                                         if(!item || (item.value === scope.selected.value)) return;
                                         scope.select(null, item, true);
-                                        initialized = true;
                                     }
                                 });
 
@@ -599,9 +598,8 @@ angular.module('ai.list', ['ai.helpers'])
             link: function (scope, element, attrs, ngModel){
 
                 var defaults, options, $module, model,
-                    tagName, initialized, ts;
+                    tagName, ts;
 
-                initialized = false;
                 ts = new Date().getTime();
 
                 defaults = {
