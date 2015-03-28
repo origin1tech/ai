@@ -551,7 +551,7 @@ var form = angular.module('ai.validate', ['ai.helpers'])
 
         });
 
-        // callback when bind is complete maybe should call this bound
+
         if($scope.options.onReady) $scope.options.onReady(form, $scope);
 
         initializing = false;

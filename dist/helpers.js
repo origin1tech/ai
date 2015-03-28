@@ -167,6 +167,25 @@ angular.module('ai.helpers', [])
             return obj;
         }
     }
+
+    function findByNotation(obj, prop){
+        var props = prop.split('.');
+        while (props.length && obj) {
+            var comp = props.shift(),
+                match;
+            match = new RegExp('(.+)\\[([0-9]*)\\]').exec(comp);
+            if ((match !== null) && (match.length === 3)) {
+                var arrayData = { arrName: match[1], arrIndex: match[2] };
+                if (obj[arrayData.arrName] !== undefined)
+                    obj = obj[arrayData.arrName][arrayData.arrIndex];
+                else
+                    obj = undefined;
+            } else {
+                obj = obj[comp];
+            }
+        }
+        return obj;
+    }
      
     return {
         isHtml: isHtml,
@@ -184,7 +203,8 @@ angular.module('ai.helpers', [])
         tryParseFloat: tryParseFloat,
         tryParseInt: tryParseInt,
         selfHtml: selfHtml,
-        toObject: toPlainObject
+        toObject: toPlainObject,
+        findByNotation: findByNotation
     };
         
 }]);
