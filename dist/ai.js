@@ -608,7 +608,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
             multiple: false,                        // whether to allow multiple flash messages at same time.
             type: 'info',                           // the default type of message to show also the css class name.
             typeError: 'danger',                    // the error type or class name for error messages.
-            timeout: 3500,                          // timeout to auto remove flashes after period of time..
+            timeout: 0,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
             intercept: undefined,                   // when false flash error interception is disabled.
             onError: undefined                      // callback on error before flashed, return false to ignore.
@@ -733,15 +733,18 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                 }
                 
                 // remove all flash messages in collection.
-                function removeAll() {
-                    if(flashes.length) {
-                        angular.forEach(flashes, function (flash) {
-                            if(flash.shown === true)
-                                remove(flash);
-                            else
-                                flash.shown = true;
-                        });
-                    }
+                function removeAll(force) {
+                    if(force)
+                        scope.flashes = $module.flashes = flashes = [];
+                    else
+                        if(flashes.length) {
+                            angular.forEach(scope.flashes, function (flash) {
+                                if(flash.shown === true)
+                                    remove(flash);
+                                else
+                                    flash.shown = true;
+                            });
+                        }
                 }
 
                 // on flash enter set its focus to true
@@ -858,7 +861,6 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     $module = ModuleFactory();
                 return $module;
             }
-
             // return $module instance.
             return getInstance();
 
@@ -3224,7 +3226,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
         /* COLUMN OPTIONS
          * map: property to map to.
          * sortable: enables column sorting default: true.
-         * draggable: column can be rearranged.
+         * draggable: column can be rearranged, placeholder here for when I get time to add this feature.
 
          * filter: an angular filter to apply or a function which returns the formatted value default: false.
          * string filters should be formatted as 'filter_name|filter_format' where
@@ -4219,7 +4221,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                             if(angular.isFunction(options.beforeDelete)){
 
                                 $q.when(options.beforeDelete(row, done)).then(function (resp) {
-                                    if(resp) done(true);
+                                    if(resp === true) done();
                                 });
 
                             } else {
@@ -4320,8 +4322,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                                 } else {
 
                                     if(angular.isFunction(options.beforeUpdate)){
-                                        $q.when(options.beforeUpdate(row.edits)).then(function (resp) {
-                                            if(resp) done(resp);
+                                        $q.when(options.beforeUpdate(row.edits, done)).then(function (resp) {
+                                            if(resp === true) done(resp);
                                             else editRowCancel(); // cancel if failed update.
                                         });
                                     } else {
@@ -4376,7 +4378,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         if(angular.isFunction(options.beforeDownload)){
                             $q.when(options.beforeDownload(scope.filtered, 'download.csv' ))
                                 .then(function (resp) {
-                                    if(resp && angular.isObject(resp)) {
+                                    if(angular.isObject(resp)) {
                                         done(resp.filtered, resp.fileName);
                                     }
                                 });
@@ -4443,6 +4445,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         scope.selectable = options.selectable !== false;
                         scope.selectableAll = options.selectableAll;
                         scope.changeable = options.changeable !== false;
+                        scope.editable = options.editable;
+
                         scope.selectAll = false;
                         scope.selectAllRows = selectAllRows;
                         scope.selectTableRow = selectTableRow;

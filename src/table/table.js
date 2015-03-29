@@ -7,7 +7,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
         /* COLUMN OPTIONS
          * map: property to map to.
          * sortable: enables column sorting default: true.
-         * draggable: column can be rearranged.
+         * draggable: column can be rearranged, placeholder here for when I get time to add this feature.
 
          * filter: an angular filter to apply or a function which returns the formatted value default: false.
          * string filters should be formatted as 'filter_name|filter_format' where
@@ -1002,7 +1002,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                             if(angular.isFunction(options.beforeDelete)){
 
                                 $q.when(options.beforeDelete(row, done)).then(function (resp) {
-                                    if(resp) done(true);
+                                    if(resp === true) done();
                                 });
 
                             } else {
@@ -1103,8 +1103,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                                 } else {
 
                                     if(angular.isFunction(options.beforeUpdate)){
-                                        $q.when(options.beforeUpdate(row.edits)).then(function (resp) {
-                                            if(resp) done(resp);
+                                        $q.when(options.beforeUpdate(row.edits, done)).then(function (resp) {
+                                            if(resp === true) done(resp);
                                             else editRowCancel(); // cancel if failed update.
                                         });
                                     } else {
@@ -1159,7 +1159,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         if(angular.isFunction(options.beforeDownload)){
                             $q.when(options.beforeDownload(scope.filtered, 'download.csv' ))
                                 .then(function (resp) {
-                                    if(resp && angular.isObject(resp)) {
+                                    if(angular.isObject(resp)) {
                                         done(resp.filtered, resp.fileName);
                                     }
                                 });
@@ -1226,6 +1226,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         scope.selectable = options.selectable !== false;
                         scope.selectableAll = options.selectableAll;
                         scope.changeable = options.changeable !== false;
+                        scope.editable = options.editable;
+
                         scope.selectAll = false;
                         scope.selectAllRows = selectAllRows;
                         scope.selectTableRow = selectTableRow;

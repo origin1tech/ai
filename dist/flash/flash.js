@@ -23,7 +23,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
             multiple: false,                        // whether to allow multiple flash messages at same time.
             type: 'info',                           // the default type of message to show also the css class name.
             typeError: 'danger',                    // the error type or class name for error messages.
-            timeout: 3500,                          // timeout to auto remove flashes after period of time..
+            timeout: 0,                          // timeout to auto remove flashes after period of time..
                                                     // instead of by timeout.
             intercept: undefined,                   // when false flash error interception is disabled.
             onError: undefined                      // callback on error before flashed, return false to ignore.
@@ -148,15 +148,18 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                 }
                 
                 // remove all flash messages in collection.
-                function removeAll() {
-                    if(flashes.length) {
-                        angular.forEach(flashes, function (flash) {
-                            if(flash.shown === true)
-                                remove(flash);
-                            else
-                                flash.shown = true;
-                        });
-                    }
+                function removeAll(force) {
+                    if(force)
+                        scope.flashes = $module.flashes = flashes = [];
+                    else
+                        if(flashes.length) {
+                            angular.forEach(scope.flashes, function (flash) {
+                                if(flash.shown === true)
+                                    remove(flash);
+                                else
+                                    flash.shown = true;
+                            });
+                        }
                 }
 
                 // on flash enter set its focus to true
@@ -273,7 +276,6 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     $module = ModuleFactory();
                 return $module;
             }
-
             // return $module instance.
             return getInstance();
 
