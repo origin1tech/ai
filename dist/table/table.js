@@ -129,9 +129,12 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                                                         // you may return a string, object or filtered array.
             beforeUpdate: undefined,                    // before updates are saved to row this is called can return boolean or promise with boolean if successfull.
             beforeDelete: undefined,                    // the callback to process before deleting a row. can return boolean to continue processing or promise.
+            beforeView: undefined,                      // optional hook which will change location to returned value.
             beforeDownload: undefined                   // event that is fired before download of exported data. You can use this to pass a file name,
                                                         // or perhaps prompt with a dialog. Passes the filtered collection and default fileName you should
                                                         // return an object with the filtered records to export and fileName or false to cancel download.
+
+
 
             // GENERIC EVENTS
 
@@ -148,7 +151,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
              * "click". or onMouseOut which is normalized to
              * "mouseout".
              */
-            // onTouchStart: function(ctx, row, column, event) { // do something }
+            // onTouchStart: function(row, column, event) { // do something }
 
         };
 
@@ -161,8 +164,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
             defaults = angular.extend(defaults, obj);
         };
 
-        get = ['$rootScope','$http', '$q', '$templateCache', '$filter', '$timeout', '$helpers',
-            function get($rootScope,$http, $q, $templateCache, $filter, $timeout, $helpers) {
+        get = ['$rootScope','$http', '$q', '$templateCache', '$filter', '$timeout', '$helpers', '$location',
+            function get($rootScope,$http, $q, $templateCache, $filter, $timeout, $helpers, $location) {
 
                 var tableTemplate, actionsTemplate, loaderTemplate,
                     pagerTemplate, nodataTemplate;
@@ -327,6 +330,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
                     attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
+                    //scope = (options.scope && options.scope.$new()) || $rootScope.$new();
                     scope = options.scope || $rootScope.$new();
                     options = angular.extend({}, defaults, attrs, options);
                     options.element = options.element || element;
@@ -908,7 +912,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     function filterEvents (obj, regex, asObject) {
                         var objKeys = {},
                             arrKeys = [],
-                            exclude = ['onSelect', 'onBind', 'onLoad', 'onDelete', 'onReset'],
+                            exclude = ['onSelect', 'onReady', 'onLoad', 'onDelete', 'onReset'],
                             key;
                         for (key in obj) {
                             if (obj.hasOwnProperty(key) && regex.test(key)) {
@@ -986,6 +990,31 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         }
 
                         selectRow(e, row, idx);
+
+                    }
+
+                    function viewRow(row) {
+                        if(scope.editing) return;
+
+                        if(angular.isNumber(row))
+                            row = scope.source.rows[row] || undefined;
+
+                        if(row) {
+                            if(angular.isFunction(options.beforeView)){
+                                $q.when(options.beforeView(row, done)).then(function (resp) {
+                                    // if response and is string
+                                    // attempt to navigate.
+                                    if(resp !== false)
+                                        done(resp);
+
+                                });
+                            }
+                        }
+
+                        function done (path) {
+                            if(angular.isString(path))
+                                $location.path(path);
+                        }
 
                     }
 
@@ -1234,6 +1263,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         scope.deleteRow = deleteRow;
                         scope.editRow = editRow;
                         scope.cancelEdit = editRowCancel;
+                        scope.viewRow = viewRow;
                         scope.editing = undefined;
                         scope.draggable = dragSupported();
                         scope.orderable = options.orderable;
@@ -1315,6 +1345,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         $module.selectAllRows = selectAllRows;
                         $module.editRow = editRow;
                         $module.cancelEdit = editRowCancel;
+                        $module.viewRow = viewRow;
 
                         $module.ready = ready;
                         $module.bind = bind;
@@ -1477,7 +1508,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
                                 // check for user bind event
                                 if(!initialized)
-                                    ready(options.onBind);
+                                    ready(options.onReady);
 
                                 // prevents calling ready
                                 // after already initialized.

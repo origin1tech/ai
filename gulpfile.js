@@ -45,6 +45,7 @@ function jshintNotify() {
     });
 }
 
+// clean directories
 gulp.task('clean', function (cb) {
 
     del([
@@ -115,6 +116,7 @@ gulp.task('jshint', ['clean'],  function() {
     .pipe(plugins.jshint.reporter('jshint-stylish'));
 });
 
+// livereload.
 gulp.task('reload', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function reload () {
     if(!watch) return;
     gulp.src('./src/**/*.*')
@@ -138,12 +140,13 @@ gulp.task('serve', ['build'], function() {
         root: './dist',
         livereload: true,
         fallback: 'dist/index.html',
-        host: '10.10.20.35',
+        host: '0.0.0.0',
         // quick hack for demo the loader.
         middleware: function (conn, options){
             return [ function (req, res, next) {
-                var isLoader = /\/api\/loader/.test(req.url);
-                var isTree = /\/api\/tree/.test(req.url);
+                var isLoader = /\/api\/loader/i.test(req.url);
+                var isTree = /\/api\/tree/i.test(req.url);
+                var isPassport = /\/api\/passport/i.test(req.url);
 
                 if(isLoader){
                     var q = url.parse(req.url).query.split('=');
@@ -170,15 +173,34 @@ gulp.task('serve', ['build'], function() {
                     res.end(JSON.stringify(source));
                 }
 
+                else if (isPassport) {
+                    var user, roles;
+                    user = {
+                        firstName: 'Irwin',
+                        lastName: 'Fletcher',
+                        email: 'fletchlives@gmail.com'
+                    };
+                    roles = {
+                        0: '*',
+                        1: 'user',
+                        2: 'manager',
+                        3: 'admin',
+                        4: 'superadmin'
+                    };
+                    res.end(JSON.stringify({user: user, roles: roles}));
+                }
+
                 else {
                     next();
                 }
             }];
         }
     };
+
     setTimeout(function () {
         var app = plugins.connect.server(conf);        
     }, 0);
+
 });
 
 // bumps the version for package/bower.

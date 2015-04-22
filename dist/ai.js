@@ -2009,52 +2009,75 @@ angular.module('ai.loader', [
 
 angular.module('ai.passport.factory', [])
 
-    .provider('$passport', function $passport() {
+    .provider('$passport', [function $passport() {
 
-        var defaults, get, set;
+        var defaults, defaultRoles, get, set;
+
+        // NOTE: if roles object keys are numeric roles are ordered
+        //       by the numeric keys. if keys are strings the roles
+        //       will be sorted by each property's value.
+        //       if roles are a simple array of strings a numeric
+        //       map will be created based on the order of the
+        //       array provided.
 
         defaults = {
-            rootName: 'Passport',                               // the name to use on rootscope for passport.
-            levels: {                                           // security levels to string name map.
-                0: '*',
-                1: 'user',
-                2: 'manager',
-                3: 'admin',
-                4: 'superadmin'
-            },            
+
+
+            rootKey:            'Passport',                     // the rootScope property key to set to instance.
+            routeKey:           'area',                         // the property within the current router's route object
+
             401: true,                                          // set to false to not handle 401 status codes.
             403: true,                                          // set to false to not handle 403 status codes.
+
+            rolesKey:           'roles',                        // the key which contains ALL roles.
+            userKey:            'user',                         // the object key which contains the user information
+                                                                // returned in res.data of successful login.
+                                                                // ex: res.data.user (see method $module.login)
+            userRolesKey:       'roles',                        // the property within userKey object that contains
+                                                                // an array of access levels. array may contain numbers
+                                                                // or strings.
+
             paranoid: false,                                    // when true, fails if access level is missing.
-            delimiter: ',',                                     // char to use to separate roles when passing string.
+            delimiter:          ',',                            // char to use to separate roles when passing string.
 
-            // passport paths.
-            defaultUrl: '/',                                    // the default path or home page.
-            loginUrl: '/passport/login',                        // path to login form.
-            resetUrl: '/passport/reset',                        // path to password reset form.
-            recoverUrl: '/passport/recover',                    // path to password recovery form.            
+            defaultUrl:         '/',                            // the default path or home page.
+            loginUrl:           '/passport/login',              // path to login form.
+            resetUrl:           '/passport/reset',              // path to password reset form.
+            recoverUrl:         '/passport/recover',            // path to password recovery form.
 
-            // passport actions
-            loginAction:  'post /api/passport/login',           // endpoint/func used fo r authentication.
-            logoutAction: 'get /api/passport/logout',           // endpoint/func used to logout/remove session.
-            resetAction:  'post /api/passport/reset',           // endpoint/func used for resetting password.
-            recoverAction:'post /api/passport/recover',         // endpoint/func used for recovering password.
-            refreshAction: false,                               // when the page is loaded the user may still be
-                                                                // logged in this calls the server to ensure the
-                                                                // active session is reloaded.
-                                                                // ex: 'get /api/passport/refresh'
+            loginAction:        'post /api/passport/login',     // endpoint/func used fo r authentication.
+            logoutAction:       'get /api/passport/logout',     // endpoint/func used to logout/remove session.
+            resetAction:        'post /api/passport/reset',     // endpoint/func used for resetting password.
+            recoverAction:      'post /api/passport/recover',   // endpoint/func used for recovering password.
+            syncAction:         'get /api/passport/sync',       // syncs app roles and user profile. must return
+                                                                // object containing user and/or roles.
+                                                                // ex: { user: user, roles: roles }
 
-            // success fail actions.
-            onLoginSuccess: '/',                                // path or func on success.
-            onLoginFailed: '/passport/login',                   // path or func when login fails.
-            onRecoverSuccess: '/passport/login',                // path or func when recovery is success.
-            onRecoverFailed: '/passport/recover',               // path or func when recover fails.
-            onUnauthenticated: '/passport/login',               // path or func when unauthenticated.
-            onUnauthorized: '/passport/login',                  // path or func when unauthorized.
+            onLoginSuccess:     '/',                            // path or func on success.
+            onLoginFailed:      '/passport/login',              // path or func when login fails.
+            onRecoverSuccess:   '/passport/login',              // path or func when recovery is success.
+            onRecoverFailed:    '/passport/recover',            // path or func when recover fails.
+            onUnauthenticated:  '/passport/login',              // path or func when unauthenticated.
+            onUnauthorized:     '/passport/login',              // path or func when unauthorized.
+            onSyncSuccess:      undefined,                      // func called when successfully synchronized w/ server.
             
-            namePrefix: 'Welcome Back ',                        // prefix string to identity.
-            nameParams: [ 'firstName' ]                         // array of user properties which make up the
+            welcomeText:        'Welcome ',                     // prefix string to identity.
+            welcomeParams:      [ 'firstName' ]                 // array of user properties which make up the
                                                                 // user's identity or full name, properties are 
                                                                 // separated by a space.
+        };
+
+        defaultRoles = {
+            0: '*',
+            1: 'user',
+            2: 'manager',
+            3: 'admin',
+            4: 'superadmin'
+            //'*': 0,
+            //'user': 1,
+            //'manager': 2,
+            //'admin': 3,
+            //'superadmin': 4
         };
 
         set = function set (key, value) {
@@ -2063,10 +2086,10 @@ angular.module('ai.passport.factory', [])
                 obj = {};
                 obj[key] = value;
             }
-            defaults = angular.extend(defaults, obj);
+            defaults = angular.extend({}, defaults, obj);
         };
 
-        get = ['$rootScope', '$location', '$http', '$route', function get($rootScope, $location, $http, $route) {
+        get = ['$rootScope', '$location', '$http', '$route', '$q', function get($rootScope, $location, $http, $route, $q) {
 
             var instance;
 
@@ -2082,72 +2105,159 @@ angular.module('ai.passport.factory', [])
                 return obj;
             }
 
-            // convert string roles to levels.
-            function rolesToLevels(source, roles){
-                var arr = [];
-                source = source || [];
-                angular.forEach(roles, function (v) {
-                    if(source[v] !== undefined)
-                        arr.push(source[v]);
-                });
-                return arr;
+            function tryParseFloat(val) {
+                try {
+                    if(isNaN(val))
+                        return val;
+                    return parseFloat(val);
+                } catch(ex) {
+                    return val;
+                }
             }
 
-            // reverse the levels map setting role values as keys.
-            function reverseMap(levels) {
+            //normalize roles in format:
+            // { 0: 'role_name', 1: 'role_name' }
+            function normalizeRoles(roles) {
                 var obj = {};
-                angular.forEach(levels, function (v,k) {
-                    obj[v] = parseFloat(k);
-                });
+                if(angular.isArray(roles)){
+                    if(!roles.length)
+                        throw new Error('Fatal error normalizing passport roles, received empty array.');
+                    angular.forEach(roles, function (v, k){
+                        obj[k] = v;
+                    });
+                }
+
+                else if(angular.isObject(roles) && !angular.isFunction(roles)) {
+                    var keys = Object.keys(roles),
+                        stringKeys,
+                        values;
+                    if(!keys.length)
+                        throw new Error('Fatal error normalizing passport roles, object has no keys.');
+                    stringKeys = tryParseFloat(keys[0]);
+                    stringKeys = typeof stringKeys === 'string';
+                    obj = roles;
+                    if(stringKeys){
+                        obj = {};
+                        values = keys.map(function (k) {
+                            k = tryParseFloat(k);
+                            return roles[k];
+                        });
+                        if(!values.length)
+                            throw new Error('Fatal error normalizing passport roles, object has no values.');
+                        angular.forEach(values, function (v) {
+                            var parsedVal = tryParseFloat(v);
+                            var val;
+                            angular.forEach(roles, function (v, k) {
+                                if(val) return;
+                                if(parsedVal === v)
+                                    val = k;
+                            });
+                            if(!val)
+                                throw new Error('Fatal error normalizing security roles, no matching key for value ' +
+                                    parsedVal);
+                            obj[parsedVal] = val;
+                        });
+                    }
+                }
+
+                else {
+                    throw new Error('Fatal error normalizing security roles, the format is invalid.');
+                }
                 return obj;
             }
 
-            function ModuleFactory(options) {
+            // Passport factory module.
+            function ModuleFactory() {
+
+                if(this.instance)
+                    return instance;
 
                 var $module = {};
-                
-                $module.user = null;
 
-                function setOptions(options) {
+                // ensure the user proptery
+                // is undefined when passport
+                // class is initialized.
+                $module.user = undefined;
 
-                    // ensure valid object.
-                    options = options || {};
+                $module.findByNotation = function findByNotation(obj, prop) {
+                    if(!obj || !prop)
+                        return undefined;
+                    var props = prop.split('.');
+                    while (props.length && obj) {
+                        var comp = props.shift(),
+                            match;
+                        match = new RegExp('(.+)\\[([0-9]*)\\]', 'i').exec(comp);
+                        if ((match !== null) && (match.length === 3)) {
+                            var arrayData = { arrName: match[1], arrIndex: match[2] };
+                            if (obj[arrayData.arrName] !== undefined) {
+                                obj = obj[arrayData.arrName][arrayData.arrIndex];
+                            } else {
+                                obj = undefined;
+                            }
+                        } else {
+                            obj = obj[comp];
+                        }
+                    }
+                    return obj;
+                };
 
-                    // override options map if exists.
-                    defaults.levels = options.levels || defaults.levels;
+                // set passport options.
+                $module.set = function set(key, value) {
+                    
+                    var options;
+
+                    if(!key && !value) {
+                        options = {};
+                    } else {
+                        if(angular.isObject(key)){
+                            options = key;
+                            value = undefined;
+                        } else {
+                            options = {};
+                            options[key] = value;
+                        }
+                    }
+
+                    // don't merge levels override instead.
+                    options.roles = options.roles || defaultRoles;
 
                     // merge the options.
-                    $module.options = angular.extend(angular.copy(defaults), options);
+                    $module.options = angular.extend({}, defaults, $module.options, options);
 
-                    // normalize/reverse levels map
-                    $module.options.roles = reverseMap($module.options.levels);
-                }
+                    // set levels and roles.
+                    $module.roles = normalizeRoles(options.roles);
+                };
 
                 // login passport credentials.
                 $module.login = function login(data) {
                     var url = urlToObject($module.options.loginAction);
+                    function onFailed(res) {
+                        if(angular.isFunction($module.options.onLoginFailed)) {
+                            $module.options.onLoginFailed.call($module, res);
+                        } else {
+                            $location.path($module.options.onLoginFailed);
+                        }
+                    }
                     $http[url.method](url.path, data)
                         .then(function (res) {
-                            // set to authenticated and merge in passport profile.
-                            //angular.extend(self, res.data);
-                            $module.user = res.data;
+                            $module.user = findByNotation(res.data, $module.options.userKey);
+                            var roles = findByNotation(res.data, $module.options.rolesKey);
+                            if(!$module.user)
+                                throw new Error('Fatal error passport failed to set "user" on login.');
+                            if(roles)
+                                $module.roles = normalizeRoles(roles);
                             if(angular.isFunction($module.options.onLoginSuccess)) {
                                 $module.options.onLoginSuccess.call($module, res);
                             } else {
                                 $location.path($module.options.onLoginSuccess);
                             }
-                        }, function (res) {
-                            if(angular.isFunction($module.options.onLoginFailed)) {
-                                $module.options.onLoginFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onLoginFailed);
-                            }
-                        });
+                        }, onFailed);
                 };
 
+                // logout passport.
                 $module.logout = function logout() {        
                     function done() {
-                        $module.user = null;
+                        $module.user = undefined;
                         $location.path($module.options.loginUrl);
                         $route.reload();
                     }
@@ -2156,11 +2266,13 @@ angular.module('ai.passport.factory', [])
                     } else {
                         var url = urlToObject($module.options.logoutAction);
                         $http[url.method](url.path).then(function (res) {
-                                done();                               
-                            });
+                            if(res)
+                                done();
+                        });
                     }
                 };
 
+                // recover passport
                 $module.recover = function recover() {
                     if(angular.isFunction($module.options.recoverAction)){
                         $module.options.recoverAction.call($module);
@@ -2180,55 +2292,73 @@ angular.module('ai.passport.factory', [])
                             }
                         });        
                     }
-                };               
-                
-                $module.refresh = function refresh() {   
-                    if(!$module.options.refreshAction)
-                        return;
-                    if(angular.isFunction($module.options.refreshAction)){
-                        $module.options.refreshAction.call($module);                            
-                    } else {
-                        var url = urlToObject($module.options.refreshAction);
-                        $http[url.method](url.path).then(function (res){
-                            $module.user = res.data;
-                        });
-                    }
                 };
 
+                // reset passport password.
                 $module.reset = function reset() {
 
                 };
 
+                // sync passport with server.
+                // checking for session.
+                $module.sync = function sync() {
+                    function done(obj) {
+                        if(obj) {
+                            var user = findByNotation(obj, $module.options.userKey);
+                            var roles = findByNotation(obj, $module.options.rolesKey);
+                            if(user)
+                                $module.user = user;
+                            if(roles)
+                                $module.roles = normalizeRoles(roles);
+                        }
+                    }
+                    if(!$module.options.syncAction)
+                        return done();
+                    if(angular.isFunction($module.options.syncAction)){
+                        var obj = $module.options.syncAction.call($module);
+                        done(obj);
+                    } else {
+                        var url = urlToObject($module.options.syncAction);
+                        if (url.method && url.path) {
+                            $http[url.method](url.path).then(function (res) {
+                                if(res){
+                                    done(res.data);
+                                }
+                            });
+                        }
+                    }
+                };
+
                 // expects string.
                 $module.hasRole = function hasRole(role) {
-                    var passportRoles = $module.roles || [];
-                    // if string convert to role level.
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
+                   // var userRoles = $module.userRoles(),
+                        //level =
+                    //if(!level)
+                        //return false;
                     // if public return true
-                    if(role === 0)
-                        return true;
-                    return passportRoles.indexOf(role) !== -1;
+                    //if(level === 0)
+                    //    return true;
+                    //return passportRoles.indexOf(role) !== -1;
                 };
 
                 // expects string or array of strings.
                 $module.hasAnyRole = function hasAnyRole(roles) {
-                    var passportRoles = $module.roles || [];
+                    //var passportRoles = $module.roles || [];
                     // if a string convert to role levels.
-                    if(angular.isString(roles)){
-                        roles = roles.split($module.options.delimiter);
-                        roles = rolesToLevels($module.options.roles, roles);
-                    }
+                    //if(angular.isString(roles)){
+                    //    roles = roles.split($module.options.delimiter);
+                    //    roles = rolesToLevels($module.options.roles, roles);
+                    //}
                     // if public return true
-                    if(roles.indexOf(0) !== -1)
-                        return true;
-                    return roles.some(function (v) {
-                        return passportRoles.indexOf(v) !== -1;
-                    });
+                    //if(roles.indexOf(0) !== -1)
+                    //    return true;
+                    //return roles.some(function (v) {
+                    //    return passportRoles.indexOf(v) !== -1;
+                    //});
                 };
 
                 // check if meets the minimum roll required.
-                $module.minRole = function requiresRole(role) {
+                $module.minRole = function minRole(role) {
                     var passportRoles = $module.roles || [],
                         maxRole;
                     if(angular.isString(role))
@@ -2239,7 +2369,7 @@ angular.module('ai.passport.factory', [])
                 };
 
                 // check if role is not greater than.
-                $module.maxRole = function requiresRole(role) {
+                $module.maxRole = function maxRole(role) {
                     var passportRoles = $module.roles || [],
                         maxRole;
                     if(angular.isString(role))
@@ -2252,14 +2382,11 @@ angular.module('ai.passport.factory', [])
                 // unauthorized handler.
                 $module.unauthenticated = function unauthenticated() {
                     var action = $module.options.onUnauthenticated;
-
                     // if func call pass context.
                     if(angular.isFunction(action))
                         return action.call($module);
-
                     // default to the login url.
                     $location.path(action || $module.options.loginUrl);
-
                 };
 
                 // unauthorized handler.
@@ -2273,11 +2400,11 @@ angular.module('ai.passport.factory', [])
                 };
                 
                 // gets the identity name of the authenticated user.
-                $module.getName = function getName(arr) {
+                $module.displayName = function displayName(arr) {
                     var result = '';
-                    arr = arr || $module.options.nameParams;
+                    arr = arr || $module.options.welcomeParams;
                     if(!$module.user)
-                        return;
+                        return undefined;
                     angular.forEach(arr, function (v, k){
                         if($module.user[v]){
                             if(k === 0)
@@ -2286,26 +2413,39 @@ angular.module('ai.passport.factory', [])
                                 result += (' ' + $module.user[v]);
                         }      
                     });    
-                    return $module.options.namePrefix + result;
+                    return result;
                 };
 
-                setOptions(options);
-                
-                $module.refresh();
+                // returns welcome text and displayName or text only.
+                $module.welcome = function welcome(textOnly) {
+                    if(textOnly)
+                        return $module.options.welcomeText;
+                    return $module.options.welcomeText + ' ' + displayName();
+                };
 
+                // return roles array from user object.
+                $module.userRoles = function userRoles() {
+                    if(!$module.user || !$module.user[$module.options.userRolesKey])
+                        return [0];
+                    return $module.user[$module.options.userRolesKey];
+                };
+
+                // set initial options
+                $module.set();
+
+                // sync with server.
+                //$module.sync();
+
+                // return for chaining.
                 return $module;
 
             }
 
-            function getInstance() {
-                if(!instance)
-                    instance = new ModuleFactory();
-                $rootScope.Passport = instance;
-                return instance;
-            }
+            ModuleFactory.instance = undefined;
 
-            return getInstance();
-           
+            // return new instance of Passport.
+            return new ModuleFactory();
+
         }];
 
         return {
@@ -2313,18 +2453,19 @@ angular.module('ai.passport.factory', [])
             $set: set
         };
 
-    });
+    }]);
 
 // intercepts 401 and 403 errors.
 angular.module('ai.passport.interceptor', [])
     .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
         return {
             responseError: function(res) {
-                // get passport here to prevent circ dependency.
+                 //get passport here to prevent circ dependency.
                 var passport = $injector.get('$passport');
                 // handle unauthenticated response
                 if (res.status === 401 && passport.options['401'])
                     passport.unauthenticated();
+                // handle unauthorized.
                 if(res.status === 403 && passport.options['403'])
                     passport.unauthorized();
                 return $q.reject(res);
@@ -2338,28 +2479,27 @@ angular.module('ai.passport.interceptor', [])
 // handles intercepting route when
 // required permissions are not met.
 angular.module('ai.passport.route', [])
+
     .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
         $rootScope.$on('$routeChangeStart', function (event, next) {
             var area = {},
                 route = {},
                 access,
                 authorized;
-            if(next && next.$$route){
+            if(next && next.$$route)
                 route = next.$$route;
-                if(route.area)
-                    area = route.area;
-            }
-            access = route.access || area.access;
-            // when paranoid is true require access params
-            // if undefined call unauthorized.
-            // when paranoid is false unauthorized is not called
-            // when access is undefined.
-            if($passport.options.paranoid && access === undefined)
+            access = $passport.findByNotation(route, $passport.routeKey);
+            // when paranoid all routes must contain
+            // an access key containing roles otherwise
+            // direct to unauthorized.
+            if($passport.options.paranoid && access === undefined){
                 return $passport.unauthorized();
+            }
             if(access !== undefined){
                 authorized = $passport.hasAnyRole('*');
-                if(!authorized)
+                if(!authorized){
                     $passport.unauthorized();
+                }
             }
         });
     }]);
@@ -2370,6 +2510,1001 @@ angular.module('ai.passport', [
     'ai.passport.interceptor',
     'ai.passport.route'
 ]);
+'use strict';
+
+/**
+ * @ngdoc module
+ * @name ngRoute
+ * @description
+ *
+ * # ngRoute
+ *
+ * The `ngRoute` module provides routing and deeplinking services and directives for angular apps.
+ *
+ * ## Example
+ * See {@link ngRoute.$route#example $route} for an example of configuring and using `ngRoute`.
+ *
+ *
+ * <div doc-module-components="ngRoute"></div>
+ */
+/* global -ngRouteModule */
+var ngRouteModule = angular.module('ngRoute', ['ng']).
+        provider('$route', $RouteProvider),
+    $routeMinErr = angular.$$minErr('ngRoute');
+/**
+ * @ngdoc provider
+ * @name $routeProvider
+ *
+ * @description
+ *
+ * Used for configuring routes.
+ *
+ * ## Example
+ * See {@link ngRoute.$route#example $route} for an example of configuring and using `ngRoute`.
+ *
+ * ## Dependencies
+ * Requires the {@link ngRoute `ngRoute`} module to be installed.
+ */
+function $RouteProvider() {
+
+    function inherit(parent, extra) {
+        return angular.extend(Object.create(parent), extra);
+    }
+
+    var routes = {};
+
+    /**
+     * @ngdoc method
+     * @name $routeProvider#when
+     *
+     * @param {string} path Route path (matched against `$location.path`). If `$location.path`
+     *    contains redundant trailing slash or is missing one, the route will still match and the
+     *    `$location.path` will be updated to add or drop the trailing slash to exactly match the
+     *    route definition.
+     *
+     *    * `path` can contain named groups starting with a colon: e.g. `:name`. All characters up
+     *        to the next slash are matched and stored in `$routeParams` under the given `name`
+     *        when the route matches.
+     *    * `path` can contain named groups starting with a colon and ending with a star:
+     *        e.g.`:name*`. All characters are eagerly stored in `$routeParams` under the given `name`
+     *        when the route matches.
+     *    * `path` can contain optional named groups with a question mark: e.g.`:name?`.
+     *
+     *    For example, routes like `/color/:color/largecode/:largecode*\/edit` will match
+     *    `/color/brown/largecode/code/with/slashes/edit` and extract:
+     *
+     *    * `color: brown`
+     *    * `largecode: code/with/slashes`.
+     *
+     *
+     * @param {Object} route Mapping information to be assigned to `$route.current` on route
+     *    match.
+     *
+     *    Object properties:
+     *
+     *    - `controller` – `{(string|function()=}` – Controller fn that should be associated with
+     *      newly created scope or the name of a {@link angular.Module#controller registered
+   *      controller} if passed as a string.
+     *    - `controllerAs` – `{string=}` – A controller alias name. If present the controller will be
+     *      published to scope under the `controllerAs` name.
+     *    - `template` – `{string=|function()=}` – html template as a string or a function that
+     *      returns an html template as a string which should be used by {@link
+        *      ngRoute.directive:ngView ngView} or {@link ng.directive:ngInclude ngInclude} directives.
+     *      This property takes precedence over `templateUrl`.
+     *
+     *      If `template` is a function, it will be called with the following parameters:
+     *
+     *      - `{Array.<Object>}` - route parameters extracted from the current
+     *        `$location.path()` by applying the current route
+     *
+     *    - `templateUrl` – `{string=|function()=}` – path or function that returns a path to an html
+     *      template that should be used by {@link ngRoute.directive:ngView ngView}.
+     *
+     *      If `templateUrl` is a function, it will be called with the following parameters:
+     *
+     *      - `{Array.<Object>}` - route parameters extracted from the current
+     *        `$location.path()` by applying the current route
+     *
+     *    - `resolve` - `{Object.<string, function>=}` - An optional map of dependencies which should
+     *      be injected into the controller. If any of these dependencies are promises, the router
+     *      will wait for them all to be resolved or one to be rejected before the controller is
+     *      instantiated.
+     *      If all the promises are resolved successfully, the values of the resolved promises are
+     *      injected and {@link ngRoute.$route#$routeChangeSuccess $routeChangeSuccess} event is
+     *      fired. If any of the promises are rejected the
+     *      {@link ngRoute.$route#$routeChangeError $routeChangeError} event is fired. The map object
+     *      is:
+     *
+     *      - `key` – `{string}`: a name of a dependency to be injected into the controller.
+     *      - `factory` - `{string|function}`: If `string` then it is an alias for a service.
+     *        Otherwise if function, then it is {@link auto.$injector#invoke injected}
+     *        and the return value is treated as the dependency. If the result is a promise, it is
+     *        resolved before its value is injected into the controller. Be aware that
+     *        `ngRoute.$routeParams` will still refer to the previous route within these resolve
+     *        functions.  Use `$route.current.params` to access the new route parameters, instead.
+     *
+     *    - `redirectTo` – {(string|function())=} – value to update
+     *      {@link ng.$location $location} path with and trigger route redirection.
+     *
+     *      If `redirectTo` is a function, it will be called with the following parameters:
+     *
+     *      - `{Object.<string>}` - route parameters extracted from the current
+     *        `$location.path()` by applying the current route templateUrl.
+     *      - `{string}` - current `$location.path()`
+     *      - `{Object}` - current `$location.search()`
+     *
+     *      The custom `redirectTo` function is expected to return a string which will be used
+     *      to update `$location.path()` and `$location.search()`.
+     *
+     *    - `[reloadOnSearch=true]` - {boolean=} - reload route when only `$location.search()`
+     *      or `$location.hash()` changes.
+     *
+     *      If the option is set to `false` and url in the browser changes, then
+     *      `$routeUpdate` event is broadcasted on the root scope.
+     *
+     *    - `[caseInsensitiveMatch=false]` - {boolean=} - match routes without being case sensitive
+     *
+     *      If the option is set to `true`, then the particular route can be matched without being
+     *      case sensitive
+     *
+     * @returns {Object} self
+     *
+     * @description
+     * Adds a new route definition to the `$route` service.
+     */
+    this.when = function(path, route) {
+        //copy original route object to preserve params inherited from proto chain
+        var routeCopy = angular.copy(route);
+        if (angular.isUndefined(routeCopy.reloadOnSearch)) {
+            routeCopy.reloadOnSearch = true;
+        }
+        if (angular.isUndefined(routeCopy.caseInsensitiveMatch)) {
+            routeCopy.caseInsensitiveMatch = this.caseInsensitiveMatch;
+        }
+        routes[path] = angular.extend(
+            routeCopy,
+            path && pathRegExp(path, routeCopy)
+        );
+
+        // create redirection for trailing slashes
+        if (path) {
+            var redirectPath = (path[path.length - 1] == '/')
+                ? path.substr(0, path.length - 1)
+                : path + '/';
+
+            routes[redirectPath] = angular.extend(
+                {redirectTo: path},
+                pathRegExp(redirectPath, routeCopy)
+            );
+        }
+
+        return this;
+    };
+
+    /**
+     * @ngdoc property
+     * @name $routeProvider#caseInsensitiveMatch
+     * @description
+     *
+     * A boolean property indicating if routes defined
+     * using this provider should be matched using a case insensitive
+     * algorithm. Defaults to `false`.
+     */
+    this.caseInsensitiveMatch = false;
+
+    /**
+     * @param path {string} path
+     * @param opts {Object} options
+     * @return {?Object}
+     *
+     * @description
+     * Normalizes the given path, returning a regular expression
+     * and the original path.
+     *
+     * Inspired by pathRexp in visionmedia/express/lib/utils.js.
+     */
+    function pathRegExp(path, opts) {
+        var insensitive = opts.caseInsensitiveMatch,
+            ret = {
+                originalPath: path,
+                regexp: path
+            },
+            keys = ret.keys = [];
+
+        path = path
+            .replace(/([().])/g, '\\$1')
+            .replace(/(\/)?:(\w+)([\?\*])?/g, function(_, slash, key, option) {
+                var optional = option === '?' ? option : null;
+                var star = option === '*' ? option : null;
+                keys.push({ name: key, optional: !!optional });
+                slash = slash || '';
+                return ''
+                    + (optional ? '' : slash)
+                    + '(?:'
+                    + (optional ? slash : '')
+                    + (star && '(.+?)' || '([^/]+)')
+                    + (optional || '')
+                    + ')'
+                    + (optional || '');
+            })
+            .replace(/([\/$\*])/g, '\\$1');
+
+        ret.regexp = new RegExp('^' + path + '$', insensitive ? 'i' : '');
+        return ret;
+    }
+
+    /**
+     * @ngdoc method
+     * @name $routeProvider#otherwise
+     *
+     * @description
+     * Sets route definition that will be used on route change when no other route definition
+     * is matched.
+     *
+     * @param {Object|string} params Mapping information to be assigned to `$route.current`.
+     * If called with a string, the value maps to `redirectTo`.
+     * @returns {Object} self
+     */
+    this.otherwise = function(params) {
+        if (typeof params === 'string') {
+            params = {redirectTo: params};
+        }
+        this.when(null, params);
+        return this;
+    };
+
+
+    this.$get = ['$rootScope',
+        '$location',
+        '$routeParams',
+        '$q',
+        '$injector',
+        '$templateRequest',
+        '$sce',
+        function($rootScope, $location, $routeParams, $q, $injector, $templateRequest, $sce) {
+
+            /**
+             * @ngdoc service
+             * @name $route
+             * @requires $location
+             * @requires $routeParams
+             *
+             * @property {Object} current Reference to the current route definition.
+             * The route definition contains:
+             *
+             *   - `controller`: The controller constructor as define in route definition.
+             *   - `locals`: A map of locals which is used by {@link ng.$controller $controller} service for
+             *     controller instantiation. The `locals` contain
+             *     the resolved values of the `resolve` map. Additionally the `locals` also contain:
+             *
+             *     - `$scope` - The current route scope.
+             *     - `$template` - The current route template HTML.
+             *
+             * @property {Object} routes Object with all route configuration Objects as its properties.
+             *
+             * @description
+             * `$route` is used for deep-linking URLs to controllers and views (HTML partials).
+             * It watches `$location.url()` and tries to map the path to an existing route definition.
+             *
+             * Requires the {@link ngRoute `ngRoute`} module to be installed.
+             *
+             * You can define routes through {@link ngRoute.$routeProvider $routeProvider}'s API.
+             *
+             * The `$route` service is typically used in conjunction with the
+             * {@link ngRoute.directive:ngView `ngView`} directive and the
+             * {@link ngRoute.$routeParams `$routeParams`} service.
+             *
+             * @example
+             * This example shows how changing the URL hash causes the `$route` to match a route against the
+             * URL, and the `ngView` pulls in the partial.
+             *
+             * <example name="$route-service" module="ngRouteExample"
+             *          deps="angular-route.js" fixBase="true">
+             *   <file name="index.html">
+             *     <div ng-controller="MainController">
+             *       Choose:
+             *       <a href="Book/Moby">Moby</a> |
+             *       <a href="Book/Moby/ch/1">Moby: Ch1</a> |
+             *       <a href="Book/Gatsby">Gatsby</a> |
+             *       <a href="Book/Gatsby/ch/4?key=value">Gatsby: Ch4</a> |
+             *       <a href="Book/Scarlet">Scarlet Letter</a><br/>
+             *
+             *       <div ng-view></div>
+             *
+             *       <hr />
+             *
+             *       <pre>$location.path() = {{$location.path()}}</pre>
+             *       <pre>$route.current.templateUrl = {{$route.current.templateUrl}}</pre>
+             *       <pre>$route.current.params = {{$route.current.params}}</pre>
+             *       <pre>$route.current.scope.name = {{$route.current.scope.name}}</pre>
+             *       <pre>$routeParams = {{$routeParams}}</pre>
+             *     </div>
+             *   </file>
+             *
+             *   <file name="book.html">
+             *     controller: {{name}}<br />
+             *     Book Id: {{params.bookId}}<br />
+             *   </file>
+             *
+             *   <file name="chapter.html">
+             *     controller: {{name}}<br />
+             *     Book Id: {{params.bookId}}<br />
+             *     Chapter Id: {{params.chapterId}}
+             *   </file>
+             *
+             *   <file name="script.js">
+             *     angular.module('ngRouteExample', ['ngRoute'])
+             *
+             *      .controller('MainController', function($scope, $route, $routeParams, $location) {
+     *          $scope.$route = $route;
+     *          $scope.$location = $location;
+     *          $scope.$routeParams = $routeParams;
+     *      })
+             *
+             *      .controller('BookController', function($scope, $routeParams) {
+     *          $scope.name = "BookController";
+     *          $scope.params = $routeParams;
+     *      })
+             *
+             *      .controller('ChapterController', function($scope, $routeParams) {
+     *          $scope.name = "ChapterController";
+     *          $scope.params = $routeParams;
+     *      })
+             *
+             *     .config(function($routeProvider, $locationProvider) {
+     *       $routeProvider
+     *        .when('/Book/:bookId', {
+     *         templateUrl: 'book.html',
+     *         controller: 'BookController',
+     *         resolve: {
+     *           // I will cause a 1 second delay
+     *           delay: function($q, $timeout) {
+     *             var delay = $q.defer();
+     *             $timeout(delay.resolve, 1000);
+     *             return delay.promise;
+     *           }
+     *         }
+     *       })
+     *       .when('/Book/:bookId/ch/:chapterId', {
+     *         templateUrl: 'chapter.html',
+     *         controller: 'ChapterController'
+     *       });
+     *
+     *       // configure html5 to get links working on jsfiddle
+     *       $locationProvider.html5Mode(true);
+     *     });
+             *
+             *   </file>
+             *
+             *   <file name="protractor.js" type="protractor">
+             *     it('should load and compile correct template', function() {
+     *       element(by.linkText('Moby: Ch1')).click();
+     *       var content = element(by.css('[ng-view]')).getText();
+     *       expect(content).toMatch(/controller\: ChapterController/);
+     *       expect(content).toMatch(/Book Id\: Moby/);
+     *       expect(content).toMatch(/Chapter Id\: 1/);
+     *
+     *       element(by.partialLinkText('Scarlet')).click();
+     *
+     *       content = element(by.css('[ng-view]')).getText();
+     *       expect(content).toMatch(/controller\: BookController/);
+     *       expect(content).toMatch(/Book Id\: Scarlet/);
+     *     });
+             *   </file>
+             * </example>
+             */
+
+            /**
+             * @ngdoc event
+             * @name $route#$routeChangeStart
+             * @eventType broadcast on root scope
+             * @description
+             * Broadcasted before a route change. At this  point the route services starts
+             * resolving all of the dependencies needed for the route change to occur.
+             * Typically this involves fetching the view template as well as any dependencies
+             * defined in `resolve` route property. Once  all of the dependencies are resolved
+             * `$routeChangeSuccess` is fired.
+             *
+             * The route change (and the `$location` change that triggered it) can be prevented
+             * by calling `preventDefault` method of the event. See {@link ng.$rootScope.Scope#$on}
+             * for more details about event object.
+             *
+             * @param {Object} angularEvent Synthetic event object.
+             * @param {Route} next Future route information.
+             * @param {Route} current Current route information.
+             */
+
+            /**
+             * @ngdoc event
+             * @name $route#$routeChangeSuccess
+             * @eventType broadcast on root scope
+             * @description
+             * Broadcasted after a route dependencies are resolved.
+             * {@link ngRoute.directive:ngView ngView} listens for the directive
+             * to instantiate the controller and render the view.
+             *
+             * @param {Object} angularEvent Synthetic event object.
+             * @param {Route} current Current route information.
+             * @param {Route|Undefined} previous Previous route information, or undefined if current is
+             * first route entered.
+             */
+
+            /**
+             * @ngdoc event
+             * @name $route#$routeChangeError
+             * @eventType broadcast on root scope
+             * @description
+             * Broadcasted if any of the resolve promises are rejected.
+             *
+             * @param {Object} angularEvent Synthetic event object
+             * @param {Route} current Current route information.
+             * @param {Route} previous Previous route information.
+             * @param {Route} rejection Rejection of the promise. Usually the error of the failed promise.
+             */
+
+            /**
+             * @ngdoc event
+             * @name $route#$routeUpdate
+             * @eventType broadcast on root scope
+             * @description
+             *
+             * The `reloadOnSearch` property has been set to false, and we are reusing the same
+             * instance of the Controller.
+             */
+
+            var forceReload = false,
+                preparedRoute,
+                preparedRouteIsUpdateOnly,
+                $route = {
+                    routes: routes,
+
+                    /**
+                     * @ngdoc method
+                     * @name $route#reload
+                     *
+                     * @description
+                     * Causes `$route` service to reload the current route even if
+                     * {@link ng.$location $location} hasn't changed.
+                     *
+                     * As a result of that, {@link ngRoute.directive:ngView ngView}
+                     * creates new scope and reinstantiates the controller.
+                     */
+                    reload: function() {
+                        forceReload = true;
+                        $rootScope.$evalAsync(function() {
+                            // Don't support cancellation of a reload for now...
+                            prepareRoute();
+                            commitRoute();
+                        });
+                    },
+
+                    /**
+                     * @ngdoc method
+                     * @name $route#updateParams
+                     *
+                     * @description
+                     * Causes `$route` service to update the current URL, replacing
+                     * current route parameters with those specified in `newParams`.
+                     * Provided property names that match the route's path segment
+                     * definitions will be interpolated into the location's path, while
+                     * remaining properties will be treated as query params.
+                     *
+                     * @param {!Object<string, string>} newParams mapping of URL parameter names to values
+                     */
+                    updateParams: function(newParams) {
+                        if (this.current && this.current.$$route) {
+                            newParams = angular.extend({}, this.current.params, newParams);
+                            $location.path(interpolate(this.current.$$route.originalPath, newParams));
+                            // interpolate modifies newParams, only query params are left
+                            $location.search(newParams);
+                        } else {
+                            throw $routeMinErr('norout', 'Tried updating route when with no current route');
+                        }
+                    }
+                };
+
+            $rootScope.$on('$locationChangeStart', prepareRoute);
+            $rootScope.$on('$locationChangeSuccess', commitRoute);
+
+            return $route;
+
+            /////////////////////////////////////////////////////
+
+            /**
+             * @param on {string} current url
+             * @param route {Object} route regexp to match the url against
+             * @return {?Object}
+             *
+             * @description
+             * Check if the route matches the current url.
+             *
+             * Inspired by match in
+             * visionmedia/express/lib/router/router.js.
+             */
+            function switchRouteMatcher(on, route) {
+                var keys = route.keys,
+                    params = {};
+
+                if (!route.regexp) return null;
+
+                var m = route.regexp.exec(on);
+                if (!m) return null;
+
+                for (var i = 1, len = m.length; i < len; ++i) {
+                    var key = keys[i - 1];
+
+                    var val = m[i];
+
+                    if (key && val) {
+                        params[key.name] = val;
+                    }
+                }
+                return params;
+            }
+
+            function prepareRoute($locationEvent) {
+                var lastRoute = $route.current;
+
+                preparedRoute = parseRoute();
+                preparedRouteIsUpdateOnly = preparedRoute && lastRoute && preparedRoute.$$route === lastRoute.$$route
+                && angular.equals(preparedRoute.pathParams, lastRoute.pathParams)
+                && !preparedRoute.reloadOnSearch && !forceReload;
+
+                if (!preparedRouteIsUpdateOnly && (lastRoute || preparedRoute)) {
+                    if ($rootScope.$broadcast('$routeChangeStart', preparedRoute, lastRoute).defaultPrevented) {
+                        if ($locationEvent) {
+                            $locationEvent.preventDefault();
+                        }
+                    }
+                }
+            }
+
+            function commitRoute() {
+                var lastRoute = $route.current;
+                var nextRoute = preparedRoute;
+
+                if (preparedRouteIsUpdateOnly) {
+                    lastRoute.params = nextRoute.params;
+                    angular.copy(lastRoute.params, $routeParams);
+                    $rootScope.$broadcast('$routeUpdate', lastRoute);
+                } else if (nextRoute || lastRoute) {
+                    forceReload = false;
+                    $route.current = nextRoute;
+                    if (nextRoute) {
+                        if (nextRoute.redirectTo) {
+                            if (angular.isString(nextRoute.redirectTo)) {
+                                $location.path(interpolate(nextRoute.redirectTo, nextRoute.params)).search(nextRoute.params)
+                                    .replace();
+                            } else {
+                                $location.url(nextRoute.redirectTo(nextRoute.pathParams, $location.path(), $location.search()))
+                                    .replace();
+                            }
+                        }
+                    }
+
+                    $q.when(nextRoute).
+                        then(function() {
+                            if (nextRoute) {
+                                var locals = angular.extend({}, nextRoute.resolve),
+                                    template, templateUrl;
+
+                                angular.forEach(locals, function(value, key) {
+                                    locals[key] = angular.isString(value) ?
+                                        $injector.get(value) : $injector.invoke(value, null, null, key);
+                                });
+
+                                if (angular.isDefined(template = nextRoute.template)) {
+                                    if (angular.isFunction(template)) {
+                                        template = template(nextRoute.params);
+                                    }
+                                } else if (angular.isDefined(templateUrl = nextRoute.templateUrl)) {
+                                    if (angular.isFunction(templateUrl)) {
+                                        templateUrl = templateUrl(nextRoute.params);
+                                    }
+                                    templateUrl = $sce.getTrustedResourceUrl(templateUrl);
+                                    if (angular.isDefined(templateUrl)) {
+                                        nextRoute.loadedTemplateUrl = templateUrl;
+                                        template = $templateRequest(templateUrl);
+                                    }
+                                }
+                                if (angular.isDefined(template)) {
+                                    locals['$template'] = template;
+                                }
+                                return $q.all(locals);
+                            }
+                        }).
+                        // after route change
+                        then(function(locals) {
+                            if (nextRoute == $route.current) {
+                                if (nextRoute) {
+                                    nextRoute.locals = locals;
+                                    angular.copy(nextRoute.params, $routeParams);
+                                }
+                                $rootScope.$broadcast('$routeChangeSuccess', nextRoute, lastRoute);
+                            }
+                        }, function(error) {
+                            if (nextRoute == $route.current) {
+                                $rootScope.$broadcast('$routeChangeError', nextRoute, lastRoute, error);
+                            }
+                        });
+                }
+            }
+
+
+            /**
+             * @returns {Object} the current active route, by matching it against the URL
+             */
+            function parseRoute() {
+                // Match a route
+                var params, match;
+                angular.forEach(routes, function(route, path) {
+                    if (!match && (params = switchRouteMatcher($location.path(), route))) {
+                        match = inherit(route, {
+                            params: angular.extend({}, $location.search(), params),
+                            pathParams: params});
+                        match.$$route = route;
+                    }
+                });
+                // No route matched; fallback to "otherwise" route
+                return match || routes[null] && inherit(routes[null], {params: {}, pathParams:{}});
+            }
+
+            /**
+             * @returns {string} interpolation of the redirect path with the parameters
+             */
+            function interpolate(string, params) {
+                var result = [];
+                angular.forEach((string || '').split(':'), function(segment, i) {
+                    if (i === 0) {
+                        result.push(segment);
+                    } else {
+                        var segmentMatch = segment.match(/(\w+)(?:[?*])?(.*)/);
+                        var key = segmentMatch[1];
+                        result.push(params[key]);
+                        result.push(segmentMatch[2] || '');
+                        delete params[key];
+                    }
+                });
+                return result.join('');
+            }
+        }];
+}
+angular.module('ai.router', [])
+
+.provider('$router', ['$routeProvider', function $router($routeProvider) {
+
+    var defaults, get, set, routes, when, otherwise;
+
+    defaults = {
+        caseInsensitiveMatch: false
+    };
+
+    // object of application routes.
+    routes = {};
+
+    // Angular 1.4 Source.
+    // methods used for "merge"
+    // from angular source
+    // see: https://github.com/angular/angular.js/blob/b6afe1b208d7b49cca3695b2bdd1c7b7c2ff635d/src/Angular.js#L326
+
+
+    // sets $$hashKey.
+    function setHashKey(obj, h) {
+        if (h) {
+            obj.$$hashKey = h;
+        } else {
+            delete obj.$$hashKey;
+        }
+    }
+
+    // base for .extend & .merge
+    function baseExtend(dst, objs, deep) {
+        var h = dst.$$hashKey;
+
+        for (var i = 0, ii = objs.length; i < ii; ++i) {
+            var obj = objs[i];
+            if (!angular.isObject(obj) && !angular.isFunction(obj)) continue;
+            var keys = Object.keys(obj);
+            for (var j = 0, jj = keys.length; j < jj; j++) {
+                var key = keys[j];
+                var src = obj[key];
+
+                if (deep && angular.isObject(src)) {
+                    if (!angular.isObject(dst[key])) dst[key] = angular.isArray(src) ? [] : {};
+                    baseExtend(dst[key], [src], true);
+                } else {
+                    dst[key] = src;
+                }
+            }
+        }
+
+        setHashKey(dst, h);
+        return dst;
+    }
+
+    // merge function case base.
+    function merge(dst) {
+        return baseExtend(dst, slice.call(arguments, 1), true);
+    }
+
+        // ensure merge is defined.
+    if(!angular.merge)
+        angular.merge  = merge;
+
+    // inherit parent object.
+    function inherit(parent, extra) {
+        return angular.extend(Object.create(parent), extra);
+    }
+
+    function pathRegExp(path, opts) {
+        var insensitive = opts.caseInsensitiveMatch,
+            ret = {
+                originalPath: path,
+                regexp: path
+            },
+            keys = ret.keys = [];
+
+        path = path
+            .replace(/([().])/g, '\\$1')
+            .replace(/(\/)?:(\w+)([\?\*])?/g, function(_, slash, key, option) {
+                var optional = option === '?' ? option : null;
+                var star = option === '*' ? option : null;
+                keys.push({ name: key, optional: !!optional });
+                slash = slash || '';
+                return '' +
+                    (optional ? '' : slash) +
+                    '(?:' +
+                    (optional ? slash : '') +
+                    (star && '(.+?)' || '([^/]+)') +
+                    (optional || '') +
+                    ')' +
+                    (optional || '');
+            })
+            .replace(/([\/$\*])/g, '\\$1');
+
+        ret.regexp = new RegExp('^' + path + '$', insensitive ? 'i' : '');
+        return ret;
+    }
+
+    // updates defaults globaly.
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend({}, defaults, obj);
+    };
+
+    // adds route to collection
+    when = function when(path, route) {
+        //copy original route object to preserve params inherited from proto chain
+        var routeCopy = angular.copy(route);
+        if (angular.isUndefined(routeCopy.reloadOnSearch)) {
+            routeCopy.reloadOnSearch = true;
+        }
+        if (angular.isUndefined(routeCopy.caseInsensitiveMatch)) {
+            routeCopy.caseInsensitiveMatch = defaults.caseInsensitiveMatch;
+        }
+        routes[path] = angular.extend(
+            routeCopy,
+            path && pathRegExp(path, routeCopy)
+        );
+
+        // create redirection for trailing slashes
+        if (path) {
+            var redirectPath = (path[path.length - 1] == '/') ?
+                path.substr(0, path.length - 1) :
+                path + '/';
+
+            routes[redirectPath] = angular.extend(
+                {redirectTo: path},
+                pathRegExp(redirectPath, routeCopy)
+            );
+        }
+
+        return this;
+    };
+
+    // fallback when route not found.
+    otherwise = function(params) {
+        if (typeof params === 'string') {
+            params = {redirectTo: params};
+        }
+        when(null, params);
+        return this;
+    };
+
+    get = ['$location', '$routeParams', '$q', '$injector', '$templateRequest', '$sce',
+        function get($rootScope, $location, $routeParams, $q, $injector, $templateRequest, $sce) {
+
+        var forceReload = false,
+            preparedRoute,
+            preparedRouteIsUpdateOnly,
+            $route;
+
+            function switchRouteMatcher(on, route) {
+                var keys = route.keys,
+                    params = {};
+
+                if (!route.regexp) return null;
+
+                var m = route.regexp.exec(on);
+                if (!m) return null;
+
+                for (var i = 1, len = m.length; i < len; ++i) {
+                    var key = keys[i - 1];
+
+                    var val = m[i];
+
+                    if (key && val) {
+                        params[key.name] = val;
+                    }
+                }
+                return params;
+            }
+
+            function parseRoute() {
+                // Match a route
+                var params, match;
+                angular.forEach(routes, function(route, path) {
+                    if (!match && (params = switchRouteMatcher($location.path(), route))) {
+                        match = inherit(route, {
+                            params: angular.extend({}, $location.search(), params),
+                            pathParams: params});
+                        match.$$route = route;
+                    }
+                });
+                // No route matched; fallback to "otherwise" route
+                return match || routes[null] && inherit(routes[null], {params: {}, pathParams:{}});
+            }
+
+            function interpolate(string, params) {
+                var result = [];
+                angular.forEach((string || '').split(':'), function(segment, i) {
+                    if (i === 0) {
+                        result.push(segment);
+                    } else {
+                        var segmentMatch = segment.match(/(\w+)(?:[?*])?(.*)/);
+                        var key = segmentMatch[1];
+                        result.push(params[key]);
+                        result.push(segmentMatch[2] || '');
+                        delete params[key];
+                    }
+                });
+                return result.join('');
+            }
+
+            function prepareRoute($locationEvent) {
+                var lastRoute = $route.current;
+                preparedRoute = parseRoute();
+                preparedRouteIsUpdateOnly = preparedRoute && lastRoute && preparedRoute.$$route === lastRoute.$$route &&
+                angular.equals(preparedRoute.pathParams, lastRoute.pathParams) &&
+                !preparedRoute.reloadOnSearch && !forceReload;
+
+                if (!preparedRouteIsUpdateOnly && (lastRoute || preparedRoute)) {
+                    if ($rootScope.$broadcast('$routeChangeStart', preparedRoute, lastRoute).defaultPrevented) {
+                        if ($locationEvent) {
+                            $locationEvent.preventDefault();
+                        }
+                    }
+                }
+            }
+
+            function commitRoute() {
+                var lastRoute = $route.current;
+                var nextRoute = preparedRoute;
+
+                if (preparedRouteIsUpdateOnly) {
+                    lastRoute.params = nextRoute.params;
+                    angular.copy(lastRoute.params, $routeParams);
+                    $rootScope.$broadcast('$routeUpdate', lastRoute);
+                } else if (nextRoute || lastRoute) {
+                    forceReload = false;
+                    $route.current = nextRoute;
+                    if (nextRoute) {
+                        if (nextRoute.redirectTo) {
+                            if (angular.isString(nextRoute.redirectTo)) {
+                                $location.path(interpolate(nextRoute.redirectTo, nextRoute.params)).search(nextRoute.params)
+                                    .replace();
+                            } else {
+                                $location.url(nextRoute.redirectTo(nextRoute.pathParams, $location.path(), $location.search()))
+                                    .replace();
+                            }
+                        }
+                    }
+                    $q.when(nextRoute).
+                        then(function() {
+                            if (nextRoute) {
+                                var locals = angular.extend({}, nextRoute.resolve),
+                                    template, templateUrl;
+
+                                angular.forEach(locals, function(value, key) {
+                                    locals[key] = angular.isString(value) ?
+                                        $injector.get(value) : $injector.invoke(value, null, null, key);
+                                });
+
+                                if (angular.isDefined(template = nextRoute.template)) {
+                                    if (angular.isFunction(template)) {
+                                        template = template(nextRoute.params);
+                                    }
+                                } else if (angular.isDefined(templateUrl = nextRoute.templateUrl)) {
+                                    if (angular.isFunction(templateUrl)) {
+                                        templateUrl = templateUrl(nextRoute.params);
+                                    }
+                                    templateUrl = $sce.getTrustedResourceUrl(templateUrl);
+                                    if (angular.isDefined(templateUrl)) {
+                                        nextRoute.loadedTemplateUrl = templateUrl;
+                                        template = $templateRequest(templateUrl);
+                                    }
+                                }
+                                if (angular.isDefined(template)) {
+                                    locals['$template'] = template;
+                                }
+                                return $q.all(locals);
+                            }
+                        }).
+                        // after route change
+                        then(function(locals) {
+                            if (nextRoute == $route.current) {
+                                if (nextRoute) {
+                                    nextRoute.locals = locals;
+                                    angular.copy(nextRoute.params, $routeParams);
+                                }
+                                $rootScope.$broadcast('$routeChangeSuccess', nextRoute, lastRoute);
+                            }
+                        }, function(error) {
+                            if (nextRoute == $route.current) {
+                                $rootScope.$broadcast('$routeChangeError', nextRoute, lastRoute, error);
+                            }
+                        });
+                }
+            }
+
+
+            // $route object.
+            $route = {
+
+                routes: routes,
+
+                reload: function() {
+                    forceReload = true;
+                    $rootScope.$evalAsync(function() {
+                        prepareRoute();
+                        commitRoute();
+                    });
+                },
+
+                updateParams: function(newParams) {
+                    if (this.current && this.current.$$route) {
+                        newParams = angular.extend({}, this.current.params, newParams);
+                        $location.path(interpolate(this.current.$$route.originalPath, newParams));
+                        // interpolate modifies newParams, only query params are left
+                        $location.search(newParams);
+                    } else {
+                        throw $routeMinErr('norout', 'Tried updating route when with no current route');
+                    }
+                }
+            };
+
+        // prepare route when location changes.
+        $rootScope.$on('$locationChangeStart', prepareRoute);
+
+        // commit route when location has changed.
+        $rootScope.$on('$locationChangeSuccess', commitRoute);
+
+        return $route;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set,
+        when: when,
+        otherwise: otherwise
+    };
+
+}]);
 angular.module('ai.step', ['ai.helpers'])
 
 .provider('$step', function $step() {
@@ -3348,9 +4483,12 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                                                         // you may return a string, object or filtered array.
             beforeUpdate: undefined,                    // before updates are saved to row this is called can return boolean or promise with boolean if successfull.
             beforeDelete: undefined,                    // the callback to process before deleting a row. can return boolean to continue processing or promise.
+            beforeView: undefined,                      // optional hook which will change location to returned value.
             beforeDownload: undefined                   // event that is fired before download of exported data. You can use this to pass a file name,
                                                         // or perhaps prompt with a dialog. Passes the filtered collection and default fileName you should
                                                         // return an object with the filtered records to export and fileName or false to cancel download.
+
+
 
             // GENERIC EVENTS
 
@@ -3367,7 +4505,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
              * "click". or onMouseOut which is normalized to
              * "mouseout".
              */
-            // onTouchStart: function(ctx, row, column, event) { // do something }
+            // onTouchStart: function(row, column, event) { // do something }
 
         };
 
@@ -3380,8 +4518,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
             defaults = angular.extend(defaults, obj);
         };
 
-        get = ['$rootScope','$http', '$q', '$templateCache', '$filter', '$timeout', '$helpers',
-            function get($rootScope,$http, $q, $templateCache, $filter, $timeout, $helpers) {
+        get = ['$rootScope','$http', '$q', '$templateCache', '$filter', '$timeout', '$helpers', '$location',
+            function get($rootScope,$http, $q, $templateCache, $filter, $timeout, $helpers, $location) {
 
                 var tableTemplate, actionsTemplate, loaderTemplate,
                     pagerTemplate, nodataTemplate;
@@ -3546,6 +4684,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
                     attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
+                    //scope = (options.scope && options.scope.$new()) || $rootScope.$new();
                     scope = options.scope || $rootScope.$new();
                     options = angular.extend({}, defaults, attrs, options);
                     options.element = options.element || element;
@@ -4127,7 +5266,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     function filterEvents (obj, regex, asObject) {
                         var objKeys = {},
                             arrKeys = [],
-                            exclude = ['onSelect', 'onBind', 'onLoad', 'onDelete', 'onReset'],
+                            exclude = ['onSelect', 'onReady', 'onLoad', 'onDelete', 'onReset'],
                             key;
                         for (key in obj) {
                             if (obj.hasOwnProperty(key) && regex.test(key)) {
@@ -4205,6 +5344,31 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         }
 
                         selectRow(e, row, idx);
+
+                    }
+
+                    function viewRow(row) {
+                        if(scope.editing) return;
+
+                        if(angular.isNumber(row))
+                            row = scope.source.rows[row] || undefined;
+
+                        if(row) {
+                            if(angular.isFunction(options.beforeView)){
+                                $q.when(options.beforeView(row, done)).then(function (resp) {
+                                    // if response and is string
+                                    // attempt to navigate.
+                                    if(resp !== false)
+                                        done(resp);
+
+                                });
+                            }
+                        }
+
+                        function done (path) {
+                            if(angular.isString(path))
+                                $location.path(path);
+                        }
 
                     }
 
@@ -4453,6 +5617,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         scope.deleteRow = deleteRow;
                         scope.editRow = editRow;
                         scope.cancelEdit = editRowCancel;
+                        scope.viewRow = viewRow;
                         scope.editing = undefined;
                         scope.draggable = dragSupported();
                         scope.orderable = options.orderable;
@@ -4534,6 +5699,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                         $module.selectAllRows = selectAllRows;
                         $module.editRow = editRow;
                         $module.cancelEdit = editRowCancel;
+                        $module.viewRow = viewRow;
 
                         $module.ready = ready;
                         $module.bind = bind;
@@ -4696,7 +5862,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
                                 // check for user bind event
                                 if(!initialized)
-                                    ready(options.onBind);
+                                    ready(options.onReady);
 
                                 // prevents calling ready
                                 // after already initialized.

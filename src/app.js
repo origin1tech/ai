@@ -10,13 +10,14 @@ require([
     'list/list',
     'autoform/autoform',
     'loader/loader',
-    'tree/tree'
+    'tree/tree',
+    'passport/passport'
 ], function () {
 
     var app, tmpAreas, keys, areas, controller;
 
     tmpAreas = {
-        //'/passport': 'Simplifies handling authentication within Angular app.',
+        '/passport': 'Simplifies handling authentication within Angular app.',
         '/storage': 'Use local storage with auto cookie fallback.',
         '/autoform': 'Handy during dev to quickly create a form.',
         '/list': 'Advanced customizable dropdown directive.',
@@ -76,8 +77,8 @@ require([
     }]);
 
     controller = [
-        '$rootScope', '$scope', '$route', '$flash', '$step', '$storage', '$location', '$http', '$loader',
-        function ($rootScope, $scope, $route, $flash, $step, $storage, $location, $http, $loader) {
+        '$rootScope', '$scope', '$route', '$flash', '$step', '$storage', '$location', '$http', '$loader', '$passport',
+        function ($rootScope, $scope, $route, $flash, $step, $storage, $location, $http, $loader, $passport) {
             var current = $route.current,
                 route = current.$$route,
                 params = current.params,
@@ -97,7 +98,8 @@ require([
                 placeholder:{ active: 'markup' },
                 loader:     { active: 'markup' },
                 tree:       { active: 'markup' },
-                lazyload:   { active: 'markup' }
+                lazyload:   { active: 'markup' },
+                passport:   { active: 'markup' }
             };
 
             $scope.tabActive = function (key) {
@@ -345,6 +347,10 @@ require([
                     onReady: function (tree) {
                     }
                 };
+            }
+
+            if (area === 'passport'){
+
             }
         }
     ];

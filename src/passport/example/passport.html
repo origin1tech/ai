@@ -1,2 +1,50 @@
 <h3>{{title}}</h3>
 <hr/>
+<p class="alert alert-warning">
+    Passport module assists in securing routes and elements withing your application. This is done by calling an endpoint
+    on the server which returns the authenticated user, their roles and the global roles for the application. All api
+    endpoint routes along with their actions can be configured.
+</p>
+<p>
+    For example you may wish to have users directed to
+    another route instead of the default '/'. You may do this by specifying the onLoginSuccess handler. This handler
+    as well as all "on" handlers accept either a path withing the application or a function. A function can be used to
+    do some custom logic upon the login. Functions are good for when you want to say redirect the user on login to his
+    authenticated area or dashboard as oppossed to a catch all path.
+</p>
+<h4>Passport Module</h4>
+<hr/>
+<div class="row">
+    <div class="col-md-3">
+     
+    </div>
+</div>
+
+<hr/>
+<div class="tabpanel">
+
+    <ul class="nav nav-tabs">
+        <li ng-class="{ active: tabActive('passport:markup') }"><a ng-click="showTab('passport:markup')">Markup</a></li>
+        <li ng-class="{ active: tabActive('passport:code') }"><a ng-click="showTab('passport:code')">Code</a></li>
+        <li ng-class="{ active: tabActive('passport:options') }"><a ng-click="showTab('passport:options')">Options</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div ng-class="{ active: tabActive('passport:markup') }" ng-show="tabActive('passport:markup')">
+            <pre>
+markup
+            </pre>
+        </div>
+        <div ng-class="{ active: tabActive('passport:code') }" ng-show="tabActive('passport:code')">
+            <pre>
+code
+
+            </pre>
+        </div>
+        <div ng-class="{ active: tabActive('passport:options') }" ng-show="tabActive('passport:options')">
+           <pre>
+options
+           </pre>
+        </div>
+    </div>
+</div>
