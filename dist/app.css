@@ -11,6 +11,10 @@ header {
     color: #fff;
     height: 45px;
 }
+h2.logo {
+	margin-top: 4px;
+}
+h2.logo img { max-width: 32px; }
 header h2 { margin-top: 8px; }
 h4 { margin-top: 24px; }
 h5 { font-weight: 600; }

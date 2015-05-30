@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.1.9
+* Version: 0.2.0
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -982,6 +982,337 @@ angular.module('ai.flash', [
     'ai.flash.interceptor'
 ]);
 
+angular.module('ai.loader.factory', ['ai.helpers'])
+
+    .provider('$loader', function $loader() {
+        
+        var defaults = {
+                name: 'page',                                       // the default page loader name.
+                intercept: undefined,                               // when false loader intercepts disabled.
+                template: 'ai-loader.html',                         // the default loader content template. only used
+                                                                    // if content is not detected in the element.
+                message: 'Loading',                                 // text to display under loader if value.
+                delay: 600,                                         // the delay in ms before loader is shown.
+                overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
+                                                                    // then toggled back to original body overflow.
+                                                                    // default loader is set to hidden.
+                onLoading: undefined                                // callback on loader shown, true to show false 
+                                                                    // to suppress. returns module and instances.
+            }, get, set;
+        
+        set = function set (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        get = [ '$q', '$rootScope', '$helpers',  function get($q, $rootScope, $helpers) {
+            
+            var loaderTemplate, instances, loaderUri;
+            
+            instances = {};
+            loaderUri = 'data:image/gif;base64,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';
+            loaderTemplate = '<div>' +
+                                '<img src="' + loaderUri + '" />' +
+                                '<div ng-bind="message" ng-show="message" class="ai-loader-message">test</div>' +
+                            '</div>';
+            
+            $helpers.getPutTemplate(defaults.template, loaderTemplate);
+
+            function ModuleFactory(name, element, options, attrs) {
+                
+                var $module = {},
+                    body,
+                    overflows,
+                    htmlContent,
+                    contentTemplate,              
+                    scope;
+
+                // set global name if not passed.
+                if(!angular.isString(name)){
+                    attrs = options;
+                    options = element;
+                    element = name;
+                    name = undefined;
+                }
+ 
+                // if no element can't create loader.             
+                if(!element)
+                    return console.error('Cannot configure loader with element of undefined.');
+
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                options = options || {};
+                scope = $module.scope = options.scope || $rootScope.$new();
+                options = $module.options = scope.options = angular.extend({}, defaults, attrs, options);
+                $module.element = scope.element = element;
+                
+                if(options.name === 'page')
+                    options.overflow = $module.options.overflow = scope.options.overflow = 'hidden';
+
+                if(instances[options.name]){
+                    $module = undefined;
+                    return $module;
+                }                  
+       
+                body = $helpers.findElement('body');
+                overflows = $helpers.getOverflow();
+                htmlContent = element.html();           
+                contentTemplate = options.template;                
+                
+                if(htmlContent && htmlContent.length){
+                    contentTemplate = htmlContent;
+                    // remove element contents
+                    // we'll add it back later.
+                    element.empty();
+                }
+                
+                // start the loader.
+                function start() {                
+                    if(!$module.loading && !$module.disabled){
+                        $module.loading = true;        
+                        if(angular.isFunction(options.onLoading)){
+                            $q.when(options.onLoading($module, instances)).then(function(res) {
+                                if(res){
+                                    $module.loading = true;
+                                    if(options.overflow)
+                                        body.css({ overflow: 'hidden'});
+                                    element.addClass('show');
+                                }
+                            });                            
+                        } else {
+                            $module.loading = true;
+                            if(options.overflow)
+                                body.css({ overflow: 'hidden'});
+                            element.addClass('show');
+                        }
+                    }
+                }
+                
+                // stop the loader.
+                function stop() {    
+                    if(options.overflow)
+                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    if(element)
+                        element.removeClass('show'); 
+                    $module.loading = scope.loading = false;
+                    $module.suppressed = scope.suppressed = false;
+                }  
+                
+                // suppresses once.
+                function suppress() {                    
+                    $module.suppressed = true;
+                }
+                
+                // disable the loader
+                function disable() {
+                    $module.disabled = true;    
+                }
+
+                // enable the loader
+                function enable() {
+                    $module.disabled = false;
+                }
+                
+                // set/update options.
+                // does not support live templates.
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    options = $module.options = scope.options = angular.extend(options, obj); 
+                    scope.message = options.message;
+                }
+
+                function destroy() {              
+                    delete instances[$module.options.name];
+                    scope.$destroy();                    
+                }
+                
+                function init() {
+                    
+                    $module.start = scope.start = start;
+                    $module.stop = scope.stop = stop;
+                    $module.set = scope.set = setOptions;
+                    $module.suppress = scope.suppress = suppress;
+                    $module.enable = scope.enable = enable;
+                    $module.disable = scope.disable = disable;
+                    scope.message = options.message;                   
+               
+                    $helpers.loadTemplate(contentTemplate).then(function (template) {
+                        if(template) {
+                            element.html(template);
+                            $helpers.compile(scope, element.contents());
+                            if(options.name === 'page')
+                                element.addClass('ai-loader-page');
+                        } else {
+                            console.error('Error loading $loader template.');
+                        }
+                    });
+
+                    // remove loader on location/route change.
+                    $rootScope.$on('$locationChangeStart', function () {
+                        if(element)
+                            element.removeClass('show');
+                        if(body && options.overflow)
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    });
+
+                    scope.$watch($module.options, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = newVal;
+                    });
+
+                    scope.$on('destroy', function () {
+                        $module.destroy();
+                    });
+                    
+                }
+                
+                init();
+                
+                return $module;
+            }
+            
+            function getLoader(name, element, options) {
+                var instance;
+                if(!arguments.length)
+                    return instances;
+                else if(arguments.length === 1)
+                    return instances[name];
+                else
+                    instance = ModuleFactory(name, element, options);
+                if(instance)
+                    instances[instance.options.name] = instance;
+                return instance;
+            }      
+            
+            return getLoader;
+
+        }];
+        
+        return { 
+            $get: get,
+            $set: set            
+        };
+        
+    })
+    
+    .directive('aiLoader', [ '$loader', function ($loader) {
+    
+        return {
+            restrict: 'EAC',
+            link: function (scope, element, attrs) {
+
+                var $module, defaults, options, watchKey, validKeys;
+
+                defaults = {
+                    scope: scope
+                };
+                
+                validKeys = ['name', 'template', 'intercept', 'message', 'delay', 'overflow', 'onLoading'];
+
+                // initialize the directive.
+                function init () {
+                    $module = $loader(element, options, attrs);
+                }
+
+                options = scope.$eval(attrs.aiLoader) || scope.$eval(attrs.aiLoaderOptions);
+                options = angular.extend(defaults, options);
+                
+                watchKey = attrs.aiLoader ? 'aiLoader' : 'aiLoaderOptions';
+                scope.$watch(attrs[watchKey], function (newVal, oldVal) {
+                    if(newVal === oldVal) return;
+                    $module.set(newVal);
+                });
+
+                init();
+                
+            }
+            
+        };
+        
+    }]);
+
+angular.module('ai.loader.interceptor', [])
+    .factory('$loaderInterceptor', [ '$q', '$injector', '$timeout', function ($q, $injector, $timeout) {
+        
+        function getLoaders() {
+            return $injector.get('$loader')();
+        }
+
+        // prevents loader from immediately showing
+        // set options.delay.
+        function delayLoader(_loader) {
+            if(_loader.options.delay === 0 && !_loader.completed){
+                _loader.start();                
+            } else {
+                clearTimeout(_loader.timeoutId);
+                _loader.timeoutId = $timeout(function () {
+                    if(_loader.completed){
+                        clearTimeout(_loader.timeoutId);
+                        _loader.stop();
+                    } else {
+                        _loader.start();
+                    }
+                }, _loader.options.delay);
+            }
+        }
+        
+        function startLoaders() {
+            var loaders = getLoaders();            
+            angular.forEach(loaders, function (_loader) {
+                _loader.completed = false;
+                if(_loader.options.intercept !== false){
+                    if(!_loader.suppressed){
+                        delayLoader(_loader);
+                    }
+                }
+            });                
+        }
+        
+        function stopLoaders(){
+            var loaders = getLoaders();
+            angular.forEach(loaders, function (_loader) {
+                _loader.completed = true;
+                _loader.loading = false;
+                _loader.stop();
+            });
+        }
+        
+        return {
+            request: function (req) {      
+                startLoaders();
+                return req || $q.when(req);
+            },
+            response: function (res) {
+                stopLoaders();
+                return res || $q.when(res);
+            },
+            responseError: function (res){   
+                stopLoaders();
+                return $q.reject(res);
+            }
+        };
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$loaderInterceptor');
+    }]);
+
+// imports above modules.
+angular.module('ai.loader', [
+    'ai.loader.factory',
+    'ai.loader.interceptor'
+]);
+
+   
+
+
 angular.module('ai.list', ['ai.helpers'])
 
     .provider('$list', function $list(){
@@ -1675,337 +2006,6 @@ angular.module('ai.list', ['ai.helpers'])
         };
 
     }]);
-angular.module('ai.loader.factory', ['ai.helpers'])
-
-    .provider('$loader', function $loader() {
-        
-        var defaults = {
-                name: 'page',                                       // the default page loader name.
-                intercept: undefined,                               // when false loader intercepts disabled.
-                template: 'ai-loader.html',                         // the default loader content template. only used
-                                                                    // if content is not detected in the element.
-                message: 'Loading',                                 // text to display under loader if value.
-                delay: 600,                                         // the delay in ms before loader is shown.
-                overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
-                                                                    // then toggled back to original body overflow.
-                                                                    // default loader is set to hidden.
-                onLoading: undefined                                // callback on loader shown, true to show false 
-                                                                    // to suppress. returns module and instances.
-            }, get, set;
-        
-        set = function set (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        get = [ '$q', '$rootScope', '$helpers',  function get($q, $rootScope, $helpers) {
-            
-            var loaderTemplate, instances, loaderUri;
-            
-            instances = {};
-            loaderUri = 'data:image/gif;base64,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';
-            loaderTemplate = '<div>' +
-                                '<img src="' + loaderUri + '" />' +
-                                '<div ng-bind="message" ng-show="message" class="ai-loader-message">test</div>' +
-                            '</div>';
-            
-            $helpers.getPutTemplate(defaults.template, loaderTemplate);
-
-            function ModuleFactory(name, element, options, attrs) {
-                
-                var $module = {},
-                    body,
-                    overflows,
-                    htmlContent,
-                    contentTemplate,              
-                    scope;
-
-                // set global name if not passed.
-                if(!angular.isString(name)){
-                    attrs = options;
-                    options = element;
-                    element = name;
-                    name = undefined;
-                }
- 
-                // if no element can't create loader.             
-                if(!element)
-                    return console.error('Cannot configure loader with element of undefined.');
-
-                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-                options = options || {};
-                scope = $module.scope = options.scope || $rootScope.$new();
-                options = $module.options = scope.options = angular.extend({}, defaults, attrs, options);
-                $module.element = scope.element = element;
-                
-                if(options.name === 'page')
-                    options.overflow = $module.options.overflow = scope.options.overflow = 'hidden';
-
-                if(instances[options.name]){
-                    $module = undefined;
-                    return $module;
-                }                  
-       
-                body = $helpers.findElement('body');
-                overflows = $helpers.getOverflow();
-                htmlContent = element.html();           
-                contentTemplate = options.template;                
-                
-                if(htmlContent && htmlContent.length){
-                    contentTemplate = htmlContent;
-                    // remove element contents
-                    // we'll add it back later.
-                    element.empty();
-                }
-                
-                // start the loader.
-                function start() {                
-                    if(!$module.loading && !$module.disabled){
-                        $module.loading = true;        
-                        if(angular.isFunction(options.onLoading)){
-                            $q.when(options.onLoading($module, instances)).then(function(res) {
-                                if(res){
-                                    $module.loading = true;
-                                    if(options.overflow)
-                                        body.css({ overflow: 'hidden'});
-                                    element.addClass('show');
-                                }
-                            });                            
-                        } else {
-                            $module.loading = true;
-                            if(options.overflow)
-                                body.css({ overflow: 'hidden'});
-                            element.addClass('show');
-                        }
-                    }
-                }
-                
-                // stop the loader.
-                function stop() {    
-                    if(options.overflow)
-                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                    if(element)
-                        element.removeClass('show'); 
-                    $module.loading = scope.loading = false;
-                    $module.suppressed = scope.suppressed = false;
-                }  
-                
-                // suppresses once.
-                function suppress() {                    
-                    $module.suppressed = true;
-                }
-                
-                // disable the loader
-                function disable() {
-                    $module.disabled = true;    
-                }
-
-                // enable the loader
-                function enable() {
-                    $module.disabled = false;
-                }
-                
-                // set/update options.
-                // does not support live templates.
-                function setOptions(key, value) {
-                    var obj = key;
-                    if(arguments.length > 1){
-                        obj = {};
-                        obj[key] = value;
-                    }
-                    options = $module.options = scope.options = angular.extend(options, obj); 
-                    scope.message = options.message;
-                }
-
-                function destroy() {              
-                    delete instances[$module.options.name];
-                    scope.$destroy();                    
-                }
-                
-                function init() {
-                    
-                    $module.start = scope.start = start;
-                    $module.stop = scope.stop = stop;
-                    $module.set = scope.set = setOptions;
-                    $module.suppress = scope.suppress = suppress;
-                    $module.enable = scope.enable = enable;
-                    $module.disable = scope.disable = disable;
-                    scope.message = options.message;                   
-               
-                    $helpers.loadTemplate(contentTemplate).then(function (template) {
-                        if(template) {
-                            element.html(template);
-                            $helpers.compile(scope, element.contents());
-                            if(options.name === 'page')
-                                element.addClass('ai-loader-page');
-                        } else {
-                            console.error('Error loading $loader template.');
-                        }
-                    });
-
-                    // remove loader on location/route change.
-                    $rootScope.$on('$locationChangeStart', function () {
-                        if(element)
-                            element.removeClass('show');
-                        if(body && options.overflow)
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                    });
-
-                    scope.$watch($module.options, function (newVal, oldVal) {
-                        if(newVal === oldVal) return;
-                        scope.options = newVal;
-                    });
-
-                    scope.$on('destroy', function () {
-                        $module.destroy();
-                    });
-                    
-                }
-                
-                init();
-                
-                return $module;
-            }
-            
-            function getLoader(name, element, options) {
-                var instance;
-                if(!arguments.length)
-                    return instances;
-                else if(arguments.length === 1)
-                    return instances[name];
-                else
-                    instance = ModuleFactory(name, element, options);
-                if(instance)
-                    instances[instance.options.name] = instance;
-                return instance;
-            }      
-            
-            return getLoader;
-
-        }];
-        
-        return { 
-            $get: get,
-            $set: set            
-        };
-        
-    })
-    
-    .directive('aiLoader', [ '$loader', function ($loader) {
-    
-        return {
-            restrict: 'EAC',
-            link: function (scope, element, attrs) {
-
-                var $module, defaults, options, watchKey, validKeys;
-
-                defaults = {
-                    scope: scope
-                };
-                
-                validKeys = ['name', 'template', 'intercept', 'message', 'delay', 'overflow', 'onLoading'];
-
-                // initialize the directive.
-                function init () {
-                    $module = $loader(element, options, attrs);
-                }
-
-                options = scope.$eval(attrs.aiLoader) || scope.$eval(attrs.aiLoaderOptions);
-                options = angular.extend(defaults, options);
-                
-                watchKey = attrs.aiLoader ? 'aiLoader' : 'aiLoaderOptions';
-                scope.$watch(attrs[watchKey], function (newVal, oldVal) {
-                    if(newVal === oldVal) return;
-                    $module.set(newVal);
-                });
-
-                init();
-                
-            }
-            
-        };
-        
-    }]);
-
-angular.module('ai.loader.interceptor', [])
-    .factory('$loaderInterceptor', [ '$q', '$injector', '$timeout', function ($q, $injector, $timeout) {
-        
-        function getLoaders() {
-            return $injector.get('$loader')();
-        }
-
-        // prevents loader from immediately showing
-        // set options.delay.
-        function delayLoader(_loader) {
-            if(_loader.options.delay === 0 && !_loader.completed){
-                _loader.start();                
-            } else {
-                clearTimeout(_loader.timeoutId);
-                _loader.timeoutId = $timeout(function () {
-                    if(_loader.completed){
-                        clearTimeout(_loader.timeoutId);
-                        _loader.stop();
-                    } else {
-                        _loader.start();
-                    }
-                }, _loader.options.delay);
-            }
-        }
-        
-        function startLoaders() {
-            var loaders = getLoaders();            
-            angular.forEach(loaders, function (_loader) {
-                _loader.completed = false;
-                if(_loader.options.intercept !== false){
-                    if(!_loader.suppressed){
-                        delayLoader(_loader);
-                    }
-                }
-            });                
-        }
-        
-        function stopLoaders(){
-            var loaders = getLoaders();
-            angular.forEach(loaders, function (_loader) {
-                _loader.completed = true;
-                _loader.loading = false;
-                _loader.stop();
-            });
-        }
-        
-        return {
-            request: function (req) {      
-                startLoaders();
-                return req || $q.when(req);
-            },
-            response: function (res) {
-                stopLoaders();
-                return res || $q.when(res);
-            },
-            responseError: function (res){   
-                stopLoaders();
-                return $q.reject(res);
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$loaderInterceptor');
-    }]);
-
-// imports above modules.
-angular.module('ai.loader', [
-    'ai.loader.factory',
-    'ai.loader.interceptor'
-]);
-
-   
-
-
 
 angular.module('ai.passport.factory', [])
 
@@ -2020,6 +2020,8 @@ angular.module('ai.passport.factory', [])
         //       map will be created based on the order of the
         //       array provided.
 
+
+
         defaults = {
 
 
@@ -2033,10 +2035,8 @@ angular.module('ai.passport.factory', [])
             userKey:            'user',                         // the object key which contains the user information
                                                                 // returned in res.data of successful login.
                                                                 // ex: res.data.user (see method $module.login)
-            userRolesKey:       'roles',                        // the property within userKey object that contains
-                                                                // an array of access levels. array may contain numbers
-                                                                // or strings.
-
+            extendKeys:         undefined,                      // array of keys you wish to also track.
+                                                                         
             paranoid: false,                                    // when true, fails if access level is missing.
             delimiter:          ',',                            // char to use to separate roles when passing string.
 
@@ -2060,10 +2060,10 @@ angular.module('ai.passport.factory', [])
             onUnauthenticated:  '/passport/login',              // path or func when unauthenticated.
             onUnauthorized:     '/passport/login',              // path or func when unauthorized.
             onSyncSuccess:      undefined,                      // func called when successfully synchronized w/ server.
-            
+
             welcomeText:        'Welcome ',                     // prefix string to identity.
             welcomeParams:      [ 'firstName' ]                 // array of user properties which make up the
-                                                                // user's identity or full name, properties are 
+                                                                // user's identity or full name, properties are
                                                                 // separated by a space.
         };
 
@@ -2174,6 +2174,15 @@ angular.module('ai.passport.factory', [])
 
                 var $module = {};
 
+                // extends module with custom keys.
+                function extendModule(keys, obj){
+                    angular.forEach(keys, function (k) {
+                        if(obj[k])
+                            $module[k] = obj[k];
+                    });
+                }
+               
+
                 // ensure the user proptery
                 // is undefined when passport
                 // class is initialized.
@@ -2203,7 +2212,7 @@ angular.module('ai.passport.factory', [])
 
                 // set passport options.
                 $module.set = function set(key, value) {
-                    
+
                     var options;
 
                     if(!key && !value) {
@@ -2240,14 +2249,17 @@ angular.module('ai.passport.factory', [])
                     }
                     $http[url.method](url.path, data)
                         .then(function (res) {
-                            $module.user = findByNotation(res.data, $module.options.userKey);
-                            var roles = findByNotation(res.data, $module.options.rolesKey);
+                            $module.user = $module.findByNotation(res.data, $module.options.userKey);
+                            var roles = $module.findByNotation(res.data, $module.options.rolesKey);
                             if(!$module.user)
                                 throw new Error('Fatal error passport failed to set "user" on login.');
                             if(roles)
                                 $module.roles = normalizeRoles(roles);
+                            delete $module.user._roles;
+                            if($module.options.extendKeys)
+                                extendModule($module.options.extendKeys, res.data);
                             if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call($module, res);
+                                $module.options.onLoginSuccess.call($module, res, $module.user);
                             } else {
                                 $location.path($module.options.onLoginSuccess);
                             }
@@ -2255,7 +2267,7 @@ angular.module('ai.passport.factory', [])
                 };
 
                 // logout passport.
-                $module.logout = function logout() {        
+                $module.logout = function logout() {
                     function done() {
                         $module.user = undefined;
                         $location.path($module.options.loginUrl);
@@ -2290,7 +2302,7 @@ angular.module('ai.passport.factory', [])
                             } else {
                                 $location.path($module.options.onRecoverFailed);
                             }
-                        });        
+                        });
                     }
                 };
 
@@ -2304,12 +2316,14 @@ angular.module('ai.passport.factory', [])
                 $module.sync = function sync() {
                     function done(obj) {
                         if(obj) {
-                            var user = findByNotation(obj, $module.options.userKey);
-                            var roles = findByNotation(obj, $module.options.rolesKey);
+                            var user = $module.findByNotation(obj, $module.options.userKey);
+                            var roles = $module.findByNotation(obj, $module.options.rolesKey);
                             if(user)
                                 $module.user = user;
                             if(roles)
-                                $module.roles = normalizeRoles(roles);
+                                $module.roles = normalizeRoles(roles);   
+                            if($module.options.extendKeys)
+                                extendModule($module.options.extendKeys, obj);
                         }
                     }
                     if(!$module.options.syncAction)
@@ -2323,7 +2337,12 @@ angular.module('ai.passport.factory', [])
                             $http[url.method](url.path).then(function (res) {
                                 if(res){
                                     done(res.data);
-                                }
+                                    if(angular.isFunction($module.options.onSyncSuccess))
+                                        return $module.options.onSyncSuccess.call($module, res, $module.user);                                                                            
+                                }                  
+                            }, function (res) {
+                                    if(console && console.warn)
+                                        console.warn(res.data);
                             });
                         }
                     }
@@ -2398,7 +2417,7 @@ angular.module('ai.passport.factory', [])
                     // default to the login url.
                     $location.path(action || $module.options.loginUrl);
                 };
-                
+
                 // gets the identity name of the authenticated user.
                 $module.displayName = function displayName(arr) {
                     var result = '';
@@ -2411,8 +2430,8 @@ angular.module('ai.passport.factory', [])
                                 result += $module.user[v];
                             else
                                 result += (' ' + $module.user[v]);
-                        }      
-                    });    
+                        }
+                    });
                     return result;
                 };
 
@@ -2420,21 +2439,29 @@ angular.module('ai.passport.factory', [])
                 $module.welcome = function welcome(textOnly) {
                     if(textOnly)
                         return $module.options.welcomeText;
-                    return $module.options.welcomeText + ' ' + displayName();
+                    return $module.options.welcomeText + ' ' + $module.displayName();
                 };
 
                 // return roles array from user object.
                 $module.userRoles = function userRoles() {
-                    if(!$module.user || !$module.user[$module.options.userRolesKey])
+                    if(!$module.user || !$module.user[$module.options.rolesKey])
                         return [0];
-                    return $module.user[$module.options.userRolesKey];
+                    return $module.user[$module.options.rolesKey];
                 };
+
+                // navigate to path.
+                $module.goto = function goto(path) {
+                    if(path)
+                        $location.path(path);
+                }
 
                 // set initial options
                 $module.set();
 
                 // sync with server.
-                //$module.sync();
+                $module.sync();
+
+                $rootScope[$module.options.rootKey] = $module;
 
                 // return for chaining.
                 return $module;
@@ -2510,1001 +2537,6 @@ angular.module('ai.passport', [
     'ai.passport.interceptor',
     'ai.passport.route'
 ]);
-'use strict';
-
-/**
- * @ngdoc module
- * @name ngRoute
- * @description
- *
- * # ngRoute
- *
- * The `ngRoute` module provides routing and deeplinking services and directives for angular apps.
- *
- * ## Example
- * See {@link ngRoute.$route#example $route} for an example of configuring and using `ngRoute`.
- *
- *
- * <div doc-module-components="ngRoute"></div>
- */
-/* global -ngRouteModule */
-var ngRouteModule = angular.module('ngRoute', ['ng']).
-        provider('$route', $RouteProvider),
-    $routeMinErr = angular.$$minErr('ngRoute');
-/**
- * @ngdoc provider
- * @name $routeProvider
- *
- * @description
- *
- * Used for configuring routes.
- *
- * ## Example
- * See {@link ngRoute.$route#example $route} for an example of configuring and using `ngRoute`.
- *
- * ## Dependencies
- * Requires the {@link ngRoute `ngRoute`} module to be installed.
- */
-function $RouteProvider() {
-
-    function inherit(parent, extra) {
-        return angular.extend(Object.create(parent), extra);
-    }
-
-    var routes = {};
-
-    /**
-     * @ngdoc method
-     * @name $routeProvider#when
-     *
-     * @param {string} path Route path (matched against `$location.path`). If `$location.path`
-     *    contains redundant trailing slash or is missing one, the route will still match and the
-     *    `$location.path` will be updated to add or drop the trailing slash to exactly match the
-     *    route definition.
-     *
-     *    * `path` can contain named groups starting with a colon: e.g. `:name`. All characters up
-     *        to the next slash are matched and stored in `$routeParams` under the given `name`
-     *        when the route matches.
-     *    * `path` can contain named groups starting with a colon and ending with a star:
-     *        e.g.`:name*`. All characters are eagerly stored in `$routeParams` under the given `name`
-     *        when the route matches.
-     *    * `path` can contain optional named groups with a question mark: e.g.`:name?`.
-     *
-     *    For example, routes like `/color/:color/largecode/:largecode*\/edit` will match
-     *    `/color/brown/largecode/code/with/slashes/edit` and extract:
-     *
-     *    * `color: brown`
-     *    * `largecode: code/with/slashes`.
-     *
-     *
-     * @param {Object} route Mapping information to be assigned to `$route.current` on route
-     *    match.
-     *
-     *    Object properties:
-     *
-     *    - `controller` – `{(string|function()=}` – Controller fn that should be associated with
-     *      newly created scope or the name of a {@link angular.Module#controller registered
-   *      controller} if passed as a string.
-     *    - `controllerAs` – `{string=}` – A controller alias name. If present the controller will be
-     *      published to scope under the `controllerAs` name.
-     *    - `template` – `{string=|function()=}` – html template as a string or a function that
-     *      returns an html template as a string which should be used by {@link
-        *      ngRoute.directive:ngView ngView} or {@link ng.directive:ngInclude ngInclude} directives.
-     *      This property takes precedence over `templateUrl`.
-     *
-     *      If `template` is a function, it will be called with the following parameters:
-     *
-     *      - `{Array.<Object>}` - route parameters extracted from the current
-     *        `$location.path()` by applying the current route
-     *
-     *    - `templateUrl` – `{string=|function()=}` – path or function that returns a path to an html
-     *      template that should be used by {@link ngRoute.directive:ngView ngView}.
-     *
-     *      If `templateUrl` is a function, it will be called with the following parameters:
-     *
-     *      - `{Array.<Object>}` - route parameters extracted from the current
-     *        `$location.path()` by applying the current route
-     *
-     *    - `resolve` - `{Object.<string, function>=}` - An optional map of dependencies which should
-     *      be injected into the controller. If any of these dependencies are promises, the router
-     *      will wait for them all to be resolved or one to be rejected before the controller is
-     *      instantiated.
-     *      If all the promises are resolved successfully, the values of the resolved promises are
-     *      injected and {@link ngRoute.$route#$routeChangeSuccess $routeChangeSuccess} event is
-     *      fired. If any of the promises are rejected the
-     *      {@link ngRoute.$route#$routeChangeError $routeChangeError} event is fired. The map object
-     *      is:
-     *
-     *      - `key` – `{string}`: a name of a dependency to be injected into the controller.
-     *      - `factory` - `{string|function}`: If `string` then it is an alias for a service.
-     *        Otherwise if function, then it is {@link auto.$injector#invoke injected}
-     *        and the return value is treated as the dependency. If the result is a promise, it is
-     *        resolved before its value is injected into the controller. Be aware that
-     *        `ngRoute.$routeParams` will still refer to the previous route within these resolve
-     *        functions.  Use `$route.current.params` to access the new route parameters, instead.
-     *
-     *    - `redirectTo` – {(string|function())=} – value to update
-     *      {@link ng.$location $location} path with and trigger route redirection.
-     *
-     *      If `redirectTo` is a function, it will be called with the following parameters:
-     *
-     *      - `{Object.<string>}` - route parameters extracted from the current
-     *        `$location.path()` by applying the current route templateUrl.
-     *      - `{string}` - current `$location.path()`
-     *      - `{Object}` - current `$location.search()`
-     *
-     *      The custom `redirectTo` function is expected to return a string which will be used
-     *      to update `$location.path()` and `$location.search()`.
-     *
-     *    - `[reloadOnSearch=true]` - {boolean=} - reload route when only `$location.search()`
-     *      or `$location.hash()` changes.
-     *
-     *      If the option is set to `false` and url in the browser changes, then
-     *      `$routeUpdate` event is broadcasted on the root scope.
-     *
-     *    - `[caseInsensitiveMatch=false]` - {boolean=} - match routes without being case sensitive
-     *
-     *      If the option is set to `true`, then the particular route can be matched without being
-     *      case sensitive
-     *
-     * @returns {Object} self
-     *
-     * @description
-     * Adds a new route definition to the `$route` service.
-     */
-    this.when = function(path, route) {
-        //copy original route object to preserve params inherited from proto chain
-        var routeCopy = angular.copy(route);
-        if (angular.isUndefined(routeCopy.reloadOnSearch)) {
-            routeCopy.reloadOnSearch = true;
-        }
-        if (angular.isUndefined(routeCopy.caseInsensitiveMatch)) {
-            routeCopy.caseInsensitiveMatch = this.caseInsensitiveMatch;
-        }
-        routes[path] = angular.extend(
-            routeCopy,
-            path && pathRegExp(path, routeCopy)
-        );
-
-        // create redirection for trailing slashes
-        if (path) {
-            var redirectPath = (path[path.length - 1] == '/')
-                ? path.substr(0, path.length - 1)
-                : path + '/';
-
-            routes[redirectPath] = angular.extend(
-                {redirectTo: path},
-                pathRegExp(redirectPath, routeCopy)
-            );
-        }
-
-        return this;
-    };
-
-    /**
-     * @ngdoc property
-     * @name $routeProvider#caseInsensitiveMatch
-     * @description
-     *
-     * A boolean property indicating if routes defined
-     * using this provider should be matched using a case insensitive
-     * algorithm. Defaults to `false`.
-     */
-    this.caseInsensitiveMatch = false;
-
-    /**
-     * @param path {string} path
-     * @param opts {Object} options
-     * @return {?Object}
-     *
-     * @description
-     * Normalizes the given path, returning a regular expression
-     * and the original path.
-     *
-     * Inspired by pathRexp in visionmedia/express/lib/utils.js.
-     */
-    function pathRegExp(path, opts) {
-        var insensitive = opts.caseInsensitiveMatch,
-            ret = {
-                originalPath: path,
-                regexp: path
-            },
-            keys = ret.keys = [];
-
-        path = path
-            .replace(/([().])/g, '\\$1')
-            .replace(/(\/)?:(\w+)([\?\*])?/g, function(_, slash, key, option) {
-                var optional = option === '?' ? option : null;
-                var star = option === '*' ? option : null;
-                keys.push({ name: key, optional: !!optional });
-                slash = slash || '';
-                return ''
-                    + (optional ? '' : slash)
-                    + '(?:'
-                    + (optional ? slash : '')
-                    + (star && '(.+?)' || '([^/]+)')
-                    + (optional || '')
-                    + ')'
-                    + (optional || '');
-            })
-            .replace(/([\/$\*])/g, '\\$1');
-
-        ret.regexp = new RegExp('^' + path + '$', insensitive ? 'i' : '');
-        return ret;
-    }
-
-    /**
-     * @ngdoc method
-     * @name $routeProvider#otherwise
-     *
-     * @description
-     * Sets route definition that will be used on route change when no other route definition
-     * is matched.
-     *
-     * @param {Object|string} params Mapping information to be assigned to `$route.current`.
-     * If called with a string, the value maps to `redirectTo`.
-     * @returns {Object} self
-     */
-    this.otherwise = function(params) {
-        if (typeof params === 'string') {
-            params = {redirectTo: params};
-        }
-        this.when(null, params);
-        return this;
-    };
-
-
-    this.$get = ['$rootScope',
-        '$location',
-        '$routeParams',
-        '$q',
-        '$injector',
-        '$templateRequest',
-        '$sce',
-        function($rootScope, $location, $routeParams, $q, $injector, $templateRequest, $sce) {
-
-            /**
-             * @ngdoc service
-             * @name $route
-             * @requires $location
-             * @requires $routeParams
-             *
-             * @property {Object} current Reference to the current route definition.
-             * The route definition contains:
-             *
-             *   - `controller`: The controller constructor as define in route definition.
-             *   - `locals`: A map of locals which is used by {@link ng.$controller $controller} service for
-             *     controller instantiation. The `locals` contain
-             *     the resolved values of the `resolve` map. Additionally the `locals` also contain:
-             *
-             *     - `$scope` - The current route scope.
-             *     - `$template` - The current route template HTML.
-             *
-             * @property {Object} routes Object with all route configuration Objects as its properties.
-             *
-             * @description
-             * `$route` is used for deep-linking URLs to controllers and views (HTML partials).
-             * It watches `$location.url()` and tries to map the path to an existing route definition.
-             *
-             * Requires the {@link ngRoute `ngRoute`} module to be installed.
-             *
-             * You can define routes through {@link ngRoute.$routeProvider $routeProvider}'s API.
-             *
-             * The `$route` service is typically used in conjunction with the
-             * {@link ngRoute.directive:ngView `ngView`} directive and the
-             * {@link ngRoute.$routeParams `$routeParams`} service.
-             *
-             * @example
-             * This example shows how changing the URL hash causes the `$route` to match a route against the
-             * URL, and the `ngView` pulls in the partial.
-             *
-             * <example name="$route-service" module="ngRouteExample"
-             *          deps="angular-route.js" fixBase="true">
-             *   <file name="index.html">
-             *     <div ng-controller="MainController">
-             *       Choose:
-             *       <a href="Book/Moby">Moby</a> |
-             *       <a href="Book/Moby/ch/1">Moby: Ch1</a> |
-             *       <a href="Book/Gatsby">Gatsby</a> |
-             *       <a href="Book/Gatsby/ch/4?key=value">Gatsby: Ch4</a> |
-             *       <a href="Book/Scarlet">Scarlet Letter</a><br/>
-             *
-             *       <div ng-view></div>
-             *
-             *       <hr />
-             *
-             *       <pre>$location.path() = {{$location.path()}}</pre>
-             *       <pre>$route.current.templateUrl = {{$route.current.templateUrl}}</pre>
-             *       <pre>$route.current.params = {{$route.current.params}}</pre>
-             *       <pre>$route.current.scope.name = {{$route.current.scope.name}}</pre>
-             *       <pre>$routeParams = {{$routeParams}}</pre>
-             *     </div>
-             *   </file>
-             *
-             *   <file name="book.html">
-             *     controller: {{name}}<br />
-             *     Book Id: {{params.bookId}}<br />
-             *   </file>
-             *
-             *   <file name="chapter.html">
-             *     controller: {{name}}<br />
-             *     Book Id: {{params.bookId}}<br />
-             *     Chapter Id: {{params.chapterId}}
-             *   </file>
-             *
-             *   <file name="script.js">
-             *     angular.module('ngRouteExample', ['ngRoute'])
-             *
-             *      .controller('MainController', function($scope, $route, $routeParams, $location) {
-     *          $scope.$route = $route;
-     *          $scope.$location = $location;
-     *          $scope.$routeParams = $routeParams;
-     *      })
-             *
-             *      .controller('BookController', function($scope, $routeParams) {
-     *          $scope.name = "BookController";
-     *          $scope.params = $routeParams;
-     *      })
-             *
-             *      .controller('ChapterController', function($scope, $routeParams) {
-     *          $scope.name = "ChapterController";
-     *          $scope.params = $routeParams;
-     *      })
-             *
-             *     .config(function($routeProvider, $locationProvider) {
-     *       $routeProvider
-     *        .when('/Book/:bookId', {
-     *         templateUrl: 'book.html',
-     *         controller: 'BookController',
-     *         resolve: {
-     *           // I will cause a 1 second delay
-     *           delay: function($q, $timeout) {
-     *             var delay = $q.defer();
-     *             $timeout(delay.resolve, 1000);
-     *             return delay.promise;
-     *           }
-     *         }
-     *       })
-     *       .when('/Book/:bookId/ch/:chapterId', {
-     *         templateUrl: 'chapter.html',
-     *         controller: 'ChapterController'
-     *       });
-     *
-     *       // configure html5 to get links working on jsfiddle
-     *       $locationProvider.html5Mode(true);
-     *     });
-             *
-             *   </file>
-             *
-             *   <file name="protractor.js" type="protractor">
-             *     it('should load and compile correct template', function() {
-     *       element(by.linkText('Moby: Ch1')).click();
-     *       var content = element(by.css('[ng-view]')).getText();
-     *       expect(content).toMatch(/controller\: ChapterController/);
-     *       expect(content).toMatch(/Book Id\: Moby/);
-     *       expect(content).toMatch(/Chapter Id\: 1/);
-     *
-     *       element(by.partialLinkText('Scarlet')).click();
-     *
-     *       content = element(by.css('[ng-view]')).getText();
-     *       expect(content).toMatch(/controller\: BookController/);
-     *       expect(content).toMatch(/Book Id\: Scarlet/);
-     *     });
-             *   </file>
-             * </example>
-             */
-
-            /**
-             * @ngdoc event
-             * @name $route#$routeChangeStart
-             * @eventType broadcast on root scope
-             * @description
-             * Broadcasted before a route change. At this  point the route services starts
-             * resolving all of the dependencies needed for the route change to occur.
-             * Typically this involves fetching the view template as well as any dependencies
-             * defined in `resolve` route property. Once  all of the dependencies are resolved
-             * `$routeChangeSuccess` is fired.
-             *
-             * The route change (and the `$location` change that triggered it) can be prevented
-             * by calling `preventDefault` method of the event. See {@link ng.$rootScope.Scope#$on}
-             * for more details about event object.
-             *
-             * @param {Object} angularEvent Synthetic event object.
-             * @param {Route} next Future route information.
-             * @param {Route} current Current route information.
-             */
-
-            /**
-             * @ngdoc event
-             * @name $route#$routeChangeSuccess
-             * @eventType broadcast on root scope
-             * @description
-             * Broadcasted after a route dependencies are resolved.
-             * {@link ngRoute.directive:ngView ngView} listens for the directive
-             * to instantiate the controller and render the view.
-             *
-             * @param {Object} angularEvent Synthetic event object.
-             * @param {Route} current Current route information.
-             * @param {Route|Undefined} previous Previous route information, or undefined if current is
-             * first route entered.
-             */
-
-            /**
-             * @ngdoc event
-             * @name $route#$routeChangeError
-             * @eventType broadcast on root scope
-             * @description
-             * Broadcasted if any of the resolve promises are rejected.
-             *
-             * @param {Object} angularEvent Synthetic event object
-             * @param {Route} current Current route information.
-             * @param {Route} previous Previous route information.
-             * @param {Route} rejection Rejection of the promise. Usually the error of the failed promise.
-             */
-
-            /**
-             * @ngdoc event
-             * @name $route#$routeUpdate
-             * @eventType broadcast on root scope
-             * @description
-             *
-             * The `reloadOnSearch` property has been set to false, and we are reusing the same
-             * instance of the Controller.
-             */
-
-            var forceReload = false,
-                preparedRoute,
-                preparedRouteIsUpdateOnly,
-                $route = {
-                    routes: routes,
-
-                    /**
-                     * @ngdoc method
-                     * @name $route#reload
-                     *
-                     * @description
-                     * Causes `$route` service to reload the current route even if
-                     * {@link ng.$location $location} hasn't changed.
-                     *
-                     * As a result of that, {@link ngRoute.directive:ngView ngView}
-                     * creates new scope and reinstantiates the controller.
-                     */
-                    reload: function() {
-                        forceReload = true;
-                        $rootScope.$evalAsync(function() {
-                            // Don't support cancellation of a reload for now...
-                            prepareRoute();
-                            commitRoute();
-                        });
-                    },
-
-                    /**
-                     * @ngdoc method
-                     * @name $route#updateParams
-                     *
-                     * @description
-                     * Causes `$route` service to update the current URL, replacing
-                     * current route parameters with those specified in `newParams`.
-                     * Provided property names that match the route's path segment
-                     * definitions will be interpolated into the location's path, while
-                     * remaining properties will be treated as query params.
-                     *
-                     * @param {!Object<string, string>} newParams mapping of URL parameter names to values
-                     */
-                    updateParams: function(newParams) {
-                        if (this.current && this.current.$$route) {
-                            newParams = angular.extend({}, this.current.params, newParams);
-                            $location.path(interpolate(this.current.$$route.originalPath, newParams));
-                            // interpolate modifies newParams, only query params are left
-                            $location.search(newParams);
-                        } else {
-                            throw $routeMinErr('norout', 'Tried updating route when with no current route');
-                        }
-                    }
-                };
-
-            $rootScope.$on('$locationChangeStart', prepareRoute);
-            $rootScope.$on('$locationChangeSuccess', commitRoute);
-
-            return $route;
-
-            /////////////////////////////////////////////////////
-
-            /**
-             * @param on {string} current url
-             * @param route {Object} route regexp to match the url against
-             * @return {?Object}
-             *
-             * @description
-             * Check if the route matches the current url.
-             *
-             * Inspired by match in
-             * visionmedia/express/lib/router/router.js.
-             */
-            function switchRouteMatcher(on, route) {
-                var keys = route.keys,
-                    params = {};
-
-                if (!route.regexp) return null;
-
-                var m = route.regexp.exec(on);
-                if (!m) return null;
-
-                for (var i = 1, len = m.length; i < len; ++i) {
-                    var key = keys[i - 1];
-
-                    var val = m[i];
-
-                    if (key && val) {
-                        params[key.name] = val;
-                    }
-                }
-                return params;
-            }
-
-            function prepareRoute($locationEvent) {
-                var lastRoute = $route.current;
-
-                preparedRoute = parseRoute();
-                preparedRouteIsUpdateOnly = preparedRoute && lastRoute && preparedRoute.$$route === lastRoute.$$route
-                && angular.equals(preparedRoute.pathParams, lastRoute.pathParams)
-                && !preparedRoute.reloadOnSearch && !forceReload;
-
-                if (!preparedRouteIsUpdateOnly && (lastRoute || preparedRoute)) {
-                    if ($rootScope.$broadcast('$routeChangeStart', preparedRoute, lastRoute).defaultPrevented) {
-                        if ($locationEvent) {
-                            $locationEvent.preventDefault();
-                        }
-                    }
-                }
-            }
-
-            function commitRoute() {
-                var lastRoute = $route.current;
-                var nextRoute = preparedRoute;
-
-                if (preparedRouteIsUpdateOnly) {
-                    lastRoute.params = nextRoute.params;
-                    angular.copy(lastRoute.params, $routeParams);
-                    $rootScope.$broadcast('$routeUpdate', lastRoute);
-                } else if (nextRoute || lastRoute) {
-                    forceReload = false;
-                    $route.current = nextRoute;
-                    if (nextRoute) {
-                        if (nextRoute.redirectTo) {
-                            if (angular.isString(nextRoute.redirectTo)) {
-                                $location.path(interpolate(nextRoute.redirectTo, nextRoute.params)).search(nextRoute.params)
-                                    .replace();
-                            } else {
-                                $location.url(nextRoute.redirectTo(nextRoute.pathParams, $location.path(), $location.search()))
-                                    .replace();
-                            }
-                        }
-                    }
-
-                    $q.when(nextRoute).
-                        then(function() {
-                            if (nextRoute) {
-                                var locals = angular.extend({}, nextRoute.resolve),
-                                    template, templateUrl;
-
-                                angular.forEach(locals, function(value, key) {
-                                    locals[key] = angular.isString(value) ?
-                                        $injector.get(value) : $injector.invoke(value, null, null, key);
-                                });
-
-                                if (angular.isDefined(template = nextRoute.template)) {
-                                    if (angular.isFunction(template)) {
-                                        template = template(nextRoute.params);
-                                    }
-                                } else if (angular.isDefined(templateUrl = nextRoute.templateUrl)) {
-                                    if (angular.isFunction(templateUrl)) {
-                                        templateUrl = templateUrl(nextRoute.params);
-                                    }
-                                    templateUrl = $sce.getTrustedResourceUrl(templateUrl);
-                                    if (angular.isDefined(templateUrl)) {
-                                        nextRoute.loadedTemplateUrl = templateUrl;
-                                        template = $templateRequest(templateUrl);
-                                    }
-                                }
-                                if (angular.isDefined(template)) {
-                                    locals['$template'] = template;
-                                }
-                                return $q.all(locals);
-                            }
-                        }).
-                        // after route change
-                        then(function(locals) {
-                            if (nextRoute == $route.current) {
-                                if (nextRoute) {
-                                    nextRoute.locals = locals;
-                                    angular.copy(nextRoute.params, $routeParams);
-                                }
-                                $rootScope.$broadcast('$routeChangeSuccess', nextRoute, lastRoute);
-                            }
-                        }, function(error) {
-                            if (nextRoute == $route.current) {
-                                $rootScope.$broadcast('$routeChangeError', nextRoute, lastRoute, error);
-                            }
-                        });
-                }
-            }
-
-
-            /**
-             * @returns {Object} the current active route, by matching it against the URL
-             */
-            function parseRoute() {
-                // Match a route
-                var params, match;
-                angular.forEach(routes, function(route, path) {
-                    if (!match && (params = switchRouteMatcher($location.path(), route))) {
-                        match = inherit(route, {
-                            params: angular.extend({}, $location.search(), params),
-                            pathParams: params});
-                        match.$$route = route;
-                    }
-                });
-                // No route matched; fallback to "otherwise" route
-                return match || routes[null] && inherit(routes[null], {params: {}, pathParams:{}});
-            }
-
-            /**
-             * @returns {string} interpolation of the redirect path with the parameters
-             */
-            function interpolate(string, params) {
-                var result = [];
-                angular.forEach((string || '').split(':'), function(segment, i) {
-                    if (i === 0) {
-                        result.push(segment);
-                    } else {
-                        var segmentMatch = segment.match(/(\w+)(?:[?*])?(.*)/);
-                        var key = segmentMatch[1];
-                        result.push(params[key]);
-                        result.push(segmentMatch[2] || '');
-                        delete params[key];
-                    }
-                });
-                return result.join('');
-            }
-        }];
-}
-angular.module('ai.router', [])
-
-.provider('$router', ['$routeProvider', function $router($routeProvider) {
-
-    var defaults, get, set, routes, when, otherwise;
-
-    defaults = {
-        caseInsensitiveMatch: false
-    };
-
-    // object of application routes.
-    routes = {};
-
-    // Angular 1.4 Source.
-    // methods used for "merge"
-    // from angular source
-    // see: https://github.com/angular/angular.js/blob/b6afe1b208d7b49cca3695b2bdd1c7b7c2ff635d/src/Angular.js#L326
-
-
-    // sets $$hashKey.
-    function setHashKey(obj, h) {
-        if (h) {
-            obj.$$hashKey = h;
-        } else {
-            delete obj.$$hashKey;
-        }
-    }
-
-    // base for .extend & .merge
-    function baseExtend(dst, objs, deep) {
-        var h = dst.$$hashKey;
-
-        for (var i = 0, ii = objs.length; i < ii; ++i) {
-            var obj = objs[i];
-            if (!angular.isObject(obj) && !angular.isFunction(obj)) continue;
-            var keys = Object.keys(obj);
-            for (var j = 0, jj = keys.length; j < jj; j++) {
-                var key = keys[j];
-                var src = obj[key];
-
-                if (deep && angular.isObject(src)) {
-                    if (!angular.isObject(dst[key])) dst[key] = angular.isArray(src) ? [] : {};
-                    baseExtend(dst[key], [src], true);
-                } else {
-                    dst[key] = src;
-                }
-            }
-        }
-
-        setHashKey(dst, h);
-        return dst;
-    }
-
-    // merge function case base.
-    function merge(dst) {
-        return baseExtend(dst, slice.call(arguments, 1), true);
-    }
-
-        // ensure merge is defined.
-    if(!angular.merge)
-        angular.merge  = merge;
-
-    // inherit parent object.
-    function inherit(parent, extra) {
-        return angular.extend(Object.create(parent), extra);
-    }
-
-    function pathRegExp(path, opts) {
-        var insensitive = opts.caseInsensitiveMatch,
-            ret = {
-                originalPath: path,
-                regexp: path
-            },
-            keys = ret.keys = [];
-
-        path = path
-            .replace(/([().])/g, '\\$1')
-            .replace(/(\/)?:(\w+)([\?\*])?/g, function(_, slash, key, option) {
-                var optional = option === '?' ? option : null;
-                var star = option === '*' ? option : null;
-                keys.push({ name: key, optional: !!optional });
-                slash = slash || '';
-                return '' +
-                    (optional ? '' : slash) +
-                    '(?:' +
-                    (optional ? slash : '') +
-                    (star && '(.+?)' || '([^/]+)') +
-                    (optional || '') +
-                    ')' +
-                    (optional || '');
-            })
-            .replace(/([\/$\*])/g, '\\$1');
-
-        ret.regexp = new RegExp('^' + path + '$', insensitive ? 'i' : '');
-        return ret;
-    }
-
-    // updates defaults globaly.
-    set = function set(key, value) {
-        var obj = key;
-        if(arguments.length > 1){
-            obj = {};
-            obj[key] = value;
-        }
-        defaults = angular.extend({}, defaults, obj);
-    };
-
-    // adds route to collection
-    when = function when(path, route) {
-        //copy original route object to preserve params inherited from proto chain
-        var routeCopy = angular.copy(route);
-        if (angular.isUndefined(routeCopy.reloadOnSearch)) {
-            routeCopy.reloadOnSearch = true;
-        }
-        if (angular.isUndefined(routeCopy.caseInsensitiveMatch)) {
-            routeCopy.caseInsensitiveMatch = defaults.caseInsensitiveMatch;
-        }
-        routes[path] = angular.extend(
-            routeCopy,
-            path && pathRegExp(path, routeCopy)
-        );
-
-        // create redirection for trailing slashes
-        if (path) {
-            var redirectPath = (path[path.length - 1] == '/') ?
-                path.substr(0, path.length - 1) :
-                path + '/';
-
-            routes[redirectPath] = angular.extend(
-                {redirectTo: path},
-                pathRegExp(redirectPath, routeCopy)
-            );
-        }
-
-        return this;
-    };
-
-    // fallback when route not found.
-    otherwise = function(params) {
-        if (typeof params === 'string') {
-            params = {redirectTo: params};
-        }
-        when(null, params);
-        return this;
-    };
-
-    get = ['$location', '$routeParams', '$q', '$injector', '$templateRequest', '$sce',
-        function get($rootScope, $location, $routeParams, $q, $injector, $templateRequest, $sce) {
-
-        var forceReload = false,
-            preparedRoute,
-            preparedRouteIsUpdateOnly,
-            $route;
-
-            function switchRouteMatcher(on, route) {
-                var keys = route.keys,
-                    params = {};
-
-                if (!route.regexp) return null;
-
-                var m = route.regexp.exec(on);
-                if (!m) return null;
-
-                for (var i = 1, len = m.length; i < len; ++i) {
-                    var key = keys[i - 1];
-
-                    var val = m[i];
-
-                    if (key && val) {
-                        params[key.name] = val;
-                    }
-                }
-                return params;
-            }
-
-            function parseRoute() {
-                // Match a route
-                var params, match;
-                angular.forEach(routes, function(route, path) {
-                    if (!match && (params = switchRouteMatcher($location.path(), route))) {
-                        match = inherit(route, {
-                            params: angular.extend({}, $location.search(), params),
-                            pathParams: params});
-                        match.$$route = route;
-                    }
-                });
-                // No route matched; fallback to "otherwise" route
-                return match || routes[null] && inherit(routes[null], {params: {}, pathParams:{}});
-            }
-
-            function interpolate(string, params) {
-                var result = [];
-                angular.forEach((string || '').split(':'), function(segment, i) {
-                    if (i === 0) {
-                        result.push(segment);
-                    } else {
-                        var segmentMatch = segment.match(/(\w+)(?:[?*])?(.*)/);
-                        var key = segmentMatch[1];
-                        result.push(params[key]);
-                        result.push(segmentMatch[2] || '');
-                        delete params[key];
-                    }
-                });
-                return result.join('');
-            }
-
-            function prepareRoute($locationEvent) {
-                var lastRoute = $route.current;
-                preparedRoute = parseRoute();
-                preparedRouteIsUpdateOnly = preparedRoute && lastRoute && preparedRoute.$$route === lastRoute.$$route &&
-                angular.equals(preparedRoute.pathParams, lastRoute.pathParams) &&
-                !preparedRoute.reloadOnSearch && !forceReload;
-
-                if (!preparedRouteIsUpdateOnly && (lastRoute || preparedRoute)) {
-                    if ($rootScope.$broadcast('$routeChangeStart', preparedRoute, lastRoute).defaultPrevented) {
-                        if ($locationEvent) {
-                            $locationEvent.preventDefault();
-                        }
-                    }
-                }
-            }
-
-            function commitRoute() {
-                var lastRoute = $route.current;
-                var nextRoute = preparedRoute;
-
-                if (preparedRouteIsUpdateOnly) {
-                    lastRoute.params = nextRoute.params;
-                    angular.copy(lastRoute.params, $routeParams);
-                    $rootScope.$broadcast('$routeUpdate', lastRoute);
-                } else if (nextRoute || lastRoute) {
-                    forceReload = false;
-                    $route.current = nextRoute;
-                    if (nextRoute) {
-                        if (nextRoute.redirectTo) {
-                            if (angular.isString(nextRoute.redirectTo)) {
-                                $location.path(interpolate(nextRoute.redirectTo, nextRoute.params)).search(nextRoute.params)
-                                    .replace();
-                            } else {
-                                $location.url(nextRoute.redirectTo(nextRoute.pathParams, $location.path(), $location.search()))
-                                    .replace();
-                            }
-                        }
-                    }
-                    $q.when(nextRoute).
-                        then(function() {
-                            if (nextRoute) {
-                                var locals = angular.extend({}, nextRoute.resolve),
-                                    template, templateUrl;
-
-                                angular.forEach(locals, function(value, key) {
-                                    locals[key] = angular.isString(value) ?
-                                        $injector.get(value) : $injector.invoke(value, null, null, key);
-                                });
-
-                                if (angular.isDefined(template = nextRoute.template)) {
-                                    if (angular.isFunction(template)) {
-                                        template = template(nextRoute.params);
-                                    }
-                                } else if (angular.isDefined(templateUrl = nextRoute.templateUrl)) {
-                                    if (angular.isFunction(templateUrl)) {
-                                        templateUrl = templateUrl(nextRoute.params);
-                                    }
-                                    templateUrl = $sce.getTrustedResourceUrl(templateUrl);
-                                    if (angular.isDefined(templateUrl)) {
-                                        nextRoute.loadedTemplateUrl = templateUrl;
-                                        template = $templateRequest(templateUrl);
-                                    }
-                                }
-                                if (angular.isDefined(template)) {
-                                    locals['$template'] = template;
-                                }
-                                return $q.all(locals);
-                            }
-                        }).
-                        // after route change
-                        then(function(locals) {
-                            if (nextRoute == $route.current) {
-                                if (nextRoute) {
-                                    nextRoute.locals = locals;
-                                    angular.copy(nextRoute.params, $routeParams);
-                                }
-                                $rootScope.$broadcast('$routeChangeSuccess', nextRoute, lastRoute);
-                            }
-                        }, function(error) {
-                            if (nextRoute == $route.current) {
-                                $rootScope.$broadcast('$routeChangeError', nextRoute, lastRoute, error);
-                            }
-                        });
-                }
-            }
-
-
-            // $route object.
-            $route = {
-
-                routes: routes,
-
-                reload: function() {
-                    forceReload = true;
-                    $rootScope.$evalAsync(function() {
-                        prepareRoute();
-                        commitRoute();
-                    });
-                },
-
-                updateParams: function(newParams) {
-                    if (this.current && this.current.$$route) {
-                        newParams = angular.extend({}, this.current.params, newParams);
-                        $location.path(interpolate(this.current.$$route.originalPath, newParams));
-                        // interpolate modifies newParams, only query params are left
-                        $location.search(newParams);
-                    } else {
-                        throw $routeMinErr('norout', 'Tried updating route when with no current route');
-                    }
-                }
-            };
-
-        // prepare route when location changes.
-        $rootScope.$on('$locationChangeStart', prepareRoute);
-
-        // commit route when location has changed.
-        $rootScope.$on('$locationChangeSuccess', commitRoute);
-
-        return $route;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set,
-        when: when,
-        otherwise: otherwise
-    };
-
-}]);
 angular.module('ai.step', ['ai.helpers'])
 
 .provider('$step', function $step() {

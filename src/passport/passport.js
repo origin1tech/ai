@@ -12,6 +12,8 @@ angular.module('ai.passport.factory', [])
         //       map will be created based on the order of the
         //       array provided.
 
+
+
         defaults = {
 
 
@@ -25,10 +27,8 @@ angular.module('ai.passport.factory', [])
             userKey:            'user',                         // the object key which contains the user information
                                                                 // returned in res.data of successful login.
                                                                 // ex: res.data.user (see method $module.login)
-            userRolesKey:       'roles',                        // the property within userKey object that contains
-                                                                // an array of access levels. array may contain numbers
-                                                                // or strings.
-
+            extendKeys:         undefined,                      // array of keys you wish to also track.
+                                                                         
             paranoid: false,                                    // when true, fails if access level is missing.
             delimiter:          ',',                            // char to use to separate roles when passing string.
 
@@ -52,10 +52,10 @@ angular.module('ai.passport.factory', [])
             onUnauthenticated:  '/passport/login',              // path or func when unauthenticated.
             onUnauthorized:     '/passport/login',              // path or func when unauthorized.
             onSyncSuccess:      undefined,                      // func called when successfully synchronized w/ server.
-            
+
             welcomeText:        'Welcome ',                     // prefix string to identity.
             welcomeParams:      [ 'firstName' ]                 // array of user properties which make up the
-                                                                // user's identity or full name, properties are 
+                                                                // user's identity or full name, properties are
                                                                 // separated by a space.
         };
 
@@ -166,6 +166,15 @@ angular.module('ai.passport.factory', [])
 
                 var $module = {};
 
+                // extends module with custom keys.
+                function extendModule(keys, obj){
+                    angular.forEach(keys, function (k) {
+                        if(obj[k])
+                            $module[k] = obj[k];
+                    });
+                }
+               
+
                 // ensure the user proptery
                 // is undefined when passport
                 // class is initialized.
@@ -195,7 +204,7 @@ angular.module('ai.passport.factory', [])
 
                 // set passport options.
                 $module.set = function set(key, value) {
-                    
+
                     var options;
 
                     if(!key && !value) {
@@ -232,14 +241,17 @@ angular.module('ai.passport.factory', [])
                     }
                     $http[url.method](url.path, data)
                         .then(function (res) {
-                            $module.user = findByNotation(res.data, $module.options.userKey);
-                            var roles = findByNotation(res.data, $module.options.rolesKey);
+                            $module.user = $module.findByNotation(res.data, $module.options.userKey);
+                            var roles = $module.findByNotation(res.data, $module.options.rolesKey);
                             if(!$module.user)
                                 throw new Error('Fatal error passport failed to set "user" on login.');
                             if(roles)
                                 $module.roles = normalizeRoles(roles);
+                            delete $module.user._roles;
+                            if($module.options.extendKeys)
+                                extendModule($module.options.extendKeys, res.data);
                             if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call($module, res);
+                                $module.options.onLoginSuccess.call($module, res, $module.user);
                             } else {
                                 $location.path($module.options.onLoginSuccess);
                             }
@@ -247,7 +259,7 @@ angular.module('ai.passport.factory', [])
                 };
 
                 // logout passport.
-                $module.logout = function logout() {        
+                $module.logout = function logout() {
                     function done() {
                         $module.user = undefined;
                         $location.path($module.options.loginUrl);
@@ -282,7 +294,7 @@ angular.module('ai.passport.factory', [])
                             } else {
                                 $location.path($module.options.onRecoverFailed);
                             }
-                        });        
+                        });
                     }
                 };
 
@@ -296,12 +308,14 @@ angular.module('ai.passport.factory', [])
                 $module.sync = function sync() {
                     function done(obj) {
                         if(obj) {
-                            var user = findByNotation(obj, $module.options.userKey);
-                            var roles = findByNotation(obj, $module.options.rolesKey);
+                            var user = $module.findByNotation(obj, $module.options.userKey);
+                            var roles = $module.findByNotation(obj, $module.options.rolesKey);
                             if(user)
                                 $module.user = user;
                             if(roles)
-                                $module.roles = normalizeRoles(roles);
+                                $module.roles = normalizeRoles(roles);   
+                            if($module.options.extendKeys)
+                                extendModule($module.options.extendKeys, obj);
                         }
                     }
                     if(!$module.options.syncAction)
@@ -315,7 +329,12 @@ angular.module('ai.passport.factory', [])
                             $http[url.method](url.path).then(function (res) {
                                 if(res){
                                     done(res.data);
-                                }
+                                    if(angular.isFunction($module.options.onSyncSuccess))
+                                        return $module.options.onSyncSuccess.call($module, res, $module.user);                                                                            
+                                }                  
+                            }, function (res) {
+                                    if(console && console.warn)
+                                        console.warn(res.data);
                             });
                         }
                     }
@@ -390,7 +409,7 @@ angular.module('ai.passport.factory', [])
                     // default to the login url.
                     $location.path(action || $module.options.loginUrl);
                 };
-                
+
                 // gets the identity name of the authenticated user.
                 $module.displayName = function displayName(arr) {
                     var result = '';
@@ -403,8 +422,8 @@ angular.module('ai.passport.factory', [])
                                 result += $module.user[v];
                             else
                                 result += (' ' + $module.user[v]);
-                        }      
-                    });    
+                        }
+                    });
                     return result;
                 };
 
@@ -412,21 +431,29 @@ angular.module('ai.passport.factory', [])
                 $module.welcome = function welcome(textOnly) {
                     if(textOnly)
                         return $module.options.welcomeText;
-                    return $module.options.welcomeText + ' ' + displayName();
+                    return $module.options.welcomeText + ' ' + $module.displayName();
                 };
 
                 // return roles array from user object.
                 $module.userRoles = function userRoles() {
-                    if(!$module.user || !$module.user[$module.options.userRolesKey])
+                    if(!$module.user || !$module.user[$module.options.rolesKey])
                         return [0];
-                    return $module.user[$module.options.userRolesKey];
+                    return $module.user[$module.options.rolesKey];
                 };
+
+                // navigate to path.
+                $module.goto = function goto(path) {
+                    if(path)
+                        $location.path(path);
+                }
 
                 // set initial options
                 $module.set();
 
                 // sync with server.
-                //$module.sync();
+                $module.sync();
+
+                $rootScope[$module.options.rootKey] = $module;
 
                 // return for chaining.
                 return $module;
