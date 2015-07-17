@@ -658,7 +658,19 @@ angular.module('ai.list', ['ai.helpers'])
                         });
                     }
 
-                    scope.$watch(attrs.ngModel, function (newVal, oldVal) {
+                    // watch list changes.
+                    scope.$watch(function() {
+                        return (scope.items && scope.items.length);
+                    }, function (newVal, oldVal){
+                        var item = scope.find(ngModel.$modelValue);
+                        if(!item || (item.value === scope.selected.value)) return;
+                        scope.select(null, item, true);
+                    });
+
+                    // watch model changes.
+                    scope.$watch(function() {
+                        return ngModel.$modelValue;
+                    }, function (newVal, oldVal) {
                         if((!initialized && undefined !== newVal) || newVal !== oldVal){
                             var item = scope.find(newVal);
                             if(!item || (item.value === scope.selected.value)) return;

@@ -16,7 +16,8 @@ angular.module('ai.passport.factory', [])
 
         defaults = {
 
-
+            router:             'ngRoute',                      // the router being used uiRouter or ngRoute.
+                                                                // this is not the module name but the 
             rootKey:            'Passport',                     // the rootScope property key to set to instance.
             routeKey:           'area',                         // the property within the current router's route object
 
@@ -81,9 +82,11 @@ angular.module('ai.passport.factory', [])
             defaults = angular.extend({}, defaults, obj);
         };
 
-        get = ['$rootScope', '$location', '$http', '$route', '$q', function get($rootScope, $location, $http, $route, $q) {
+        get = ['$rootScope', '$location', '$http', '$q', '$injector',
+            function get($rootScope, $location, $http, $q, $injector) {
 
-            var instance;
+            var instance,
+                $route;
 
             // nomralize url to method/path object.
             function urlToObject(url) {
@@ -227,6 +230,16 @@ angular.module('ai.passport.factory', [])
 
                     // set levels and roles.
                     $module.roles = normalizeRoles(options.roles);
+
+                    // define router change event name.
+                    if($module.options.router === 'ngRoute'){
+                        $route = $injector.get('$route');
+                        $module.routerChangeEvent = '$routeChangeStart';
+                    } else {
+                       $module.routerChangeEvent = '$stateChangeStart';
+                        $route = $injector.get('$state');
+                    }
+
                 };
 
                 // login passport credentials.
@@ -263,7 +276,10 @@ angular.module('ai.passport.factory', [])
                     function done() {
                         $module.user = undefined;
                         $location.path($module.options.loginUrl);
-                        $route.reload();
+                        if($module.options.router === 'ngRoute')
+                            $route.reload();
+                        else
+                            $route.go($route.current, {}, {reload: true});
                     }
                     if(angular.isFunction($module.options.logoutAction)){
                         $module.options.logoutAction.call($module);
@@ -445,7 +461,7 @@ angular.module('ai.passport.factory', [])
                 $module.goto = function goto(path) {
                     if(path)
                         $location.path(path);
-                }
+                };
 
                 // set initial options
                 $module.set();
@@ -476,6 +492,7 @@ angular.module('ai.passport.factory', [])
 
 // intercepts 401 and 403 errors.
 angular.module('ai.passport.interceptor', [])
+
     .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
         return {
             responseError: function(res) {
@@ -500,27 +517,58 @@ angular.module('ai.passport.interceptor', [])
 angular.module('ai.passport.route', [])
 
     .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
-        $rootScope.$on('$routeChangeStart', function (event, next) {
-            var area = {},
+
+        var changeEvent = $passport.routerChangeEvent;
+
+        // ngRoute:
+        //      event - the JavaScript event.
+        //      next  - the next route.
+        //      current - the current route.
+        // uiRouter:
+        //      event - the JavaScript event.
+        //      toState - the next state.
+        //      toParams - the next state's params.
+        //      fromState - the current or previous state.
+        //      fromParams - the current or previous state's params.
+        $rootScope.$on(changeEvent, function () {
+
+            var args = Array.prototype.slice.call(arguments),
+                area = {},
                 route = {},
                 access,
-                authorized;
+                authorized,
+                next, prev;
+
+            next = args[1];
+            prev = args[2];
+
+            // for ui router the prev route
+            // is at diff arg position.
+            if(changeEvent === '$stateChangeStart')
+                prev = args[3]
+            
+            
             if(next && next.$$route)
                 route = next.$$route;
+
             access = $passport.findByNotation(route, $passport.routeKey);
+
             // when paranoid all routes must contain
             // an access key containing roles otherwise
             // direct to unauthorized.
             if($passport.options.paranoid && access === undefined){
                 return $passport.unauthorized();
             }
+
             if(access !== undefined){
                 authorized = $passport.hasAnyRole('*');
                 if(!authorized){
                     $passport.unauthorized();
                 }
             }
+
         });
+
     }]);
 
 // imports above modules.

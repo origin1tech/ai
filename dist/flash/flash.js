@@ -324,14 +324,17 @@ angular.module('ai.flash.interceptor', [])
                 
                 // get passport here to prevent circular dependency.
                 var flash = $injector.get('$flash'),
-                    excludeErrors = flash.options.excludeErrors || [];
+                    excludeErrors;
+
                 
                 // if interception is disabled
                 // don't handle/show message.
-                if(flash.options.intercept === false || flash.suppressed){
+                if(!flash.options || flash.options.intercept === false || flash.suppressed){
                     flash.suppressed = false;
                     return res;
-                }                    
+                }
+
+                excludeErrors = flash.options.excludeErrors || [];
                 
                 function handleFlashError(errObj){
                     var name, message, stack;

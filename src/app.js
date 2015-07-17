@@ -17,7 +17,7 @@ require([
     var app, tmpAreas, keys, areas, controller;
 
     tmpAreas = {
-        '/passport': 'Simplifies handling authentication within Angular app.',
+        '/passport': 'Simplifies handling authentication within Angular app. (Alpha)',
         '/storage': 'Use local storage with auto cookie fallback.',
         '/autoform': 'Handy during dev to quickly create a form.',
         '/list': 'Advanced customizable dropdown directive.',

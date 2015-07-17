@@ -27,7 +27,7 @@ angular.module('ai.tree', ['ai.helpers'])
             defaults = angular.extend(defaults, obj);
         };
 
-        get = [ '$helpers', '$q', '$http', '$rootScope', function get($helpers, $q, $http, $rootScope) {
+        get = [ '$helpers', '$q', '$http', '$rootScope', '$log', function get($helpers, $q, $http, $rootScope, $log) {
 
             var treeTemplate =
                 '<ul>' +
@@ -61,7 +61,7 @@ angular.module('ai.tree', ['ai.helpers'])
                     scope;
 
                 if(!element)
-                    return console.error('Cannot configure tree with element of undefined.');
+                    return $log.error('Cannot configure tree with element of undefined.');
 
                 attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
@@ -100,8 +100,8 @@ angular.module('ai.tree', ['ai.helpers'])
                             treeModel = options.tree.options.model = res.data;
                             cb(res.data);
                         }, function (res) {
-                            console.error(res);
-                            cb();
+                            $log.error(res);
+                            cb(res);
                         });
                     } else {
                         cb();
@@ -133,7 +133,7 @@ angular.module('ai.tree', ['ai.helpers'])
                         node.children = node[options.children];
                         node.active = node[options.active] || false;
                         node.toggle = false;
-                        node.icon = options.icon === false ? false : true;
+                        node.icon = options.icon !== false;
                         if(isParent(node)){
                             node.options = options;
                             node.expanded = options.expanded || node.expanded || false;
@@ -158,10 +158,13 @@ angular.module('ai.tree', ['ai.helpers'])
 
                 // sets tree checked state.
                 function setState(arr) {
-                    var selected = [];
+                    var _selected = [];
+                    var _unselected = [];
                     angular.forEach(arr, function(n) {
                         if(isParent(n)){
-                            var activeChildren = setState(n.children);
+                            var childStates = setState(n.children);
+                            var activeChildren = childStates.selected; //setState(n.children);
+                            var inactiveChildren = childStates.unselected;
                             var maxChildren = getChildren(n.children);
                             if(maxChildren.length === activeChildren.length)
                                 n.state = 'checked';
@@ -169,18 +172,21 @@ angular.module('ai.tree', ['ai.helpers'])
                                 n.state = 'intermediate';
                             else
                                 n.state = 'unchecked';
-                            selected = selected.concat(activeChildren);
+                            _selected = _selected.concat(activeChildren);
+                            _unselected = _unselected.concat(inactiveChildren);
                         }else {
                             if(n.active){
                                 n.state = 'checked';
-                                selected.push(n);
+                                _selected.push(n);
                             } else {
+                                _unselected.push(n);
                                 n.state = 'unchecked';
                             }
                         }
                     });
-                    options.tree.selected = selected;
-                    return selected;
+                    options.tree.selected = _selected;
+                    options.tree.unselected = _unselected;
+                    return { selected: _selected, unselected: _unselected };
                 }
 
                 // expands children nodes if any.
@@ -219,6 +225,13 @@ angular.module('ai.tree', ['ai.helpers'])
                     return options.tree.selected;
                 }
 
+                // compares the original model
+                // returning the difference.
+                function unselected() {
+                    var _selected = selected();
+
+                }
+
                 // select a node
                 function select(event, node) {
                     var isClick = event && event.type === 'click';
@@ -243,6 +256,7 @@ angular.module('ai.tree', ['ai.helpers'])
                 $module.select = scope.select = select;
                 $module.toggle = scope.toggle = toggle;
                 $module.selected = scope.selected = selected;
+                $module.unselected = scope.unselected = unselected;
 
                 // initialize the tree view.
                 function init() {
@@ -277,6 +291,13 @@ angular.module('ai.tree', ['ai.helpers'])
                         return $module;
 
                     });
+
+                    scope.$on('$destroy', function() {
+                        treeModel = [];
+                        $module.selected = scope.selected = [];
+                        $module.unselected = scope.unselected = [];
+
+                    });
                 }
 
                 init();
@@ -302,7 +323,7 @@ angular.module('ai.tree', ['ai.helpers'])
             scope: true,
             link: function (scope, element, attrs, ngModel) {
 
-                var defaults, options, $module, tmpModel;
+                var defaults, options, $module;
                 defaults = {
                     scope: scope
                 };
@@ -323,6 +344,7 @@ angular.module('ai.tree', ['ai.helpers'])
 
                 options = angular.extend(defaults, options);
                 options.model = attrs.ngModel || options.model;
+
                 if(angular.isString(options.model) && !/\//g.test(options.model))
                     options.model = scope.$eval(options.model);
 
