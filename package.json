@@ -2,7 +2,7 @@
   "name": "ai",
   "version": "0.2.4",
   "description": "A library for creating an intuitive ui in Angular.",
-  "main": "dist/ai.js",
+  "main": ["dist/ai.js", "dist/ai.css"],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
