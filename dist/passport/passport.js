@@ -30,7 +30,7 @@ angular.module('ai.passport.factory', [])
                                                                 // ex: res.data.user (see method $module.login)
             extendKeys:         undefined,                      // array of keys you wish to also track.
                                                                          
-            paranoid: false,                                    // when true, fails if access level is missing.
+            paranoid:           false,                          // when true, fails if access level is missing.
             delimiter:          ',',                            // char to use to separate roles when passing string.
 
             defaultUrl:         '/',                            // the default path or home page.
@@ -545,7 +545,7 @@ angular.module('ai.passport.route', [])
             // for ui router the prev route
             // is at diff arg position.
             if(changeEvent === '$stateChangeStart')
-                prev = args[3]
+                prev = args[3];
             
             
             if(next && next.$$route)

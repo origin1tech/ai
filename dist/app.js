@@ -302,6 +302,39 @@ require([
                 };
                 $scope.ddRemoteSel = 'anderson.larry@mail.com';
 
+                var ddModify;
+
+                $scope.ddModify = {
+                    text: 'name',
+                    value: 'email',
+                    source: [
+                        {name: 'Jim Evers', email: 'jim@global.net', category: 'customer' },
+                        {name: 'Charles Xander', email: 'charles@gmail.com', category: 'customer'},
+                        {name: 'Scott Sandres', email: 'sanders.scott@aol.com', category: 'customer'},
+                        {name: 'Rob Reiner', email: 'rr@dc.rr.com', category: 'customer'}
+                    ],
+                    onReady: function ($module) {
+                        ddModify = $module;
+                    }
+                };
+
+                $scope.ddModifySel = 'ellis@gmail.com';
+
+                // adding an element.
+                $scope.ddModifyAdd = function ddModifyAdd () {
+                    ddModify.add({name: 'Added Record', email: 'added.record@mail.com'});
+                };
+
+                // removing an element.
+                // you can remove by the model value as
+                // shown below or you can specify a
+                // second param like .remove(2, true);
+                // this says I want you to remove the element
+                // at that index.
+                $scope.ddModifyRemove = function ddModifyRemove () {
+                    ddModify.remove('added.record@mail.com');
+                };
+
             }
 
             if (area === 'autoform') {
@@ -340,15 +373,11 @@ require([
             }
 
             if (area === 'tree') {
-                var _tree;
                 $scope.tree = {
                     model: '/api/tree',
                     onSelect: function (node, model, event) {
-                        console.log(this.tree.selected);
-                        console.log(this.tree.unselected);
                     },
                     onReady: function (tree) {
-                        _tree = tree;
                     }
                 };
             }

@@ -24,6 +24,14 @@
         <input type="text" class="form-control" ai-list ng-model="ddRemoteSel" ai-list-options="ddRemote" required/>
     </div>
 
+    <div class="form-group">
+        <label style="display: block;">Modify List</label>
+        <input type="text" class="form-control" ai-list ng-model="ddModifySel" ai-list-options="ddModify" required/>
+        <br/>
+        <button type="button" class="btn btn-primary" ng-click="ddModifyAdd();">Add Item</button>
+        <button type="button" class="btn btn-primary" ng-click="ddModifyRemove();">Remove Item</button>
+    </div>
+
     <ai-validate-summary></ai-validate-summary>
 
 </form>

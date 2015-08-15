@@ -125,15 +125,19 @@ angular.module('ai.list', ['ai.helpers'])
 
                 // normalize source data to same type.
                 function normalizeData(data) {
+
                     if(!data)
                         return [];
+
                     var _collection = options.groupKey ? {} : [],
                         display;
+
                     // if string split to array.
                     if(angular.isString(data))
                         data = $helpers.trim(data).split(',');
                      //if data object is object literal
                      //convert to an array of objects.
+
                     if(angular.isObject(data) && !angular.isArray(data)){
                         var tmpData = [];
                         angular.forEach(data, function (v,k) {
@@ -144,8 +148,10 @@ angular.module('ai.list', ['ai.helpers'])
                         });
                         data = tmpData;
                     }
+
                     if(options.allowNull !== false && angular.isArray(_collection))
                         _collection.push(nullItem);
+
                     if(options.allowNull !== false && angular.isObject(_collection))
                         _collection._placeholder = {
                             key: 'placeholder',
@@ -153,6 +159,7 @@ angular.module('ai.list', ['ai.helpers'])
                             hidden: false,
                             items: [nullItem]
                         };
+
                     angular.forEach(data, function (v,k) {
                         if(angular.isString(v)) {
                             display = v = $helpers.trim(v);
@@ -161,18 +168,25 @@ angular.module('ai.list', ['ai.helpers'])
                             // simple string just push to collection.
                             _collection.push({ text: v, value: v, display: display });
                         }
+
                         if(angular.isObject(v)) {
+
                             var item = v,
                                 displayKey = options.display || options.text;
+
                             item.text = v[options.text];
                             item.text = item.text.charAt(0).toUpperCase() + item.text.slice(1);
                             item.value = v[options.value] || item.text;
                             item.display = v[displayKey];
+
                             if(options.capitalize !== false)
                                 item.display =  item.display.charAt(0).toUpperCase() + item.display.slice(1);
+
                             if(!options.groupKey) {
                                 _collection.push(item);
-                            } else {
+                            }
+
+                            else {
                                 var groupKey = $helpers.findByNotation(v, options.groupKey),
                                     groupDisplay = $helpers.findByNotation(v, options.groupDisplay || options.groupKey);
                                 if(groupKey === undefined)
@@ -185,7 +199,9 @@ angular.module('ai.list', ['ai.helpers'])
                                     return $helpers.findByNotation(i, options.groupKey) === groupKey;
                                 });
                             }
+
                         }
+
                     });
 
                     return _collection;
@@ -255,7 +271,6 @@ angular.module('ai.list', ['ai.helpers'])
                         found = scope.items.filter(function (item){
                             return item.value === value;
                         })[0];
-                        return found;
                     } else {
                         angular.forEach(scope.items, function (group) {
                             if(!found) {
@@ -264,8 +279,9 @@ angular.module('ai.list', ['ai.helpers'])
                                 })[0];
                             }
                         });
-                        return found;
+
                     }
+                    return found;
                 }
 
                 // select item.
@@ -354,6 +370,49 @@ angular.module('ai.list', ['ai.helpers'])
                     $module.items = scope.items = filtered;
                 }
 
+                // removes item from collection.
+                function remove(obj, asIndex) {
+
+                    var idx;
+
+                    if(asIndex){
+
+                        idx = obj;
+
+                    }
+
+                    else {
+
+                        // if obj is value find
+                        // and get element.
+                        if(typeof obj !== 'object')
+                            obj = find(obj);
+
+                        if(typeof obj === 'object' && !(obj instanceof Array))
+                            obj = find(obj.value || '');
+
+
+                        // get the index of the element.
+                        idx = scope.source.indexOf(obj);
+
+                    }
+
+                    if(idx !== -1){
+                        scope.source.splice(idx, 1);
+                        scope.clearFilter();
+                    }
+
+                }
+
+                // adds item to collection.
+                function add(obj) {
+                    obj = normalizeData([obj]);
+                    if(obj && obj.length > 1){
+                        scope.source.push(obj.pop());
+                        scope.clearFilter();
+                    }
+                }
+
                 // initialize the module.
                 function init() {
 
@@ -362,7 +421,10 @@ angular.module('ai.list', ['ai.helpers'])
                     // set scope/method vars.
                     $module.selected = scope.selected = nullItem;
                     $module.expanded = scope.expanded = false;
+                    $module.clearFilter = scope.clearFilter = clearFilter;
                     $module.q = scope.q = undefined;
+                    $module.add = scope.add = add;
+                    $module.remove = scope.remove = remove;
 
                     // timestamp used as an id.
                     $module.ts = scope.ts = options.ts;
@@ -371,6 +433,7 @@ angular.module('ai.list', ['ai.helpers'])
                     $module.toggle = scope.toggle = toggle;
                     $module.find = scope.find = find;
                     $module.beforeToggle = scope.beforeToggle = beforeToggle;
+
                     // if calling by instance
                     // no event so pass null apply args.
                     $module.select = function () {
@@ -486,9 +549,11 @@ angular.module('ai.list', ['ai.helpers'])
                                 button.addClass(options.btnClass);
 
                                 if(options.blurClose !== false) {
+
                                     // find search input
                                     // add listener if blurClose
                                     search = $helpers.findElement('input', list[0], true);
+
                                     if(search){
                                         search = angular.element(search);
                                         search.on('blur', function (e) {
@@ -526,7 +591,9 @@ angular.module('ai.list', ['ai.helpers'])
                                     parseDisabled(vis.ngDisabled);
 
                                 // todo probably need to monitor other ng- class states.
-                                scope.$watch(function () { return options.model.$invalid; },
+                                scope.$watch(function () {
+                                        return options.model.$invalid;
+                                    },
                                     function (newVal, oldVal) {
                                     var model = options.model;
                                     if(model.$touched){
@@ -543,8 +610,9 @@ angular.module('ai.list', ['ai.helpers'])
                                 $helpers.compile(scope, list.contents());
 
                                 // if onload callback.
-                                if(angular.isFunction(options.onReady))
-                                    options.onReady.call($module);
+                                if(angular.isFunction(options.onReady)){
+                                    options.onReady.call($module, $module, scope);
+                                }
 
                             }
 
@@ -663,7 +731,8 @@ angular.module('ai.list', ['ai.helpers'])
                         return (scope.items && scope.items.length);
                     }, function (newVal, oldVal){
                         var item = scope.find(ngModel.$modelValue);
-                        if(!item || (item.value === scope.selected.value)) return;
+                        if(!item || (item.value === scope.selected.value))
+                            return;
                         scope.select(null, item, true);
                     });
 
@@ -701,5 +770,6 @@ angular.module('ai.list', ['ai.helpers'])
             }
 
         };
+
 
     }]);

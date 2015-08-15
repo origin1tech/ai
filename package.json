@@ -54,6 +54,15 @@
     "gulp-bump": "^0.2.2"
   },
   "directories": {
-    "lib": "dist"
+    "lib": "dist",
+    "packages": "jspm_packages"
+  },
+  "jspm": {
+    "directories": {
+      "lib": "dist"
+    },
+    "configFile": "jspm.config.js",
+    "dependencies": {},
+    "devDependencies": {}
   }
 }
