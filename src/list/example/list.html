@@ -28,8 +28,15 @@
         <label style="display: block;">Modify List</label>
         <input type="text" class="form-control" ai-list ng-model="ddModifySel" ai-list-options="ddModify" required/>
         <br/>
+        <label>
+            Select button below to trigger event for modify list above.
+        </label>
+        <p>
+
+        </p>
         <button type="button" class="btn btn-primary" ng-click="ddModifyAdd();">Add Item</button>
         <button type="button" class="btn btn-primary" ng-click="ddModifyRemove();">Remove Item</button>
+        <button type="button" class="btn btn-primary" ng-click="ddModifySource();">Modify Source</button>
     </div>
 
     <ai-validate-summary></ai-validate-summary>

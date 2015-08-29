@@ -197,8 +197,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     '</div>' +
                     '<div class="col-sm-6 span-6 text-right">' +
                     '<label ng-show="changeable">Displayed</label>' +
-                    '<select ng-show="changeable" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing">' +
-                    '<option ng-repeat="d in displayed">{{d}}</option>' +
+                    '<select ng-show="changeable !== false" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing" ng-options="d as d for d in displayed">' +
+                    //'<option ng-repeat="d in displayed">{{d}}</option>' +
                     '</select>' +
                     '<button ng-click="selectAllRows(true)" ng-show="!selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Select All</button>' +
                     '<button style="min-width: 80px;" ng-click="selectAllRows(false)" ng-show="selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Clear All</button>' +

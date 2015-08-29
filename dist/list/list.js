@@ -216,17 +216,18 @@ angular.module('ai.list', ['ai.helpers'])
                 }
 
                 // load data using promise.
-                function loadData(q) {
-                    if(angular.isString(options.source)){
+                function loadData(q, source) {
+                    source = source || options.source;
+                    if(angular.isString(source)){
                         var method = options.method,
                             params = buildParams(options.params, q);
-                        return $q.when($http[method](options.source, { params: params }))
+                        return $q.when($http[method](source, { params: params }))
                             .then(function(res) {
                                 return normalizeData(res.data);
                             });
                     } else {
                         var defer = $q.defer();
-                        defer.resolve(normalizeData(options.source));
+                        defer.resolve(normalizeData(source));
                         return defer.promise;
                     }
                 }
@@ -413,6 +414,19 @@ angular.module('ai.list', ['ai.helpers'])
                     }
                 }
 
+                // modify the source collection.
+                function modify(source) {
+                    if(!source){
+                        (console && console.warn('Failed to update list using source of undefined.'));
+                        return;
+                    }
+                    // load data and apply filter.
+                    loadData(null, source).then(function(res) {
+                        $module.source = scope.source = res;
+                        scope.clearFilter();
+                    });
+                }
+
                 // initialize the module.
                 function init() {
 
@@ -425,6 +439,7 @@ angular.module('ai.list', ['ai.helpers'])
                     $module.q = scope.q = undefined;
                     $module.add = scope.add = add;
                     $module.remove = scope.remove = remove;
+                    $module.modify = scope.modify = modify;
 
                     // timestamp used as an id.
                     $module.ts = scope.ts = options.ts;
@@ -609,6 +624,8 @@ angular.module('ai.list', ['ai.helpers'])
                                 // compile the contents.
                                 $helpers.compile(scope, list.contents());
 
+                                $module.initialized = scope.initialized = true;
+
                                 // if onload callback.
                                 if(angular.isFunction(options.onReady)){
                                     options.onReady.call($module, $module, scope);
@@ -747,6 +764,14 @@ angular.module('ai.list', ['ai.helpers'])
                             initialized = true;
                         }
                     });
+
+                    //scope.$watch(function() {
+                    //    return scope.source;
+                    //}, function (newVal, oldVal){
+                    //    //if($module.initialized){
+                    //        scope.clearFilter();
+                    //    //}
+                    //});
 
                 }
 

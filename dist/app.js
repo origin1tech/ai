@@ -335,6 +335,14 @@ require([
                     ddModify.remove('added.record@mail.com');
                 };
 
+                // modifies the source collection of the list.
+                $scope.ddModifySource = function ddModifySource() {
+                    ddModify.modify([
+                        {name: 'New Source', email: 'jim@global.net', category: 'customer' },
+                        {name: 'Modified Source', email: 'charles@gmail.com', category: 'customer'}
+                    ]);
+                };
+
             }
 
             if (area === 'autoform') {
@@ -373,12 +381,34 @@ require([
             }
 
             if (area === 'tree') {
+
+                var trModify;
+
                 $scope.tree = {
+
                     model: '/api/tree',
                     onSelect: function (node, model, event) {
+
                     },
+
                     onReady: function (tree) {
+                        trModify = tree;
                     }
+
+                };
+
+                $scope.treeModify = function treeModify(){
+                    var newSrc = [
+                        { value: 1, label: 'item one' },
+                        { value: 2, label: 'item two', children: [
+                            { value: 21, label: 'child item 2-1'},
+                            { value: 22, label: 'child item 2-2', children: [
+                                { value: 221, label: 'child child item 2-2-1' },
+                                { value: 222, label: 'child child item 2-2-2' }
+                            ]}
+                        ] }
+                    ];
+                    trModify.modify(newSrc);
                 };
             }
 

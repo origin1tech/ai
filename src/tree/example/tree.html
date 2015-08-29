@@ -9,7 +9,16 @@
 <hr/>
 <div class="row">
     <div class="form-group col-md-12">
-     <ai-tree ng-model="tree.model" ai-tree-options="tree"></ai-tree>
+
+        <ai-tree ng-model="tree.model" ai-tree-options="tree"></ai-tree>
+
+        <label>
+            Below button modifies the collection see app.js
+        </label>
+        <p>
+            <button type="button" class="btn btn-primary" ng-click="treeModify()">Mofify Source</button>
+        </p>
+
     </div>
 </div>
 <hr/>

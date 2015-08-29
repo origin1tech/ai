@@ -2,6 +2,7 @@ angular.module('ai.tree', ['ai.helpers'])
     .provider('$tree', function $tree() {
 
         var defaults = {
+            model: undefined,                           // colleciton to build nodes from.
             template: 'ai-tree.html',                   // the template to be used, accepts, html, path, or cashed view name.
             labelTemplate: 'ai-tree-label.html',        // the template used for the tree element's label.
             label: 'label',                             // the property used for display.
@@ -134,6 +135,7 @@ angular.module('ai.tree', ['ai.helpers'])
                         node.active = node[options.active] || false;
                         node.toggle = false;
                         node.icon = options.icon !== false;
+
                         if(isParent(node)){
                             node.options = options;
                             node.expanded = options.expanded || node.expanded || false;
@@ -253,10 +255,49 @@ angular.module('ai.tree', ['ai.helpers'])
                     }
                 }
 
+                // modify the source collection of nodes.
+                function modify(arr){
+                    if(!angular.isArray(arr) && !angular.isString(arr)){
+                        (console && console.warn('Invalid collection type for tree, ' +
+                            'please specify an endpoint or array'));
+                        return;
+                    }
+                    loadData(arr, function (data) {
+
+                        if(!data){
+                            (console && console.warn('Failed to load tree data the collection was not returned.'));
+                            return;
+                        }
+
+                        // normalize the model properties.
+                        normalizeData(data);
+
+                        // set initial check state.
+                        setState(treeModel);
+
+                        // update the nodes.
+                        $module.nodes = scope.nodes = data;
+
+                        getTemplates().then(function(t) {
+
+                            var _template = t[0],
+                                _labelTemplate = t[1];
+
+                            _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
+
+                            element.empty().append($helpers.compile(scope, _template));
+
+                        });
+
+                    });
+
+                }
+
                 $module.select = scope.select = select;
                 $module.toggle = scope.toggle = toggle;
                 $module.selected = scope.selected = selected;
                 $module.unselected = scope.unselected = unselected;
+                $module.modify = scope.modify = modify;
 
                 // initialize the tree view.
                 function init() {
@@ -277,7 +318,9 @@ angular.module('ai.tree', ['ai.helpers'])
 
                             var _template = t[0],
                                 _labelTemplate = t[1];
+
                             _template = _template.replace('{{LABEL_TEMPLATE}}', _labelTemplate);
+
                             element.empty().append($helpers.compile(scope, _template));
 
                             if(angular.isFunction(options.onReady) && !options.tree.ready){
