@@ -321,8 +321,13 @@ angular.module('ai.passport.factory', [])
 
                 // sync passport with server.
                 // checking for session.
-                $module.sync = function sync() {
+                $module.sync = function sync(resync, data) {
+                  if(typeof resync === 'object'){
+                        data = resync;
+                        resync = undefined;
+                    }
                     function done(obj) {
+
                         if(obj) {
                             var user = $module.findByNotation(obj, $module.options.userKey);
                             var roles = $module.findByNotation(obj, $module.options.rolesKey);
@@ -333,27 +338,42 @@ angular.module('ai.passport.factory', [])
                             if($module.options.extendKeys)
                                 extendModule($module.options.extendKeys, obj);
                         }
+
                     }
+
                     if(!$module.options.syncAction)
                         return done();
+
                     if(angular.isFunction($module.options.syncAction)){
                         var obj = $module.options.syncAction.call($module);
                         done(obj);
+
                     } else {
+
                         var url = urlToObject($module.options.syncAction);
+
                         if (url.method && url.path) {
-                            $http[url.method](url.path).then(function (res) {
+                            var conf = { method: url.method, url: url.path };
+                            data = data || {};
+                            data.resync = resync;
+                            if(conf.method.toLowerCase() === 'get')
+                                conf.params = data;
+                            else
+                                conf.data = data;
+                            $http(conf).then(function (res) {
                                 if(res){
                                     done(res.data);
                                     if(angular.isFunction($module.options.onSyncSuccess))
-                                        return $module.options.onSyncSuccess.call($module, res, $module.user);                                                                            
+                                        return $module.options.onSyncSuccess
+                                            .call($module, res, $module.user);
                                 }                  
                             }, function (res) {
-                                    if(console && console.warn)
-                                        console.warn(res.data);
+                                if(console && console.warn)
+                                    console.warn(res.data);
                             });
                         }
                     }
+
                 };
 
                 // expects string.
