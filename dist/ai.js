@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.2.6
+* Version: 0.2.8
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -592,26 +592,29 @@ angular.module('ai.flash.factory', ['ai.helpers'])
 
         // default settings.
         defaults = {
-            template: 'ai-flash.html',              // the template for flash message.
-            errorKey: 'err',
-                                                    // if undefined validation errors are undefined.
-            excludeErrors: [401, 403, 404],         // exclude errors by status type.           
-            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
-            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
-                          'has occurred, if the ' +
-                          'problem persists ' +
-                          'please contact the ' +
-                          'administrator.',
-            title: undefined,                       // when true flash error messages use the error name as the title
-                                                    // in the flash message.
-            stack: false,                           // when true stack trace is shown.
-            multiple: false,                        // whether to allow multiple flash messages at same time.
-            type: 'info',                           // the default type of message to show also the css class name.
-            typeError: 'danger',                    // the error type or class name for error messages.
-            timeout: 0,                          // timeout to auto remove flashes after period of time..
-                                                    // instead of by timeout.
-            intercept: undefined,                   // when false flash error interception is disabled.
-            onError: undefined                      // callback on error before flashed, return false to ignore.
+          template: 'ai-flash.html',              // the template for flash message.
+          errorKey: undefined,                    // when provided flash intercept
+                                              // errors will look for this key
+                                              // in the res.data object. Otherwise
+                                              // it is assumed that the object if provided is the error itself.
+          excludeErrors: [401, 403, 404],         // exclude errors by status type.
+          errorName: 'Server Error',         // the error name to use in event and error.name is not valid.
+          errorMessage: 'An unknown error ' + // default error message in event one is not provided.
+                        'has occurred, if the ' +
+                        'problem persists ' +
+                        'please contact the ' +
+                        'administrator.',
+          title: undefined,                       // when true flash error messages use the error name as the title
+                                                  // in the flash message.
+          multiple: false,                        // whether to allow multiple flash messages at same time.
+          typeDefault: 'info',                    // the default type of message to show.
+          typeError: 'danger',                    // the error type or class name for error messages.
+          timeout: 0,                          // timeout to auto remove flashes after period of time..
+                                                  // instead of by timeout.
+          intercept: undefined,                   // when false flash error interception is disabled.
+          logError: undefined,                  // When NOT false and when stack exists log the error to the console.
+          onError: undefined                      // callback on error before flashed, return false to ignore.
+
         };
 
         // set global provider options.
@@ -629,7 +632,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
             function get($rootScope, $timeout, $helpers) {
 
             var flashTemplate, $module;
- 
+
             flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
                             'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
                                 '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
@@ -652,13 +655,13 @@ angular.module('ai.flash.factory', ['ai.helpers'])
             // The flash factory
             function ModuleFactory() {
 
-                var flashes = [],          
+                var flashes = [],
                     scope,
                     body,
                     overflows,
                     element,
                     options;
-                
+
                 $module = {};
                 options = {};
 
@@ -675,7 +678,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                         }
                     }, flash.timeout);
                 }
-                
+
                 // add a new flash message.
                 function add(message, type, title, timeout) {
                     var flashDefaults = {
@@ -718,7 +721,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
 
                     }
                 }
-                
+
                 // remove a specific flash message.
                 function remove(flash) {
                     if(flash && flashes.length) {
@@ -729,9 +732,9 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                                 element.removeClass('show');
                         }
                     }
-                    
+
                 }
-                
+
                 // remove all flash messages in collection.
                 function removeAll(force) {
                     if(force)
@@ -758,7 +761,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                 function leave(flash) {
                     flash.focus = false;
                 }
-                
+
                 function suppress() {
                     $module.suppressed = false;
                 }
@@ -775,7 +778,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     if(scope)
                         scope.options = options;
                 }
-                
+
                 function destroy() {
                     if(element)
                         element.removeClass('show');
@@ -784,23 +787,24 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     scope.flashes = $module.flashes = flashes = [];
                     scope.$destroy();
                 }
-                
+
                 // get overflows and body.
                 body = $helpers.findElement('body');
                 overflows = $helpers.getOverflow();
-                
+
                 function init(_element, _options, attrs) {
-                    
+
                     element = _element;
 
                     // parse out relevant options
                     // from attributes.
                    attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-                    
-                    // extend options      
+
+                    // extend options
                     $module.scope = scope = _options.scope || $rootScope.$new();
                     options = angular.extend({}, defaults, attrs, options, _options);
                     options.onError = options.onError || function () { return true; };
+                    options.type = options.type || options.typeDefault;
                     $module.options = scope.options = options;
 
                     scope.add = add;
@@ -846,12 +850,12 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     scope.$on('destroy', function () {
                         $module.destroy();
                     });
-                    
+
                 }
 
                 $module.set = setOptions;
                 $module.init = init;
-                
+
                 return $module;
             }
 
@@ -906,65 +910,109 @@ angular.module('ai.flash.interceptor', [])
     .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
         return {
             responseError: function(res) {
-                
-                // get passport here to prevent circular dependency.
-                var flash = $injector.get('$flash'),
-                    excludeErrors;
+              // get flash here to prevent circular dependency.
+              var flash = $injector.get('$flash'),
+                  excludeErrors;
 
-                
-                // if interception is disabled
-                // don't handle/show message.
-                if(!flash.options || flash.options.intercept === false || flash.suppressed){
-                    flash.suppressed = false;
-                    return res;
+              function handleFlashError(errObj){
+
+                var name, message, tmpObj, status;
+
+                // Check if res.data is error or is property
+                // within the res.data object.
+                if(flash.options.errorKey) {
+                  tmpObj = errObj[flash.options.errorKey];
+                  if (tmpObj)
+                    errObj = tmpObj;
+                }
+                // Ensure error object. If message not found
+                // try to locate nested error object by common
+                // names.
+                else {
+                  if (!errObj.message)
+                    tmpObj = errObj['err'] || errObj['error'];
+                    if (tmpObj && tmpObj.message)
+                      errObj = tmpObj;
                 }
 
-                excludeErrors = flash.options.excludeErrors || [];
-                
-                function handleFlashError(errObj){
-                    var name, message, stack;
-                    if(flash.options.errorKey && errObj[flash.options.errorKey])
-                        errObj = errObj[flash.options.errorKey];
-                    name = errObj.displayName || errObj.name || flash.options.errorName;
-                    message = errObj.message || flash.options.errorMessage;
-                    stack = errObj.stack || '';
-                    // handle stack trace.
-                    if(stack && flash.options.stack){
-                        if(angular.isArray(stack))
-                            stack = stack.join('<br/>');
-                        if(angular.isString(stack) && /\\n/g.test(stack))
-                            stack = stack.split('\n').join('<br/>');
-                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
-                    }
-                    message = '<strong>Message:</strong> ' + message;
-                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
-                    // finally display the flash message.
-                    if(flash.options.title !== false)
-                        flash.add(message, flash.options.typeError, name);
-                    else
-                        flash.add(message, flash.options.typeError);
-                    return $q.reject(res);
+                name = errObj.displayName || errObj.name;
+                message = errObj.message;
+                status = errObj.status || res.status || 500;
+
+
+                // Format the message.
+                message = '<strong>Message:</strong> ' + message;
+
+                // Message may contain unnecessary text.
+                message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
+
+                // Check if should be logged to console.
+                // Only valid when stack is present.
+                if (flash.options.logError !== false && errObj.stack) {
+                  var logErr = new Error(errObj.message);
+                  logErr.stack = errObj.stack;
+                  logErr.name = errObj.name;
+                  logErr.status = errObj.status;
+                  if (console.warn)
+                    console.error(logErr);
+                  else
+                    console.log(logErr);
                 }
-                
-                if(res.status && excludeErrors.indexOf(res.status) === -1){
-                    // handle error using flash.
-                    if(!res.data){                        
-                        if(flash.options.title !== false)
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
-                        else
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger');
-                        return $q.reject(res);
-                    } else {
-                        var err = res.data;                     
-                        $q.when(flash.options.onError(res, flash)).then(function (result) {
-                            if(result){                                
-                                if(result === true)
-                                    result = err;                             
-                                handleFlashError(result);                                
-                            }                                
-                        });                        
-                    }
-                }
+
+                // finally display the flash message.
+                if(flash.options.title !== false)
+                    flash.add(message, flash.options.typeError, status + ' - ' +name);
+                else
+                    flash.add(message, flash.options.typeError);
+
+                return $q.reject(res);
+
+              }
+
+              // If interception is disabled
+              // don't handle/show message.
+              if(!flash.options || flash.options.intercept === false ||
+              flash.suppressed){
+                  flash.suppressed = false;
+                  return res;
+              }
+
+              excludeErrors = flash.options.excludeErrors || [];
+
+              if (res.status && excludeErrors.indexOf(res.status.toString()) === -1) {
+
+                  // If no data in response handle
+                  // error by status and status text only.
+                  if(!res.data){
+
+                      if(flash.options.title !== false)
+                          flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
+                      else
+                          flash.add(res.statusText, flash.options.typeError || 'flash-danger');
+
+                      return $q.reject(res);
+
+                  }
+
+                  // Otherwise handle error using the
+                  // provided response data.
+                  else {
+
+                      var err = res.data;
+
+                      $q.when(flash.options.onError(res, flash)).then(function (result) {
+                          if(result){
+                              if(result === true)
+                                  result = err;
+                              handleFlashError(result);
+                          }
+
+                      });
+
+                  }
+
+              }
+
             },
             response: function (res) {
                 var flash = $injector.get('$flash');
@@ -973,7 +1021,7 @@ angular.module('ai.flash.interceptor', [])
                 return res || $q.when(res);
             }
         };
-        
+
     }])
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.interceptors.push('$flashInterceptor');
@@ -2439,8 +2487,13 @@ angular.module('ai.passport.factory', [])
 
                 // sync passport with server.
                 // checking for session.
-                $module.sync = function sync() {
+                $module.sync = function sync(resync, data) {
+                  if(typeof resync === 'object'){
+                        data = resync;
+                        resync = undefined;
+                    }
                     function done(obj) {
+
                         if(obj) {
                             var user = $module.findByNotation(obj, $module.options.userKey);
                             var roles = $module.findByNotation(obj, $module.options.rolesKey);
@@ -2451,27 +2504,42 @@ angular.module('ai.passport.factory', [])
                             if($module.options.extendKeys)
                                 extendModule($module.options.extendKeys, obj);
                         }
+
                     }
+
                     if(!$module.options.syncAction)
                         return done();
+
                     if(angular.isFunction($module.options.syncAction)){
                         var obj = $module.options.syncAction.call($module);
                         done(obj);
+
                     } else {
+
                         var url = urlToObject($module.options.syncAction);
+
                         if (url.method && url.path) {
-                            $http[url.method](url.path).then(function (res) {
+                            var conf = { method: url.method, url: url.path };
+                            data = data || {};
+                            data.resync = resync;
+                            if(conf.method.toLowerCase() === 'get')
+                                conf.params = data;
+                            else
+                                conf.data = data;
+                            $http(conf).then(function (res) {
                                 if(res){
                                     done(res.data);
                                     if(angular.isFunction($module.options.onSyncSuccess))
-                                        return $module.options.onSyncSuccess.call($module, res, $module.user);                                                                            
+                                        return $module.options.onSyncSuccess
+                                            .call($module, res, $module.user);
                                 }                  
                             }, function (res) {
-                                    if(console && console.warn)
-                                        console.warn(res.data);
+                                if(console && console.warn)
+                                    console.warn(res.data);
                             });
                         }
                     }
+
                 };
 
                 // expects string.
@@ -2695,6 +2763,355 @@ angular.module('ai.passport', [
     'ai.passport.interceptor',
     'ai.passport.route'
 ]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         */
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend({}, defaults, obj);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
+
 angular.module('ai.step', ['ai.helpers'])
 
 .provider('$step', function $step() {
@@ -3193,355 +3610,6 @@ angular.module('ai.step', ['ai.helpers'])
     };
 
 }]);
-angular.module('ai.storage', [])
-
-    .provider('$storage', function $storage() {
-
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
-        }, get, set;
-
-
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
-        }
-
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
-            }
-            return def;
-        }
-
-        /**
-         * Sets provider defaults.
-         */
-        set = function (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend({}, defaults, obj);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
-
 
 angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
@@ -3741,8 +3809,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     '</div>' +
                     '<div class="col-sm-6 span-6 text-right">' +
                     '<label ng-show="changeable">Displayed</label>' +
-                    '<select ng-show="changeable" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing">' +
-                    '<option ng-repeat="d in displayed">{{d}}</option>' +
+                    '<select ng-show="changeable !== false" class="form-control" ng-model="display" ng-change="changeDisplay(display)" ng-disabled="editing" ng-options="d as d for d in displayed">' +
+                    //'<option ng-repeat="d in displayed">{{d}}</option>' +
                     '</select>' +
                     '<button ng-click="selectAllRows(true)" ng-show="!selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Select All</button>' +
                     '<button style="min-width: 80px;" ng-click="selectAllRows(false)" ng-show="selectAll && selectable && selectableAll" class="btn btn-primary" ng-model="selectAll" ng-disabled="editing">Clear All</button>' +

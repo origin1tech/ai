@@ -7,26 +7,29 @@ angular.module('ai.flash.factory', ['ai.helpers'])
 
         // default settings.
         defaults = {
-            template: 'ai-flash.html',              // the template for flash message.
-            errorKey: 'err',
-                                                    // if undefined validation errors are undefined.
-            excludeErrors: [401, 403, 404],         // exclude errors by status type.           
-            errorName: 'Unknown Exception',         // the error name to use in event and error.name is not valid.
-            errorMessage: 'An unknown exception ' + // default error message in event one is not provided.
-                          'has occurred, if the ' +
-                          'problem persists ' +
-                          'please contact the ' +
-                          'administrator.',
-            title: undefined,                       // when true flash error messages use the error name as the title
-                                                    // in the flash message.
-            stack: false,                           // when true stack trace is shown.
-            multiple: false,                        // whether to allow multiple flash messages at same time.
-            type: 'info',                           // the default type of message to show also the css class name.
-            typeError: 'danger',                    // the error type or class name for error messages.
-            timeout: 0,                          // timeout to auto remove flashes after period of time..
-                                                    // instead of by timeout.
-            intercept: undefined,                   // when false flash error interception is disabled.
-            onError: undefined                      // callback on error before flashed, return false to ignore.
+          template: 'ai-flash.html',              // the template for flash message.
+          errorKey: undefined,                    // when provided flash intercept
+                                              // errors will look for this key
+                                              // in the res.data object. Otherwise
+                                              // it is assumed that the object if provided is the error itself.
+          excludeErrors: [401, 403, 404],         // exclude errors by status type.
+          errorName: 'Server Error',         // the error name to use in event and error.name is not valid.
+          errorMessage: 'An unknown error ' + // default error message in event one is not provided.
+                        'has occurred, if the ' +
+                        'problem persists ' +
+                        'please contact the ' +
+                        'administrator.',
+          title: undefined,                       // when true flash error messages use the error name as the title
+                                                  // in the flash message.
+          multiple: false,                        // whether to allow multiple flash messages at same time.
+          typeDefault: 'info',                    // the default type of message to show.
+          typeError: 'danger',                    // the error type or class name for error messages.
+          timeout: 0,                          // timeout to auto remove flashes after period of time..
+                                                  // instead of by timeout.
+          intercept: undefined,                   // when false flash error interception is disabled.
+          logError: undefined,                  // When NOT false and when stack exists log the error to the console.
+          onError: undefined                      // callback on error before flashed, return false to ignore.
+
         };
 
         // set global provider options.
@@ -44,7 +47,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
             function get($rootScope, $timeout, $helpers) {
 
             var flashTemplate, $module;
- 
+
             flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
                             'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
                                 '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
@@ -67,13 +70,13 @@ angular.module('ai.flash.factory', ['ai.helpers'])
             // The flash factory
             function ModuleFactory() {
 
-                var flashes = [],          
+                var flashes = [],
                     scope,
                     body,
                     overflows,
                     element,
                     options;
-                
+
                 $module = {};
                 options = {};
 
@@ -90,7 +93,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                         }
                     }, flash.timeout);
                 }
-                
+
                 // add a new flash message.
                 function add(message, type, title, timeout) {
                     var flashDefaults = {
@@ -133,7 +136,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
 
                     }
                 }
-                
+
                 // remove a specific flash message.
                 function remove(flash) {
                     if(flash && flashes.length) {
@@ -144,9 +147,9 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                                 element.removeClass('show');
                         }
                     }
-                    
+
                 }
-                
+
                 // remove all flash messages in collection.
                 function removeAll(force) {
                     if(force)
@@ -173,7 +176,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                 function leave(flash) {
                     flash.focus = false;
                 }
-                
+
                 function suppress() {
                     $module.suppressed = false;
                 }
@@ -190,7 +193,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     if(scope)
                         scope.options = options;
                 }
-                
+
                 function destroy() {
                     if(element)
                         element.removeClass('show');
@@ -199,23 +202,24 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     scope.flashes = $module.flashes = flashes = [];
                     scope.$destroy();
                 }
-                
+
                 // get overflows and body.
                 body = $helpers.findElement('body');
                 overflows = $helpers.getOverflow();
-                
+
                 function init(_element, _options, attrs) {
-                    
+
                     element = _element;
 
                     // parse out relevant options
                     // from attributes.
                    attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-                    
-                    // extend options      
+
+                    // extend options
                     $module.scope = scope = _options.scope || $rootScope.$new();
                     options = angular.extend({}, defaults, attrs, options, _options);
                     options.onError = options.onError || function () { return true; };
+                    options.type = options.type || options.typeDefault;
                     $module.options = scope.options = options;
 
                     scope.add = add;
@@ -261,12 +265,12 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     scope.$on('destroy', function () {
                         $module.destroy();
                     });
-                    
+
                 }
 
                 $module.set = setOptions;
                 $module.init = init;
-                
+
                 return $module;
             }
 
@@ -321,65 +325,109 @@ angular.module('ai.flash.interceptor', [])
     .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
         return {
             responseError: function(res) {
-                
-                // get passport here to prevent circular dependency.
-                var flash = $injector.get('$flash'),
-                    excludeErrors;
+              // get flash here to prevent circular dependency.
+              var flash = $injector.get('$flash'),
+                  excludeErrors;
 
-                
-                // if interception is disabled
-                // don't handle/show message.
-                if(!flash.options || flash.options.intercept === false || flash.suppressed){
-                    flash.suppressed = false;
-                    return res;
+              function handleFlashError(errObj){
+
+                var name, message, tmpObj, status;
+
+                // Check if res.data is error or is property
+                // within the res.data object.
+                if(flash.options.errorKey) {
+                  tmpObj = errObj[flash.options.errorKey];
+                  if (tmpObj)
+                    errObj = tmpObj;
+                }
+                // Ensure error object. If message not found
+                // try to locate nested error object by common
+                // names.
+                else {
+                  if (!errObj.message)
+                    tmpObj = errObj['err'] || errObj['error'];
+                    if (tmpObj && tmpObj.message)
+                      errObj = tmpObj;
                 }
 
-                excludeErrors = flash.options.excludeErrors || [];
-                
-                function handleFlashError(errObj){
-                    var name, message, stack;
-                    if(flash.options.errorKey && errObj[flash.options.errorKey])
-                        errObj = errObj[flash.options.errorKey];
-                    name = errObj.displayName || errObj.name || flash.options.errorName;
-                    message = errObj.message || flash.options.errorMessage;
-                    stack = errObj.stack || '';
-                    // handle stack trace.
-                    if(stack && flash.options.stack){
-                        if(angular.isArray(stack))
-                            stack = stack.join('<br/>');
-                        if(angular.isString(stack) && /\\n/g.test(stack))
-                            stack = stack.split('\n').join('<br/>');
-                        message += ('<br/><strong>Stack Trace:</strong><br/>' +  stack);
-                    }
-                    message = '<strong>Message:</strong> ' + message;
-                    message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
-                    // finally display the flash message.
-                    if(flash.options.title !== false)
-                        flash.add(message, flash.options.typeError, name);
-                    else
-                        flash.add(message, flash.options.typeError);
-                    return $q.reject(res);
+                name = errObj.displayName || errObj.name;
+                message = errObj.message;
+                status = errObj.status || res.status || 500;
+
+
+                // Format the message.
+                message = '<strong>Message:</strong> ' + message;
+
+                // Message may contain unnecessary text.
+                message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
+
+                // Check if should be logged to console.
+                // Only valid when stack is present.
+                if (flash.options.logError !== false && errObj.stack) {
+                  var logErr = new Error(errObj.message);
+                  logErr.stack = errObj.stack;
+                  logErr.name = errObj.name;
+                  logErr.status = errObj.status;
+                  if (console.warn)
+                    console.error(logErr);
+                  else
+                    console.log(logErr);
                 }
-                
-                if(res.status && excludeErrors.indexOf(res.status) === -1){
-                    // handle error using flash.
-                    if(!res.data){                        
-                        if(flash.options.title !== false)
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
-                        else
-                            flash.add(res.statusText, flash.options.typeError || 'flash-danger');
-                        return $q.reject(res);
-                    } else {
-                        var err = res.data;                     
-                        $q.when(flash.options.onError(res, flash)).then(function (result) {
-                            if(result){                                
-                                if(result === true)
-                                    result = err;                             
-                                handleFlashError(result);                                
-                            }                                
-                        });                        
-                    }
-                }
+
+                // finally display the flash message.
+                if(flash.options.title !== false)
+                    flash.add(message, flash.options.typeError, status + ' - ' +name);
+                else
+                    flash.add(message, flash.options.typeError);
+
+                return $q.reject(res);
+
+              }
+
+              // If interception is disabled
+              // don't handle/show message.
+              if(!flash.options || flash.options.intercept === false ||
+              flash.suppressed){
+                  flash.suppressed = false;
+                  return res;
+              }
+
+              excludeErrors = flash.options.excludeErrors || [];
+
+              if (res.status && excludeErrors.indexOf(res.status.toString()) === -1) {
+
+                  // If no data in response handle
+                  // error by status and status text only.
+                  if(!res.data){
+
+                      if(flash.options.title !== false)
+                          flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
+                      else
+                          flash.add(res.statusText, flash.options.typeError || 'flash-danger');
+
+                      return $q.reject(res);
+
+                  }
+
+                  // Otherwise handle error using the
+                  // provided response data.
+                  else {
+
+                      var err = res.data;
+
+                      $q.when(flash.options.onError(res, flash)).then(function (result) {
+                          if(result){
+                              if(result === true)
+                                  result = err;
+                              handleFlashError(result);
+                          }
+
+                      });
+
+                  }
+
+              }
+
             },
             response: function (res) {
                 var flash = $injector.get('$flash');
@@ -388,7 +436,7 @@ angular.module('ai.flash.interceptor', [])
                 return res || $q.when(res);
             }
         };
-        
+
     }])
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.interceptors.push('$flashInterceptor');

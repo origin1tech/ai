@@ -19,19 +19,19 @@
   border: 1px solid #e1e1e1;
   border-radius: 4px; }
   .ai-flash-item.info {
-    color: #31718f;
+    color: #31708f;
     background-color: #d0e5ef;
-    border-color: #bde2e8; }
+    border-color: #bde1e8; }
   .ai-flash-item.success {
     color: #3c763d;
     background-color: #cce5cc;
-    border-color: #c1dcbb; }
+    border-color: #c0dcbb; }
   .ai-flash-item.warning {
-    color: #8a7a35;
-    background-color: #ede8d1;
-    border-color: #e6d8be; }
+    color: #8a7d35;
+    background-color: #ede9d1;
+    border-color: #e6d9be; }
   .ai-flash-item.danger {
-    color: #973b3b;
+    color: #973d3b;
     background-color: #f2dfde;
     border-color: #ebccd1; }
 
@@ -57,14 +57,12 @@
 @-webkit-keyframes table-loader-fadeIn {
   0% {
     opacity: 0; }
-
   100% {
     opacity: 1; } }
 
 @keyframes table-loader-fadeIn {
   0% {
     opacity: 0; }
-
   100% {
     opacity: 1; } }
 
@@ -78,12 +76,15 @@ table {
   margin: 0 6px;
   font-weight: normal;
   padding-top: 5px; }
+
 .ai-table-actions-options input.goto {
   max-width: 60px;
   margin-right: -3px; }
+
 .ai-table-actions-options button {
   margin-left: 8px;
   margin-top: -1px; }
+
 .ai-table-actions-options a {
   margin-top: -1px; }
 
@@ -120,6 +121,7 @@ table {
 
 .ai-table-pager ul {
   margin-top: 0px; }
+
 .ai-table-pager ul li {
   cursor: pointer; }
   .ai-table-pager ul li.disabled {
@@ -184,7 +186,7 @@ table {
   padding: 8px;
   background-color: #ffbebe;
   border-radius: 4px;
-  color: #ff0b0b;
+  color: #ff0c0c;
   border: 1px solid #ff7272; }
   .ai-validate-summary li {
     margin-top: 3px; }
@@ -195,8 +197,8 @@ table {
   -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
   -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
-  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
-  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }
+  -webkit-transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s;
+  transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s; }
 
 input.ng-invalid.ng-dirty:not(:focus), select.ng-invalid.ng-dirty:not(:focus), textarea.ng-invalid.ng-dirty:not(:focus), button.ng-invalid:not(:focus) {
   outline: 0;
@@ -204,8 +206,8 @@ input.ng-invalid.ng-dirty:not(:focus), select.ng-invalid.ng-dirty:not(:focus), t
   -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
   -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
-  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
-  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }
+  -webkit-transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s;
+  transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s; }
 
 form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-invalid:not(:focus), form.ng-submitted textarea.ng-invalid:not(:focus), form.ng-submitted button.ng-invalid:not(:focus) {
   outline: 0;
@@ -213,8 +215,8 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
   -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
   -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(255, 1, 1, 0.6);
-  -webkit-transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s;
-  transition: border-color ease-in-out 0.09s, box-shadow ease-in-out 0.09s; }
+  -webkit-transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s;
+  transition: border-color ease-in-out .09s, box-shadow ease-in-out .09s; }
 
 .ai-step-header {
   overflow: hidden;
@@ -419,7 +421,7 @@ form.ng-submitted input.ng-invalid:not(:focus), form.ng-submitted select.ng-inva
     .ai-list .ai-list-items > div h5 {
       padding: 3px 10px; }
 
-.select-none, .ai-loader.ai-loader-page > div, .ai-loader.ai-loader-page p, .ai-loader.ai-loader-page svg, ai-loader.ai-loader-page > div, ai-loader.ai-loader-page p, ai-loader.ai-loader-page svg, [ai-loader].ai-loader-page > div, [ai-loader].ai-loader-page p, [ai-loader].ai-loader-page svg {
+.select-none, .ai-loader.ai-loader-page > div, .ai-loader.ai-loader-page p, .ai-loader.ai-loader-page svg, ai-loader.ai-loader-page > div, ai-loader.ai-loader-page p, ai-loader.ai-loader-page svg {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -khtml-user-select: none;
