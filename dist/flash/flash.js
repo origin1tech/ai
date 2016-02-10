@@ -50,9 +50,9 @@ angular.module('ai.flash.factory', ['ai.helpers'])
 
             flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
                             'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
-                                '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
+                                '<a ng-if="flash.showClose !== false" class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
                                 '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
-                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
+                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div><button type="button" class="btn" ng-class="flash.closedBtnStyle" ng-if="flash.closedBtn" ng-bind="flash.closedBtnText" ng-click="remove(flash)"></button>' +
                             '</div>';
 
             $helpers.getPutTemplate(defaults.template, flashTemplate);
@@ -96,22 +96,32 @@ angular.module('ai.flash.factory', ['ai.helpers'])
 
                 // add a new flash message.
                 function add(message, type, title, timeout) {
+
                     var flashDefaults = {
                             title: undefined,
                             type: options.type,
                             focus: false,
                             show: false,
-                            timeout: false
+                            timeout: false,
+                            onClosed: undefined,
+                            closedBtn: false,
+                            closedBtnStyle: 'btn-primary',
+                            closedBtnText: 'Close'
                         }, flash = {}, tmpTitle;
+
                     title = tryParseTimeout(title);
                     timeout = tryParseTimeout(timeout);
-                    // if title is number assume timeout
+
+                    if(!options.multiple)
+                        flashes = [];
+
+                    // If title is number assume timeout
                     if(angular.isNumber(title) || 'boolean' === typeof title){
                         timeout = title;
                         title = undefined;
                     }
-                    if(!options.multiple)
-                        flashes = [];
+
+
                     // if message is not object create Flash.
                     if(!angular.isObject(message)){
                         flash = {
@@ -121,25 +131,41 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                             timeout: timeout || options.timeout
                         };
                     }
+                    else {
+                      flash = message;
+                    }
+
                     // extend object with defaults.
                     flash = angular.extend({}, flashDefaults, flash);
-                    // set the default timeout if true was passed.
+
+                  // set the default timeout if true was passed.
                     if(flash.timeout === true)
                         flash.timeout = options.timeout;
+
                     if(flash.message) {
+
                         flashes.push(flash);
+
                         $module.flashes = scope.flashes = flashes;
+
                         body.css({ overflow: 'hidden'});
+
                         element.addClass('show');
+
                         if(flash.timeout)
                             autoRemove(flash);
 
                     }
+
+                    return flash;
+
                 }
 
                 // remove a specific flash message.
                 function remove(flash) {
                     if(flash && flashes.length) {
+                        if (flash.onClosed)
+                          flash.onClosed($module);
                         flashes.splice(flashes.indexOf(flash), 1);
                         if(!flashes.length){
                             body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
@@ -231,6 +257,7 @@ angular.module('ai.flash.factory', ['ai.helpers'])
                     scope.set = setOptions;
                     scope.suppress = suppress;
 
+                    $module.set = setOptions;
                     $module.add = add;
                     $module.remove = remove;
                     $module.removeAll = removeAll;

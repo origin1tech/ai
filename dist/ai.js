@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.2.8
+* Version: 0.2.9
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -233,6 +233,483 @@ angular.module('ai.helpers', [])
     };
         
 }]);
+
+angular.module('ai.flash.factory', ['ai.helpers'])
+
+    .provider('$flash', function $flash() {
+
+        var defaults, get, set;
+
+        // default settings.
+        defaults = {
+          template: 'ai-flash.html',              // the template for flash message.
+          errorKey: undefined,                    // when provided flash intercept
+                                              // errors will look for this key
+                                              // in the res.data object. Otherwise
+                                              // it is assumed that the object if provided is the error itself.
+          excludeErrors: [401, 403, 404],         // exclude errors by status type.
+          errorName: 'Server Error',         // the error name to use in event and error.name is not valid.
+          errorMessage: 'An unknown error ' + // default error message in event one is not provided.
+                        'has occurred, if the ' +
+                        'problem persists ' +
+                        'please contact the ' +
+                        'administrator.',
+          title: undefined,                       // when true flash error messages use the error name as the title
+                                                  // in the flash message.
+          multiple: false,                        // whether to allow multiple flash messages at same time.
+          typeDefault: 'info',                    // the default type of message to show.
+          typeError: 'danger',                    // the error type or class name for error messages.
+          timeout: 0,                          // timeout to auto remove flashes after period of time..
+                                                  // instead of by timeout.
+          intercept: undefined,                   // when false flash error interception is disabled.
+          logError: undefined,                  // When NOT false and when stack exists log the error to the console.
+          onError: undefined                      // callback on error before flashed, return false to ignore.
+
+        };
+
+        // set global provider options.
+        set = function set(key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend(defaults, obj);
+        };
+
+        // get provider
+        get = ['$rootScope', '$timeout', '$helpers',
+            function get($rootScope, $timeout, $helpers) {
+
+            var flashTemplate, $module;
+
+            flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
+                            'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
+                                '<a ng-if="flash.showClose !== false" class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
+                                '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
+                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div><button type="button" class="btn" ng-class="flash.closedBtnStyle" ng-if="flash.closedBtn" ng-bind="flash.closedBtnText" ng-click="remove(flash)"></button>' +
+                            '</div>';
+
+            $helpers.getPutTemplate(defaults.template, flashTemplate);
+
+            function tryParseTimeout(to) {
+                if(undefined === to)
+                    return to;
+                try{
+                   return JSON.parse(to);
+                } catch(ex){
+                    return to;
+                }
+            }
+
+            // The flash factory
+            function ModuleFactory() {
+
+                var flashes = [],
+                    scope,
+                    body,
+                    overflows,
+                    element,
+                    options;
+
+                $module = {};
+                options = {};
+
+                // uses timeout to auto remove flash message.
+                function autoRemove(flash) {
+                    clearTimeout(flash.timeoutId);
+                    flash.timeoutId = $timeout(function () {
+                        if(flash.focus) {
+                            clearTimeout(flash.timeoutId);
+                            autoRemove(flash);
+                        } else {
+                            clearTimeout(flash.timeoutId);
+                            remove(flash);
+                        }
+                    }, flash.timeout);
+                }
+
+                // add a new flash message.
+                function add(message, type, title, timeout) {
+
+                    var flashDefaults = {
+                            title: undefined,
+                            type: options.type,
+                            focus: false,
+                            show: false,
+                            timeout: false,
+                            onClosed: undefined,
+                            closedBtn: false,
+                            closedBtnStyle: 'btn-primary',
+                            closedBtnText: 'Close'
+                        }, flash = {}, tmpTitle;
+
+                    title = tryParseTimeout(title);
+                    timeout = tryParseTimeout(timeout);
+
+                    if(!options.multiple)
+                        flashes = [];
+
+                    // If title is number assume timeout
+                    if(angular.isNumber(title) || 'boolean' === typeof title){
+                        timeout = title;
+                        title = undefined;
+                    }
+
+
+                    // if message is not object create Flash.
+                    if(!angular.isObject(message)){
+                        flash = {
+                            message: message,
+                            type: type || options.type,
+                            title: title || options.title,
+                            timeout: timeout || options.timeout
+                        };
+                    }
+                    else {
+                      flash = message;
+                    }
+
+                    // extend object with defaults.
+                    flash = angular.extend({}, flashDefaults, flash);
+
+                  // set the default timeout if true was passed.
+                    if(flash.timeout === true)
+                        flash.timeout = options.timeout;
+
+                    if(flash.message) {
+
+                        flashes.push(flash);
+
+                        $module.flashes = scope.flashes = flashes;
+
+                        body.css({ overflow: 'hidden'});
+
+                        element.addClass('show');
+
+                        if(flash.timeout)
+                            autoRemove(flash);
+
+                    }
+
+                    return flash;
+
+                }
+
+                // remove a specific flash message.
+                function remove(flash) {
+                    if(flash && flashes.length) {
+                        if (flash.onClosed)
+                          flash.onClosed($module);
+                        flashes.splice(flashes.indexOf(flash), 1);
+                        if(!flashes.length){
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                            if(element)
+                                element.removeClass('show');
+                        }
+                    }
+
+                }
+
+                // remove all flash messages in collection.
+                function removeAll(force) {
+                    if(force)
+                        scope.flashes = $module.flashes = flashes = [];
+                    else
+                        if(flashes.length) {
+                            angular.forEach(scope.flashes, function (flash) {
+                                if(flash.shown === true)
+                                    remove(flash);
+                                else
+                                    flash.shown = true;
+                            });
+                        }
+                }
+
+                // on flash enter set its focus to true
+                // so it is not removed while being read.
+                function enter(flash) {
+                    flash.focus = true;
+                }
+
+                // on leave set the focus to false
+                // can now be removed.
+                function leave(flash) {
+                    flash.focus = false;
+                }
+
+                function suppress() {
+                    $module.suppressed = false;
+                }
+
+                function setOptions(key, value) {
+                    var obj = key;
+                    if(arguments.length > 1){
+                        obj = {};
+                        obj[key] = value;
+                    }
+                    $module = $module || {};
+                    scope = scope || {};
+                    options = $module.options = angular.extend(options, obj);
+                    if(scope)
+                        scope.options = options;
+                }
+
+                function destroy() {
+                    if(element)
+                        element.removeClass('show');
+                    if(body)
+                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                    scope.flashes = $module.flashes = flashes = [];
+                    scope.$destroy();
+                }
+
+                // get overflows and body.
+                body = $helpers.findElement('body');
+                overflows = $helpers.getOverflow();
+
+                function init(_element, _options, attrs) {
+
+                    element = _element;
+
+                    // parse out relevant options
+                    // from attributes.
+                   attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+                    // extend options
+                    $module.scope = scope = _options.scope || $rootScope.$new();
+                    options = angular.extend({}, defaults, attrs, options, _options);
+                    options.onError = options.onError || function () { return true; };
+                    options.type = options.type || options.typeDefault;
+                    $module.options = scope.options = options;
+
+                    scope.add = add;
+                    scope.remove = remove;
+                    scope.removeAll = removeAll;
+                    scope.flashes = flashes;
+                    scope.leave = leave;
+                    scope.enter = enter;
+                    scope.set = setOptions;
+                    scope.suppress = suppress;
+
+                    $module.set = setOptions;
+                    $module.add = add;
+                    $module.remove = remove;
+                    $module.removeAll = removeAll;
+                    $module.suppress = suppress;
+
+                    // load the template.
+                    $helpers.loadTemplate(options.template).then(function (template) {
+                        if(template) {
+                            element.html(template);
+                            $helpers.compile(scope, element.contents());
+                            element.addClass('ai-flash');
+                        } else {
+                            console.error('Error loading $flash template.');
+                        }
+                    });
+
+                    // when route changes be sure
+                    // to remove all flashes.
+                    $rootScope.$on('$locationChangeStart', function () {
+                        if(element)
+                            element.removeClass('show');
+                        if(body)
+                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
+                        scope.flashes = $module.flashes = flashes = [];
+                    });
+
+                    scope.$watch($module.options, function (newVal, oldVal) {
+                        if(newVal === oldVal) return;
+                        scope.options = newVal;
+                    });
+
+                    scope.$on('destroy', function () {
+                        $module.destroy();
+                    });
+
+                }
+
+                $module.set = setOptions;
+                $module.init = init;
+
+                return $module;
+            }
+
+            // $flash requires singleton
+            function getInstance() {
+                if(!$module)
+                    $module = ModuleFactory();
+                return $module;
+            }
+            // return $module instance.
+            return getInstance();
+
+        }];
+
+        // return getter/setter.
+        return {
+            $set: set,
+            $get: get
+        };
+
+    })
+
+    .directive('aiFlash', [ '$flash', function ($flash) {
+
+        return {
+            restrict: 'EAC',
+            scope: true,
+            link: function (scope, element, attrs) {
+
+                var $module, defaults, options;
+
+                defaults = {
+                    scope: scope
+                };
+
+                // initialize the directive.
+                function init () {
+                    $module = $flash.init(element, options, attrs);
+                }
+
+                options = scope.$eval(attrs.aiFlash) || scope.$eval(attrs.aiFlashOptions);
+                options = angular.extend(defaults, options);
+
+                init();
+
+            }
+        };
+    }]);
+
+
+angular.module('ai.flash.interceptor', [])
+    .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
+        return {
+            responseError: function(res) {
+              // get flash here to prevent circular dependency.
+              var flash = $injector.get('$flash'),
+                  excludeErrors;
+
+              function handleFlashError(errObj){
+
+                var name, message, tmpObj, status;
+
+                // Check if res.data is error or is property
+                // within the res.data object.
+                if(flash.options.errorKey) {
+                  tmpObj = errObj[flash.options.errorKey];
+                  if (tmpObj)
+                    errObj = tmpObj;
+                }
+                // Ensure error object. If message not found
+                // try to locate nested error object by common
+                // names.
+                else {
+                  if (!errObj.message)
+                    tmpObj = errObj['err'] || errObj['error'];
+                    if (tmpObj && tmpObj.message)
+                      errObj = tmpObj;
+                }
+
+                name = errObj.displayName || errObj.name;
+                message = errObj.message;
+                status = errObj.status || res.status || 500;
+
+
+                // Format the message.
+                message = '<strong>Message:</strong> ' + message;
+
+                // Message may contain unnecessary text.
+                message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
+
+                // Check if should be logged to console.
+                // Only valid when stack is present.
+                if (flash.options.logError !== false && errObj.stack) {
+                  var logErr = new Error(errObj.message);
+                  logErr.stack = errObj.stack;
+                  logErr.name = errObj.name;
+                  logErr.status = errObj.status;
+                  if (console.warn)
+                    console.error(logErr);
+                  else
+                    console.log(logErr);
+                }
+
+                // finally display the flash message.
+                if(flash.options.title !== false)
+                    flash.add(message, flash.options.typeError, status + ' - ' +name);
+                else
+                    flash.add(message, flash.options.typeError);
+
+                return $q.reject(res);
+
+              }
+
+              // If interception is disabled
+              // don't handle/show message.
+              if(!flash.options || flash.options.intercept === false ||
+              flash.suppressed){
+                  flash.suppressed = false;
+                  return res;
+              }
+
+              excludeErrors = flash.options.excludeErrors || [];
+
+              if (res.status && excludeErrors.indexOf(res.status.toString()) === -1) {
+
+                  // If no data in response handle
+                  // error by status and status text only.
+                  if(!res.data){
+
+                      if(flash.options.title !== false)
+                          flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
+                      else
+                          flash.add(res.statusText, flash.options.typeError || 'flash-danger');
+
+                      return $q.reject(res);
+
+                  }
+
+                  // Otherwise handle error using the
+                  // provided response data.
+                  else {
+
+                      var err = res.data;
+
+                      $q.when(flash.options.onError(res, flash)).then(function (result) {
+                          if(result){
+                              if(result === true)
+                                  result = err;
+                              handleFlashError(result);
+                          }
+
+                      });
+
+                  }
+
+              }
+
+            },
+            response: function (res) {
+                var flash = $injector.get('$flash');
+                // ensure we turn disable once off.
+                flash.suppressed = false;
+                return res || $q.when(res);
+            }
+        };
+
+    }])
+    .config(['$httpProvider', function ($httpProvider) {
+        $httpProvider.interceptors.push('$flashInterceptor');
+    }]);
+
+// imports above modules.
+angular.module('ai.flash', [
+    'ai.flash.factory',
+    'ai.flash.interceptor'
+]);
+
 angular.module('ai.autoform', ['ai.helpers'  ])
 
 .provider('$autoform', function $autoform() {
@@ -582,456 +1059,6 @@ angular.module('ai.autoform', ['ai.helpers'  ])
     };
 
 }]);
-
-
-angular.module('ai.flash.factory', ['ai.helpers'])
-
-    .provider('$flash', function $flash() {
-
-        var defaults, get, set;
-
-        // default settings.
-        defaults = {
-          template: 'ai-flash.html',              // the template for flash message.
-          errorKey: undefined,                    // when provided flash intercept
-                                              // errors will look for this key
-                                              // in the res.data object. Otherwise
-                                              // it is assumed that the object if provided is the error itself.
-          excludeErrors: [401, 403, 404],         // exclude errors by status type.
-          errorName: 'Server Error',         // the error name to use in event and error.name is not valid.
-          errorMessage: 'An unknown error ' + // default error message in event one is not provided.
-                        'has occurred, if the ' +
-                        'problem persists ' +
-                        'please contact the ' +
-                        'administrator.',
-          title: undefined,                       // when true flash error messages use the error name as the title
-                                                  // in the flash message.
-          multiple: false,                        // whether to allow multiple flash messages at same time.
-          typeDefault: 'info',                    // the default type of message to show.
-          typeError: 'danger',                    // the error type or class name for error messages.
-          timeout: 0,                          // timeout to auto remove flashes after period of time..
-                                                  // instead of by timeout.
-          intercept: undefined,                   // when false flash error interception is disabled.
-          logError: undefined,                  // When NOT false and when stack exists log the error to the console.
-          onError: undefined                      // callback on error before flashed, return false to ignore.
-
-        };
-
-        // set global provider options.
-        set = function set(key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend(defaults, obj);
-        };
-
-        // get provider
-        get = ['$rootScope', '$timeout', '$helpers',
-            function get($rootScope, $timeout, $helpers) {
-
-            var flashTemplate, $module;
-
-            flashTemplate = '<div class="ai-flash-item" ng-repeat="flash in flashes" ng-mouseenter="enter(flash)" ' +
-                            'ng-mouseleave="leave(flash)" ng-class="flash.type">' +
-                                '<a class="ai-flash-close" type="button" ng-click="remove(flash)">&times</a>' +
-                                '<div class="ai-flash-title" ng-if="flash.title" ng-bind-html="flash.title"></div>' +
-                                '<div class="ai-flash-message" ng-bind-html="flash.message"></div>' +
-                            '</div>';
-
-            $helpers.getPutTemplate(defaults.template, flashTemplate);
-
-            function tryParseTimeout(to) {
-                if(undefined === to)
-                    return to;
-                try{
-                   return JSON.parse(to);
-                } catch(ex){
-                    return to;
-                }
-            }
-
-            // The flash factory
-            function ModuleFactory() {
-
-                var flashes = [],
-                    scope,
-                    body,
-                    overflows,
-                    element,
-                    options;
-
-                $module = {};
-                options = {};
-
-                // uses timeout to auto remove flash message.
-                function autoRemove(flash) {
-                    clearTimeout(flash.timeoutId);
-                    flash.timeoutId = $timeout(function () {
-                        if(flash.focus) {
-                            clearTimeout(flash.timeoutId);
-                            autoRemove(flash);
-                        } else {
-                            clearTimeout(flash.timeoutId);
-                            remove(flash);
-                        }
-                    }, flash.timeout);
-                }
-
-                // add a new flash message.
-                function add(message, type, title, timeout) {
-                    var flashDefaults = {
-                            title: undefined,
-                            type: options.type,
-                            focus: false,
-                            show: false,
-                            timeout: false
-                        }, flash = {}, tmpTitle;
-                    title = tryParseTimeout(title);
-                    timeout = tryParseTimeout(timeout);
-                    // if title is number assume timeout
-                    if(angular.isNumber(title) || 'boolean' === typeof title){
-                        timeout = title;
-                        title = undefined;
-                    }
-                    if(!options.multiple)
-                        flashes = [];
-                    // if message is not object create Flash.
-                    if(!angular.isObject(message)){
-                        flash = {
-                            message: message,
-                            type: type || options.type,
-                            title: title || options.title,
-                            timeout: timeout || options.timeout
-                        };
-                    }
-                    // extend object with defaults.
-                    flash = angular.extend({}, flashDefaults, flash);
-                    // set the default timeout if true was passed.
-                    if(flash.timeout === true)
-                        flash.timeout = options.timeout;
-                    if(flash.message) {
-                        flashes.push(flash);
-                        $module.flashes = scope.flashes = flashes;
-                        body.css({ overflow: 'hidden'});
-                        element.addClass('show');
-                        if(flash.timeout)
-                            autoRemove(flash);
-
-                    }
-                }
-
-                // remove a specific flash message.
-                function remove(flash) {
-                    if(flash && flashes.length) {
-                        flashes.splice(flashes.indexOf(flash), 1);
-                        if(!flashes.length){
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                            if(element)
-                                element.removeClass('show');
-                        }
-                    }
-
-                }
-
-                // remove all flash messages in collection.
-                function removeAll(force) {
-                    if(force)
-                        scope.flashes = $module.flashes = flashes = [];
-                    else
-                        if(flashes.length) {
-                            angular.forEach(scope.flashes, function (flash) {
-                                if(flash.shown === true)
-                                    remove(flash);
-                                else
-                                    flash.shown = true;
-                            });
-                        }
-                }
-
-                // on flash enter set its focus to true
-                // so it is not removed while being read.
-                function enter(flash) {
-                    flash.focus = true;
-                }
-
-                // on leave set the focus to false
-                // can now be removed.
-                function leave(flash) {
-                    flash.focus = false;
-                }
-
-                function suppress() {
-                    $module.suppressed = false;
-                }
-
-                function setOptions(key, value) {
-                    var obj = key;
-                    if(arguments.length > 1){
-                        obj = {};
-                        obj[key] = value;
-                    }
-                    $module = $module || {};
-                    scope = scope || {};
-                    options = $module.options = angular.extend(options, obj);
-                    if(scope)
-                        scope.options = options;
-                }
-
-                function destroy() {
-                    if(element)
-                        element.removeClass('show');
-                    if(body)
-                        body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                    scope.flashes = $module.flashes = flashes = [];
-                    scope.$destroy();
-                }
-
-                // get overflows and body.
-                body = $helpers.findElement('body');
-                overflows = $helpers.getOverflow();
-
-                function init(_element, _options, attrs) {
-
-                    element = _element;
-
-                    // parse out relevant options
-                    // from attributes.
-                   attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-                    // extend options
-                    $module.scope = scope = _options.scope || $rootScope.$new();
-                    options = angular.extend({}, defaults, attrs, options, _options);
-                    options.onError = options.onError || function () { return true; };
-                    options.type = options.type || options.typeDefault;
-                    $module.options = scope.options = options;
-
-                    scope.add = add;
-                    scope.remove = remove;
-                    scope.removeAll = removeAll;
-                    scope.flashes = flashes;
-                    scope.leave = leave;
-                    scope.enter = enter;
-                    scope.set = setOptions;
-                    scope.suppress = suppress;
-
-                    $module.add = add;
-                    $module.remove = remove;
-                    $module.removeAll = removeAll;
-                    $module.suppress = suppress;
-
-                    // load the template.
-                    $helpers.loadTemplate(options.template).then(function (template) {
-                        if(template) {
-                            element.html(template);
-                            $helpers.compile(scope, element.contents());
-                            element.addClass('ai-flash');
-                        } else {
-                            console.error('Error loading $flash template.');
-                        }
-                    });
-
-                    // when route changes be sure
-                    // to remove all flashes.
-                    $rootScope.$on('$locationChangeStart', function () {
-                        if(element)
-                            element.removeClass('show');
-                        if(body)
-                            body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
-                        scope.flashes = $module.flashes = flashes = [];
-                    });
-
-                    scope.$watch($module.options, function (newVal, oldVal) {
-                        if(newVal === oldVal) return;
-                        scope.options = newVal;
-                    });
-
-                    scope.$on('destroy', function () {
-                        $module.destroy();
-                    });
-
-                }
-
-                $module.set = setOptions;
-                $module.init = init;
-
-                return $module;
-            }
-
-            // $flash requires singleton
-            function getInstance() {
-                if(!$module)
-                    $module = ModuleFactory();
-                return $module;
-            }
-            // return $module instance.
-            return getInstance();
-
-        }];
-
-        // return getter/setter.
-        return {
-            $set: set,
-            $get: get
-        };
-
-    })
-
-    .directive('aiFlash', [ '$flash', function ($flash) {
-
-        return {
-            restrict: 'EAC',
-            scope: true,
-            link: function (scope, element, attrs) {
-
-                var $module, defaults, options;
-
-                defaults = {
-                    scope: scope
-                };
-
-                // initialize the directive.
-                function init () {
-                    $module = $flash.init(element, options, attrs);
-                }
-
-                options = scope.$eval(attrs.aiFlash) || scope.$eval(attrs.aiFlashOptions);
-                options = angular.extend(defaults, options);
-
-                init();
-
-            }
-        };
-    }]);
-
-
-angular.module('ai.flash.interceptor', [])
-    .factory('$flashInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-              // get flash here to prevent circular dependency.
-              var flash = $injector.get('$flash'),
-                  excludeErrors;
-
-              function handleFlashError(errObj){
-
-                var name, message, tmpObj, status;
-
-                // Check if res.data is error or is property
-                // within the res.data object.
-                if(flash.options.errorKey) {
-                  tmpObj = errObj[flash.options.errorKey];
-                  if (tmpObj)
-                    errObj = tmpObj;
-                }
-                // Ensure error object. If message not found
-                // try to locate nested error object by common
-                // names.
-                else {
-                  if (!errObj.message)
-                    tmpObj = errObj['err'] || errObj['error'];
-                    if (tmpObj && tmpObj.message)
-                      errObj = tmpObj;
-                }
-
-                name = errObj.displayName || errObj.name;
-                message = errObj.message;
-                status = errObj.status || res.status || 500;
-
-
-                // Format the message.
-                message = '<strong>Message:</strong> ' + message;
-
-                // Message may contain unnecessary text.
-                message = message.replace(/From previous event:/ig, '<strong>From previous event:</strong>');
-
-                // Check if should be logged to console.
-                // Only valid when stack is present.
-                if (flash.options.logError !== false && errObj.stack) {
-                  var logErr = new Error(errObj.message);
-                  logErr.stack = errObj.stack;
-                  logErr.name = errObj.name;
-                  logErr.status = errObj.status;
-                  if (console.warn)
-                    console.error(logErr);
-                  else
-                    console.log(logErr);
-                }
-
-                // finally display the flash message.
-                if(flash.options.title !== false)
-                    flash.add(message, flash.options.typeError, status + ' - ' +name);
-                else
-                    flash.add(message, flash.options.typeError);
-
-                return $q.reject(res);
-
-              }
-
-              // If interception is disabled
-              // don't handle/show message.
-              if(!flash.options || flash.options.intercept === false ||
-              flash.suppressed){
-                  flash.suppressed = false;
-                  return res;
-              }
-
-              excludeErrors = flash.options.excludeErrors || [];
-
-              if (res.status && excludeErrors.indexOf(res.status.toString()) === -1) {
-
-                  // If no data in response handle
-                  // error by status and status text only.
-                  if(!res.data){
-
-                      if(flash.options.title !== false)
-                          flash.add(res.statusText, flash.options.typeError || 'flash-danger', res.status);
-                      else
-                          flash.add(res.statusText, flash.options.typeError || 'flash-danger');
-
-                      return $q.reject(res);
-
-                  }
-
-                  // Otherwise handle error using the
-                  // provided response data.
-                  else {
-
-                      var err = res.data;
-
-                      $q.when(flash.options.onError(res, flash)).then(function (result) {
-                          if(result){
-                              if(result === true)
-                                  result = err;
-                              handleFlashError(result);
-                          }
-
-                      });
-
-                  }
-
-              }
-
-            },
-            response: function (res) {
-                var flash = $injector.get('$flash');
-                // ensure we turn disable once off.
-                flash.suppressed = false;
-                return res || $q.when(res);
-            }
-        };
-
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$flashInterceptor');
-    }]);
-
-// imports above modules.
-angular.module('ai.flash', [
-    'ai.flash.factory',
-    'ai.flash.interceptor'
-]);
 
 angular.module('ai.list', ['ai.helpers'])
 
@@ -5487,6 +5514,576 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
         };
 
     }]);
+angular.module('ai.widget', [])
+
+.provider('$widget', function $widget() {
+
+    var defaults = {            
+            number: {
+                defaultValue: undefined,        // default value if initialized undefined.
+                places: 2,                      // default decimal places.
+                event: 'blur'                   // event that triggers formatting.
+            },            
+            case: {
+                casing: 'first',
+                event: 'blur'
+            },
+            compare: {
+                defaultValue: undefined,        // the default value when undefined.
+                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
+                dataType: 'string',             // options are string, date, time, datetime, integer
+                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
+                                                // valid options 'minutes', 'seconds', 'milliseconds'
+            },
+            lazyload: {
+                src: undefined,                 // placeholder option.
+                parent: 'head',                 // the parent element where the script should be insert into.
+                position: 'append'              // either append, prepend or integer to insert script at.
+            }
+            //nicescroll: {
+            //    horizrailenabled: false         // disables horizontal scroll bar.
+            //},
+            //redactor: {
+            //    focus: true,
+            //    plugins: ['fullscreen']
+            //},
+        },
+        get, set;
+
+    set = function set(key, options) {
+        if(angular.isObject(key)){
+            options = key;
+            key = undefined;
+            defaults = angular.extend(defaults, options);
+        } else {
+            defaults[key] = angular.extend(defaults[key], options);
+        }
+    };
+
+    get = [ function get() {
+
+        // factory allows for globally
+        // setting widget options.
+        function ModuleFactory(key, options) {
+            options = options || {};
+            if(!defaults[key]) return options;
+            options = angular.extend({}, defaults[key], options);
+            return options;
+        }
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+
+// simple directive to prevent default
+// on click, for use as attribute/class only.
+.directive('aiPrevent',[ function() {
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+            if(attrs.ngClick){
+                element.on('click', function(e){
+                    e.preventDefault();
+                });
+            }
+        }
+    };
+}])
+    
+//
+//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
+//
+//    return {
+//        restrict: 'AC',
+//        link: function(scope, element, attrs) {
+//
+//            var defaults, options, $module, _attrs;
+//
+//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
+//                'see: http://areaaperta.com/nicescroll');
+//
+//            defaults = angular.copy($widget('nicescroll'));
+//
+//            function init() {
+//                $timeout(function () {
+//                    $module = element.niceScroll(options);
+//                },0);
+//            }
+//
+//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
+//            options = angular.extend(defaults, _attrs, scope.$eval(options));
+//            init();
+//        }
+//    };
+//}])
+
+// ensures handling decimal values.
+.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function(scope, element, attrs, ngModel) {
+
+            var defaults, options, _attrs, lastVal;
+
+            defaults = angular.copy($widget('number'));
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
+            function parseVal(val){
+                val = $helpers.tryParseFloat(val);  
+                if(val) 
+                    val = val.toFixed(options.places);
+                return val;
+            }
+            
+            // format and set value.
+            function format(val) {
+                if(val !== undefined)  {
+                    val = parseVal(val);
+                    if(!val)
+                        val = parseVal(lastVal);                
+                }
+                if(val === undefined)
+                    val = options.defaultValue !== undefined ? options.defaultValue : '';
+                element.val(val);           
+                ngModel.$modelValue = val;
+                lastVal = val;
+            }
+
+            function init() {
+                
+                // bind event call apply
+                // format the value. 
+                // use simple event binding instead
+                // of adding watchers etc.
+                element.unbind(options.event);
+                element.on(options.event, function (e) {
+                    scope.$apply(function () {
+                        format(e.target.value);
+                    });
+                });
+                
+                // use timeout make sure dom is ready.
+                $timeout(function () {
+                    var val = element.val();
+                    if(!val)
+                        if(options.defaultValue !== undefined)
+                            val = options.defaultValue;
+                    format(val);
+                }, 0);                
+            }
+            
+            options = attrs.aiNumber|| attrs.aiNumberOptions;
+            options = angular.extend(defaults, _attrs, scope.$eval(options));
+            
+            init();
+        }
+    };
+}])
+
+//// Angular wrapper for using Redactor.
+//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
+//    return {
+//        restrict: 'AC',
+//        scope: true,
+//        require: '?ngModel',
+//        link: function (scope, element, attrs) {
+//            var defaults, options, $directive, _attrs;
+//
+//            defaults = angular.copy($widget('redactor'));
+//
+//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+//
+//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
+//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
+//
+//            function init() {
+//                $directive = element.redactor(options);
+//            }
+//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
+//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
+//
+//            init();
+//        }
+//    };
+//}])
+
+.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
+
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, casing, _attrs;
+
+            defaults = angular.copy($widget('case'));
+            options = {};
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function getCase(val) {
+                if (!val) return;
+
+                if (casing === 'title')
+                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+                else if (casing === 'first')
+                    return val.charAt(0).toUpperCase() + val.slice(1);
+                else if (casing === 'camel') {
+                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
+                        return group1.toUpperCase();
+                    });
+                }
+                else if (casing === 'pascal')
+                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
+                else if (casing === 'lower')
+                    return val.toLowerCase();
+                else if (casing === 'upper')
+                    return val.toUpperCase();
+                else return val;
+            }
+
+           function applyCase(e){
+
+               scope.$apply(function () {
+                   var val = element.val(),
+                       cased = getCase(val);
+                   if (ngModel) {
+                       ngModel.$modelValue = cased;
+                   } else {
+                       element.val(getCase(val));
+                   }
+               });
+
+            }
+
+            function init() {
+
+                casing = options.casing;
+
+                element.on(options.event, function (e) {
+                    applyCase(e);
+                });
+
+                element.on('keyup', function (e) {
+                    var code = e.which || e.keyCode;
+                    if(code === 13){
+                        /* prevent default or submit could happen
+                        prior to apply case updates model */
+                        e.preventDefault();
+                        applyCase(e);
+                    }
+                });
+
+                $timeout(function () {
+                    applyCase();
+                },100);
+
+            }
+
+            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
+            if(angular.isString(tmpOpt))
+                options.casing = tmpOpt;
+            if(angular.isObject(tmpOpt))
+                options = scope.$eval(tmpOpt);
+            options = angular.extend(defaults, _attrs, options);
+
+            init();
+
+        }
+
+    };
+
+}])
+
+.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
+
+    function checkMoment() {
+        try{
+            var m = moment();
+            return true;
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    function isNumber(val) {
+        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
+    }
+
+    return {
+        restrict: 'AC',
+        require: '^ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, formElem, form, momentLoaded,
+                ngModelCompare, _attrs;
+
+            // check moment is loaded for datetime compares.
+            momentLoaded = checkMoment();
+            defaults = angular.copy($widget('compare'));
+
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function validate(value) {
+
+                var valid;
+
+                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
+
+                    valid = options.defaultValue || '';
+
+                } else {
+
+                    if(options.dataType === 'string') {
+
+                        valid = ngModelCompare.$viewValue === value;
+
+                    } else if(options.dataType === 'integer'){
+
+                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
+                            valid = false;
+                        } else {
+                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
+                        }
+
+                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
+
+                        var comp, model, diff, diffMin;
+
+                        comp = ngModelCompare.$viewValue;
+                        model = ngModel.$viewValue;
+
+                        if(options.dataType === 'time'){
+                            comp = '01/01/1970 ' + comp;
+                            model = '01/01/1970 ' + model;
+                        }
+                        comp = moment(comp);
+                        model = moment(model);
+
+                        if(options.dataType === 'date'){
+
+                            diff = model.diff(comp, 'days');
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'time'){
+
+                            diff = model.diff(comp, options.precision);
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'datetime') {
+
+                            diff = model.diff(comp, 'days');
+                            diffMin = model.diff(comp, options.precision);
+                            valid = (diff === 0) && (diffMin === 0);
+
+                        } else {
+
+                            valid = false;
+
+                        }
+
+                    } else {
+
+                        valid = false;
+
+                    }
+
+                }
+
+                ngModel.$setValidity('compare', valid);
+                return valid;
+            }
+
+            function init() {
+
+                formElem = element[0].form;
+
+                /* can't continue without the form */
+                if(!formElem) return;
+
+                form = scope[formElem.name];
+                ngModelCompare = form[options.compareTo] || options.compareTo;
+
+                /* must have valid form in scope */
+                if(!form || !options.compareTo || !ngModelCompare) return;
+
+                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
+                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
+
+                ngModel.$formatters.unshift(validate);
+                ngModel.$parsers.unshift(validate);
+
+            }
+
+            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
+            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
+                tmpOpt = { compareTo: tmpOpt };
+            else
+                tmpOpt = scope.$eval(tmpOpt);
+
+            options = angular.extend({}, defaults, _attrs, tmpOpt);
+
+            init();
+
+        }
+    };
+        
+}])
+
+.directive('aiPlaceholder', [ '$widget', function($widget) {
+
+    // get the previous sibling
+    // to the current element.
+    function prevSibling(elem, ts) {
+        try {
+            var parents = elem.parent(),
+                prevIdx;
+            angular.forEach(parents.children(), function (v,k) {
+                var child = angular.element(v),
+                    _ts = child.attr('_ts_');
+                if(ts.toString() === _ts){
+                    prevIdx = k -1;
+                }
+            });
+            elem.removeAttr('_ts_');
+            if(prevIdx < 0)
+                return { element: angular.element(elem.parent()), method: 'prepend' };
+            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    // capitalize a string.
+    function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // test if placeholder is supported.
+    function placeholderSupported() {
+        var test = document.createElement('input');
+        return ('placeholder' in test);
+    }
+
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+
+            var placeholder, isNative;
+
+            function init() {
+
+                var label = '<label>{{NAME}}</label>',
+                    ts = new Date().getTime(),
+                    prev;
+
+                placeholder = capitalize(placeholder);
+                
+                if(!isNative && placeholder)
+                    element.attr('placeholder', placeholder);
+
+                // since angular doesn't support .index()
+                // set attr so we can find it when iterating.
+                element.attr('_ts_', ts);
+                prev = prevSibling(element, ts);
+
+                // test if dot notation model name.
+                if(placeholder.indexOf('.') !== -1){
+                    placeholder = placeholder.split('.');
+                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
+                }
+
+                if(!placeholderSupported() && prev) {
+                    label = label.replace('{{NAME}}', placeholder);
+                    label = angular.element(label);
+                    prev.element[prev.method](label);
+                }
+
+            }
+
+            isNative = element.attr('placeholder');
+            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
+
+            init();
+
+        }
+    };
+}])
+
+.directive('aiLazyload', [ '$widget', '$helpers', '$rootScope', function($widget, $helpers, $rootScope) {
+    return {
+        restrict: 'EA',
+        scope: false,
+        link: function(scope, elem, attrs) {
+
+            var script, scripts, defaults, options, parentElem, childElem;
+
+            defaults = angular.copy($widget('lazyload'));
+            options = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            options = angular.extend({}, defaults, options);
+
+            // the parent element where
+            // scripts will be inserted.
+            parentElem = $helpers.findElement(options.parent)[0];
+
+            if(!parentElem || !parentElem.appendChild)
+                return console.error('Cannot lazy load script using parent ' + options.parent +
+                                      '. Ensure the dom element exists.');
+
+            // get all scripts in element.
+            scripts = $helpers.findElement('script', document[options.parent]) || [];
+
+            if(options.position === 'prepend')
+                options.position = 0;
+
+            // insert at this position wihtin children.
+            childElem = angular.isNumber(options.position) ? scripts[options.position] : undefined;
+
+            // if no scripts in element just use append.
+            if(!scripts.length || childElem === undefined)
+                options.position = 'append';
+
+            // create script element
+            script = document.createElement('script');
+
+            // check if inline or
+            // is external file.
+            if(undefined === options.src){
+                script.text = elem.text();
+            } else {
+                script.src = options.src;
+            }
+
+            // add the script to parent.
+            if(childElem)
+                parentElem.insertBefore(script, childElem);
+            else
+                parentElem.appendChild(script);
+
+            // remove original element
+            elem.remove();
+
+            function removeScript() {
+                if(script && parentElem.contains(script))
+                    parentElem.removeChild(script);
+            }
+
+            // remove script on route change, prevents dups.
+            $rootScope.$on('$routeChangeSuccess', removeScript);
+
+            // remove lazy loaded script on destroy.
+            scope.$on('destroy', removeScript);
+
+        }
+    };
+}]);
+
 angular.module('ai.tree', ['ai.helpers'])
     .provider('$tree', function $tree() {
 
@@ -6776,576 +7373,6 @@ var form = angular.module('ai.validate', ['ai.helpers'])
 }]);
 
 
-
-angular.module('ai.widget', [])
-
-.provider('$widget', function $widget() {
-
-    var defaults = {            
-            number: {
-                defaultValue: undefined,        // default value if initialized undefined.
-                places: 2,                      // default decimal places.
-                event: 'blur'                   // event that triggers formatting.
-            },            
-            case: {
-                casing: 'first',
-                event: 'blur'
-            },
-            compare: {
-                defaultValue: undefined,        // the default value when undefined.
-                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
-                dataType: 'string',             // options are string, date, time, datetime, integer
-                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
-                                                // valid options 'minutes', 'seconds', 'milliseconds'
-            },
-            lazyload: {
-                src: undefined,                 // placeholder option.
-                parent: 'head',                 // the parent element where the script should be insert into.
-                position: 'append'              // either append, prepend or integer to insert script at.
-            }
-            //nicescroll: {
-            //    horizrailenabled: false         // disables horizontal scroll bar.
-            //},
-            //redactor: {
-            //    focus: true,
-            //    plugins: ['fullscreen']
-            //},
-        },
-        get, set;
-
-    set = function set(key, options) {
-        if(angular.isObject(key)){
-            options = key;
-            key = undefined;
-            defaults = angular.extend(defaults, options);
-        } else {
-            defaults[key] = angular.extend(defaults[key], options);
-        }
-    };
-
-    get = [ function get() {
-
-        // factory allows for globally
-        // setting widget options.
-        function ModuleFactory(key, options) {
-            options = options || {};
-            if(!defaults[key]) return options;
-            options = angular.extend({}, defaults[key], options);
-            return options;
-        }
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-
-// simple directive to prevent default
-// on click, for use as attribute/class only.
-.directive('aiPrevent',[ function() {
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-            if(attrs.ngClick){
-                element.on('click', function(e){
-                    e.preventDefault();
-                });
-            }
-        }
-    };
-}])
-    
-//
-//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
-//
-//    return {
-//        restrict: 'AC',
-//        link: function(scope, element, attrs) {
-//
-//            var defaults, options, $module, _attrs;
-//
-//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
-//                'see: http://areaaperta.com/nicescroll');
-//
-//            defaults = angular.copy($widget('nicescroll'));
-//
-//            function init() {
-//                $timeout(function () {
-//                    $module = element.niceScroll(options);
-//                },0);
-//            }
-//
-//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
-//            options = angular.extend(defaults, _attrs, scope.$eval(options));
-//            init();
-//        }
-//    };
-//}])
-
-// ensures handling decimal values.
-.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function(scope, element, attrs, ngModel) {
-
-            var defaults, options, _attrs, lastVal;
-
-            defaults = angular.copy($widget('number'));
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            function parseVal(val){
-                val = $helpers.tryParseFloat(val);  
-                if(val) 
-                    val = val.toFixed(options.places);
-                return val;
-            }
-            
-            // format and set value.
-            function format(val) {
-                if(val !== undefined)  {
-                    val = parseVal(val);
-                    if(!val)
-                        val = parseVal(lastVal);                
-                }
-                if(val === undefined)
-                    val = options.defaultValue !== undefined ? options.defaultValue : '';
-                element.val(val);           
-                ngModel.$modelValue = val;
-                lastVal = val;
-            }
-
-            function init() {
-                
-                // bind event call apply
-                // format the value. 
-                // use simple event binding instead
-                // of adding watchers etc.
-                element.unbind(options.event);
-                element.on(options.event, function (e) {
-                    scope.$apply(function () {
-                        format(e.target.value);
-                    });
-                });
-                
-                // use timeout make sure dom is ready.
-                $timeout(function () {
-                    var val = element.val();
-                    if(!val)
-                        if(options.defaultValue !== undefined)
-                            val = options.defaultValue;
-                    format(val);
-                }, 0);                
-            }
-            
-            options = attrs.aiNumber|| attrs.aiNumberOptions;
-            options = angular.extend(defaults, _attrs, scope.$eval(options));
-            
-            init();
-        }
-    };
-}])
-
-//// Angular wrapper for using Redactor.
-//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
-//    return {
-//        restrict: 'AC',
-//        scope: true,
-//        require: '?ngModel',
-//        link: function (scope, element, attrs) {
-//            var defaults, options, $directive, _attrs;
-//
-//            defaults = angular.copy($widget('redactor'));
-//
-//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-//
-//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
-//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
-//
-//            function init() {
-//                $directive = element.redactor(options);
-//            }
-//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
-//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
-//
-//            init();
-//        }
-//    };
-//}])
-
-.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
-
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, casing, _attrs;
-
-            defaults = angular.copy($widget('case'));
-            options = {};
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function getCase(val) {
-                if (!val) return;
-
-                if (casing === 'title')
-                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
-                else if (casing === 'first')
-                    return val.charAt(0).toUpperCase() + val.slice(1);
-                else if (casing === 'camel') {
-                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
-                        return group1.toUpperCase();
-                    });
-                }
-                else if (casing === 'pascal')
-                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
-                else if (casing === 'lower')
-                    return val.toLowerCase();
-                else if (casing === 'upper')
-                    return val.toUpperCase();
-                else return val;
-            }
-
-           function applyCase(e){
-
-               scope.$apply(function () {
-                   var val = element.val(),
-                       cased = getCase(val);
-                   if (ngModel) {
-                       ngModel.$modelValue = cased;
-                   } else {
-                       element.val(getCase(val));
-                   }
-               });
-
-            }
-
-            function init() {
-
-                casing = options.casing;
-
-                element.on(options.event, function (e) {
-                    applyCase(e);
-                });
-
-                element.on('keyup', function (e) {
-                    var code = e.which || e.keyCode;
-                    if(code === 13){
-                        /* prevent default or submit could happen
-                        prior to apply case updates model */
-                        e.preventDefault();
-                        applyCase(e);
-                    }
-                });
-
-                $timeout(function () {
-                    applyCase();
-                },100);
-
-            }
-
-            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
-            if(angular.isString(tmpOpt))
-                options.casing = tmpOpt;
-            if(angular.isObject(tmpOpt))
-                options = scope.$eval(tmpOpt);
-            options = angular.extend(defaults, _attrs, options);
-
-            init();
-
-        }
-
-    };
-
-}])
-
-.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
-
-    function checkMoment() {
-        try{
-            var m = moment();
-            return true;
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    function isNumber(val) {
-        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
-    }
-
-    return {
-        restrict: 'AC',
-        require: '^ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, formElem, form, momentLoaded,
-                ngModelCompare, _attrs;
-
-            // check moment is loaded for datetime compares.
-            momentLoaded = checkMoment();
-            defaults = angular.copy($widget('compare'));
-
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function validate(value) {
-
-                var valid;
-
-                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
-
-                    valid = options.defaultValue || '';
-
-                } else {
-
-                    if(options.dataType === 'string') {
-
-                        valid = ngModelCompare.$viewValue === value;
-
-                    } else if(options.dataType === 'integer'){
-
-                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
-                            valid = false;
-                        } else {
-                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
-                        }
-
-                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
-
-                        var comp, model, diff, diffMin;
-
-                        comp = ngModelCompare.$viewValue;
-                        model = ngModel.$viewValue;
-
-                        if(options.dataType === 'time'){
-                            comp = '01/01/1970 ' + comp;
-                            model = '01/01/1970 ' + model;
-                        }
-                        comp = moment(comp);
-                        model = moment(model);
-
-                        if(options.dataType === 'date'){
-
-                            diff = model.diff(comp, 'days');
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'time'){
-
-                            diff = model.diff(comp, options.precision);
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'datetime') {
-
-                            diff = model.diff(comp, 'days');
-                            diffMin = model.diff(comp, options.precision);
-                            valid = (diff === 0) && (diffMin === 0);
-
-                        } else {
-
-                            valid = false;
-
-                        }
-
-                    } else {
-
-                        valid = false;
-
-                    }
-
-                }
-
-                ngModel.$setValidity('compare', valid);
-                return valid;
-            }
-
-            function init() {
-
-                formElem = element[0].form;
-
-                /* can't continue without the form */
-                if(!formElem) return;
-
-                form = scope[formElem.name];
-                ngModelCompare = form[options.compareTo] || options.compareTo;
-
-                /* must have valid form in scope */
-                if(!form || !options.compareTo || !ngModelCompare) return;
-
-                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
-                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
-
-                ngModel.$formatters.unshift(validate);
-                ngModel.$parsers.unshift(validate);
-
-            }
-
-            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
-            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
-                tmpOpt = { compareTo: tmpOpt };
-            else
-                tmpOpt = scope.$eval(tmpOpt);
-
-            options = angular.extend({}, defaults, _attrs, tmpOpt);
-
-            init();
-
-        }
-    };
-        
-}])
-
-.directive('aiPlaceholder', [ '$widget', function($widget) {
-
-    // get the previous sibling
-    // to the current element.
-    function prevSibling(elem, ts) {
-        try {
-            var parents = elem.parent(),
-                prevIdx;
-            angular.forEach(parents.children(), function (v,k) {
-                var child = angular.element(v),
-                    _ts = child.attr('_ts_');
-                if(ts.toString() === _ts){
-                    prevIdx = k -1;
-                }
-            });
-            elem.removeAttr('_ts_');
-            if(prevIdx < 0)
-                return { element: angular.element(elem.parent()), method: 'prepend' };
-            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    // capitalize a string.
-    function capitalize(str) {
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    // test if placeholder is supported.
-    function placeholderSupported() {
-        var test = document.createElement('input');
-        return ('placeholder' in test);
-    }
-
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-
-            var placeholder, isNative;
-
-            function init() {
-
-                var label = '<label>{{NAME}}</label>',
-                    ts = new Date().getTime(),
-                    prev;
-
-                placeholder = capitalize(placeholder);
-                
-                if(!isNative && placeholder)
-                    element.attr('placeholder', placeholder);
-
-                // since angular doesn't support .index()
-                // set attr so we can find it when iterating.
-                element.attr('_ts_', ts);
-                prev = prevSibling(element, ts);
-
-                // test if dot notation model name.
-                if(placeholder.indexOf('.') !== -1){
-                    placeholder = placeholder.split('.');
-                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
-                }
-
-                if(!placeholderSupported() && prev) {
-                    label = label.replace('{{NAME}}', placeholder);
-                    label = angular.element(label);
-                    prev.element[prev.method](label);
-                }
-
-            }
-
-            isNative = element.attr('placeholder');
-            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
-
-            init();
-
-        }
-    };
-}])
-
-.directive('aiLazyload', [ '$widget', '$helpers', '$rootScope', function($widget, $helpers, $rootScope) {
-    return {
-        restrict: 'EA',
-        scope: false,
-        link: function(scope, elem, attrs) {
-
-            var script, scripts, defaults, options, parentElem, childElem;
-
-            defaults = angular.copy($widget('lazyload'));
-            options = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            options = angular.extend({}, defaults, options);
-
-            // the parent element where
-            // scripts will be inserted.
-            parentElem = $helpers.findElement(options.parent)[0];
-
-            if(!parentElem || !parentElem.appendChild)
-                return console.error('Cannot lazy load script using parent ' + options.parent +
-                                      '. Ensure the dom element exists.');
-
-            // get all scripts in element.
-            scripts = $helpers.findElement('script', document[options.parent]) || [];
-
-            if(options.position === 'prepend')
-                options.position = 0;
-
-            // insert at this position wihtin children.
-            childElem = angular.isNumber(options.position) ? scripts[options.position] : undefined;
-
-            // if no scripts in element just use append.
-            if(!scripts.length || childElem === undefined)
-                options.position = 'append';
-
-            // create script element
-            script = document.createElement('script');
-
-            // check if inline or
-            // is external file.
-            if(undefined === options.src){
-                script.text = elem.text();
-            } else {
-                script.src = options.src;
-            }
-
-            // add the script to parent.
-            if(childElem)
-                parentElem.insertBefore(script, childElem);
-            else
-                parentElem.appendChild(script);
-
-            // remove original element
-            elem.remove();
-
-            function removeScript() {
-                if(script && parentElem.contains(script))
-                    parentElem.removeChild(script);
-            }
-
-            // remove script on route change, prevents dups.
-            $rootScope.$on('$routeChangeSuccess', removeScript);
-
-            // remove lazy loaded script on destroy.
-            scope.$on('destroy', removeScript);
-
-        }
-    };
-}]);
 
 function sayHello() {
     alert('Hello lazy loaded script!');
