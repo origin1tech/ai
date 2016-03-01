@@ -765,14 +765,6 @@ angular.module('ai.list', ['ai.helpers'])
                         }
                     });
 
-                    //scope.$watch(function() {
-                    //    return scope.source;
-                    //}, function (newVal, oldVal){
-                    //    //if($module.initialized){
-                    //        scope.clearFilter();
-                    //    //}
-                    //});
-
                 }
 
                 // verify valid element type.

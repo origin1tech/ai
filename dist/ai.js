@@ -233,6 +233,356 @@ angular.module('ai.helpers', [])
     };
         
 }]);
+angular.module('ai.autoform', ['ai.helpers'  ])
+
+.provider('$autoform', function $autoform() {
+
+    var defaults = {
+
+            prefix: 'model',           // value to prepend to models.
+            source: undefined,         // the source data for the form.
+            labels: undefined,         // when true labels are created.
+            type: 'text',              // the default type for elements.
+            addClass: false,           // specify class to be added to form for styling.
+            textareaAt: 35,            // if value is greater than this use textarea.
+
+            datetimeExp:               // date time expression
+                /^(0?[1-9]|1[012])(:[0-5]\d) [APap][mM]$/,
+
+            phoneExp:                   // phone expression
+                /^(?!.*911.*\d{4})((\+?1[\/ ]?)?(?![\(\. -]?555.*)\( ?[2-9][0-9]{2} ?\) ?|(\+?1[\.\/ -])?[2-9][0-9]{2}[\.\/ -]?)(?!555.?01..)([2-9][0-9]{2})[\.\/ -]?([0-9]{4})$/,
+
+            intExp:                     // integer/number expression.
+                /^\d+$/,
+                                        // email expression.
+            emailExp:
+                /^[\w-]+(\.[\w-]+)*@([a-z0-9-]+(\.[a-z0-9-]+)*?\.[a-z]{2,6}|(\d{1,3}\.){3}\d{1,3})(:\d{4})?$/
+
+        },
+        get, set;
+
+    set = function set(key, value) {
+        var obj = key;
+        if(arguments.length > 1){
+            obj = {};
+            obj[key] = value;
+        }
+        defaults = angular.extend(defaults, obj);
+    };
+
+    get = ['$rootScope', '$helpers',   function get($rootScope, $helpers) {
+
+        // iterate attributes build string.
+        function parseAttributes(attrs) {
+            if(!attrs || !angular.isObject(attrs)) return '';
+            var result = [];
+            angular.forEach(attrs, function (v, k) {
+                if(k === 'ngModel')
+                    k = 'ng-model';
+                result.push(k + '="' + v + '"');
+            });
+            return result.join(' ');
+        }
+
+        // simple array contains.
+        function contains(arr, value){
+            return arr.indexOf(value) !== -1;
+        }
+
+        // generate tabs.
+        function tab(qty) {
+            var _tab = '',
+                ctr = 0;
+            while(ctr < qty){
+                _tab += '\t';
+                ctr += 1;
+            }
+            return _tab;
+        }
+
+        // trim string.
+        function trim(str) {
+            return str.replace(/^\s+/, '').replace(/\s+$/, '');
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // parse the element type.
+        function parseType(value, options) {
+            if($helpers.isBoolean(value))
+                return 'checkbox';
+            if(options.phoneExp.test(value))
+                return 'tel';
+            if(options.datetimeExp.test(value))
+                return 'datetime';
+            if(options.intExp.test(value))
+                return 'number';
+            if(options.emailExp.test(value))
+                return 'email';
+            return options.type;
+        }
+
+        function generateRadios(values, attrs){
+            var radAttrs = attrs,
+                radios = '';
+            angular.forEach(values, function (v) {
+                var radOpts = '<label class="radio-inline"><input {{ATTRS}}/>' +
+                    ' {{NAME}}</label>';
+                radios += (radOpts
+                    .replace('{{ATTRS}}', trim(radAttrs + ' value="' + v + '"')))
+                    .replace('{{NAME}}', v);
+            });
+
+            return radios;
+        }
+
+        function ModuleFactory(element, options, attrs) {
+
+            var $module = {},
+                template = '',
+                scope,
+                elements;
+ 
+            // parse out relevant options
+            // from attributes.
+            if(attrs)
+                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            options = options || {};
+            $module.scope = scope = options.scope || $rootScope.$new();
+            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
+            elements = options.elements || {};
+
+            if(angular.isString(options.source))
+                options.source = scope.$eval(options.source);
+
+            // initialize the module.
+            function init() {
+
+                var template = '',
+                    groups = [];
+
+                // normalize the data.
+                angular.forEach(options.source, function (v,k) {
+
+                    // parse source get type & attributes
+                    var elem = elements[k] = elements[k] || {},
+                        capName = capitalize(k),
+                        attrs,
+                        tmpValue,
+                        el;
+                    
+                    attrs = elem.attributes = elem.attributes || {};
+
+                    // set type
+                    attrs.type = elem.type || attrs.type;
+
+                    // normalize name attribute.
+                    attrs.name = attrs.name || k;
+
+                    // set value.
+                    attrs.value = v || attrs.value || elem.value;
+                    if(attrs.type === undefined)
+                        attrs.type = parseType(attrs.value, options);
+
+                    // set default class value.
+                    attrs.class = attrs.class || '';
+
+                    // if ngModel is false delete from attrs.
+                    // if undefined create adding prefix.
+                    if(attrs.ngModel === false || elem.ngModel === false)
+                        delete attrs.ngModel;
+                    else
+                        attrs.ngModel =
+                            attrs.ngModel ||
+                            elem.ngModel ||
+                            options.prefix ? options.prefix + '.' + k : k;
+
+                    // if values array/object
+                    // supplied set type as select
+                    // if not specified by user
+                    // and not of type radio.
+                    if(elem.values){
+                        if(angular.isString(elem.values))
+                            elem.values = elem.values.split(',');
+                        if(!angular.isArray(elem.values) && angular.isObject(elem.values)){
+                            // if is object can only be select.
+                            attrs.type = 'select';
+                        }
+                        if(angular.isArray(elem.values)){
+                            attrs.type = attrs.type === 'radio' ? 'radio' : 'select';
+                        }
+                    }
+
+                    // test if textarea is needed.
+                    if(attrs.value && angular.isString(attrs.value) && attrs.value.length > options.textareaAt)
+                        attrs.type = 'textarea';
+
+                    // add default class for inputs/selects.
+                    if(!contains(['checkbox', 'radio'], attrs.type))
+                        attrs.class = trim(attrs.class.replace('form-control', '') + ' form-control');
+
+                    // store value temporarily.
+                    tmpValue = attrs.value;
+
+                    // set value as checked/selected if radio
+                    // or select delete from attrs.
+                    if(contains(['select', 'radio', 'textarea'], attrs.type)){
+                        if(attrs.type === 'radio')
+                            elem.checked = attrs.value;
+                        if(attrs.type === 'select')
+                            elem.selected = attrs.value;
+                        if(attrs.type === 'textarea')
+                            elem.content = attrs.value;
+                        delete attrs.value;
+                    }
+
+                    // parse all attributes.
+                    var attrsStr = elem.attributesStr = parseAttributes(attrs);
+
+                    // add value back in after parsing.
+                    attrs.value = tmpValue;
+
+                    var group = '';
+
+                    // create opening group markup.
+                    
+                    if(attrs.type !== 'checkbox'){
+                        group += '<div class="form-group">';
+                    } else {
+                        group += '<div class="checkbox">';
+                    }
+
+                    // generate labels.
+                    if(attrs.type !== 'radio') {
+                        var label = '<label{{FOR}}>';
+                        if(attrs.type !== 'checkbox') {
+                            label = label.replace('{{FOR}}', ' for="' + k + '"') + capName + '</label>';
+                        } else {
+                            label = label.replace('{{FOR}}', '');
+                        }
+
+                        // labels are required for checkboxes.
+                        if(options.labels !== false || attrs.type === 'checkbox')
+                            group += label;
+                    }
+
+                    // check if non-standard input type.
+                    if(contains(['select', 'textarea', 'radio'], attrs.type)) {
+
+                        if(attrs.type === 'textarea'){
+                            el = '<textarea {{ATTRS}}>{{CONTENT}}</textarea>';
+                            el = el.replace('{{CONTENT}}', attrs.value);
+                        }
+
+                        if(attrs.type === 'select'){
+                            var opts = '',
+                                isKeyVal = !angular.isArray(elem.values);
+                            el = '<select {{ATTRS}}>{{OPTIONS}}</select>';
+                            angular.forEach(elem.values, function (v,k) {
+                                var opt = '<option {{VALUE}}>{{TEXT}}</option>';
+                                if(isKeyVal)
+                                    opt = (opt.replace('{{VALUE}}', k).replace('{{TEXT}}', v));
+                                else
+                                    opt = (opt.replace('{{VALUE}}', '').replace('{{TEXT}}', v));
+                                opts += opt;
+                            });
+                            el = el.replace('{{OPTIONS}}', opts);
+                        }
+
+                        if(attrs.type === 'radio'){
+
+                            group += generateRadios(elem.values, attrsStr);
+                            group += '</div>';
+                        }
+
+                    } else {
+                        el = '<input {{ATTRS}}/>';
+                    }
+
+                    // add attribute string.
+                    if(el) {
+                        el = el.replace('{{ATTRS}}', attrsStr);
+                        // add element to group.
+                        group += el;
+                    }
+
+                    // close label if radio or checkbox.
+                    if(attrs.type === 'checkbox')
+                        group += capName + '</label>';
+                    
+                    // close markup group.
+                    if(!contains(['radio'], attrs.type))
+                        group += '</div>';
+                    
+                    // add to the collection.
+                    groups.push(group);
+
+                });
+
+                var wrapper = angular.element('<div></div>'),
+                    form = angular.element('<form></form>');
+
+                template = groups.join('\n');
+                element.replaceWith(wrapper);
+                form.html(template);
+                wrapper.append(form);
+
+                scope.model = options.source;
+                $helpers.compile(scope, wrapper.contents());
+
+                return $module;
+
+            }
+
+            return init();
+
+        }
+
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+
+.directive('aiAutoform', ['$autoform', function($autoform) {
+
+    return {
+        restrict: 'AC',
+        scope: true,
+        link: function (scope, element, attrs) {
+
+            var defaults, options, $module;
+
+            defaults = {
+                scope: scope
+            };
+
+            function init() {
+                // create the directive.
+                $module = $autoform(element, options, attrs);
+            }
+
+            // get options and model.
+            options = angular.extend(defaults, scope.$eval(attrs.aiAutoform || attrs.aiAutoformOptions || attrs.aiFormOptions));
+
+            // define the source.
+            //options.source = options.source || scope.$eval(attrs.source);
+            init();
+
+        }
+
+    };
+
+}]);
+
 
 angular.module('ai.flash.factory', ['ai.helpers'])
 
@@ -709,356 +1059,6 @@ angular.module('ai.flash', [
     'ai.flash.factory',
     'ai.flash.interceptor'
 ]);
-
-angular.module('ai.autoform', ['ai.helpers'  ])
-
-.provider('$autoform', function $autoform() {
-
-    var defaults = {
-
-            prefix: 'model',           // value to prepend to models.
-            source: undefined,         // the source data for the form.
-            labels: undefined,         // when true labels are created.
-            type: 'text',              // the default type for elements.
-            addClass: false,           // specify class to be added to form for styling.
-            textareaAt: 35,            // if value is greater than this use textarea.
-
-            datetimeExp:               // date time expression
-                /^(0?[1-9]|1[012])(:[0-5]\d) [APap][mM]$/,
-
-            phoneExp:                   // phone expression
-                /^(?!.*911.*\d{4})((\+?1[\/ ]?)?(?![\(\. -]?555.*)\( ?[2-9][0-9]{2} ?\) ?|(\+?1[\.\/ -])?[2-9][0-9]{2}[\.\/ -]?)(?!555.?01..)([2-9][0-9]{2})[\.\/ -]?([0-9]{4})$/,
-
-            intExp:                     // integer/number expression.
-                /^\d+$/,
-                                        // email expression.
-            emailExp:
-                /^[\w-]+(\.[\w-]+)*@([a-z0-9-]+(\.[a-z0-9-]+)*?\.[a-z]{2,6}|(\d{1,3}\.){3}\d{1,3})(:\d{4})?$/
-
-        },
-        get, set;
-
-    set = function set(key, value) {
-        var obj = key;
-        if(arguments.length > 1){
-            obj = {};
-            obj[key] = value;
-        }
-        defaults = angular.extend(defaults, obj);
-    };
-
-    get = ['$rootScope', '$helpers',   function get($rootScope, $helpers) {
-
-        // iterate attributes build string.
-        function parseAttributes(attrs) {
-            if(!attrs || !angular.isObject(attrs)) return '';
-            var result = [];
-            angular.forEach(attrs, function (v, k) {
-                if(k === 'ngModel')
-                    k = 'ng-model';
-                result.push(k + '="' + v + '"');
-            });
-            return result.join(' ');
-        }
-
-        // simple array contains.
-        function contains(arr, value){
-            return arr.indexOf(value) !== -1;
-        }
-
-        // generate tabs.
-        function tab(qty) {
-            var _tab = '',
-                ctr = 0;
-            while(ctr < qty){
-                _tab += '\t';
-                ctr += 1;
-            }
-            return _tab;
-        }
-
-        // trim string.
-        function trim(str) {
-            return str.replace(/^\s+/, '').replace(/\s+$/, '');
-        }
-
-        function capitalize(str) {
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
-
-        // parse the element type.
-        function parseType(value, options) {
-            if($helpers.isBoolean(value))
-                return 'checkbox';
-            if(options.phoneExp.test(value))
-                return 'tel';
-            if(options.datetimeExp.test(value))
-                return 'datetime';
-            if(options.intExp.test(value))
-                return 'number';
-            if(options.emailExp.test(value))
-                return 'email';
-            return options.type;
-        }
-
-        function generateRadios(values, attrs){
-            var radAttrs = attrs,
-                radios = '';
-            angular.forEach(values, function (v) {
-                var radOpts = '<label class="radio-inline"><input {{ATTRS}}/>' +
-                    ' {{NAME}}</label>';
-                radios += (radOpts
-                    .replace('{{ATTRS}}', trim(radAttrs + ' value="' + v + '"')))
-                    .replace('{{NAME}}', v);
-            });
-
-            return radios;
-        }
-
-        function ModuleFactory(element, options, attrs) {
-
-            var $module = {},
-                template = '',
-                scope,
-                elements;
- 
-            // parse out relevant options
-            // from attributes.
-            if(attrs)
-                attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            options = options || {};
-            $module.scope = scope = options.scope || $rootScope.$new();
-            $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
-            elements = options.elements || {};
-
-            if(angular.isString(options.source))
-                options.source = scope.$eval(options.source);
-
-            // initialize the module.
-            function init() {
-
-                var template = '',
-                    groups = [];
-
-                // normalize the data.
-                angular.forEach(options.source, function (v,k) {
-
-                    // parse source get type & attributes
-                    var elem = elements[k] = elements[k] || {},
-                        capName = capitalize(k),
-                        attrs,
-                        tmpValue,
-                        el;
-                    
-                    attrs = elem.attributes = elem.attributes || {};
-
-                    // set type
-                    attrs.type = elem.type || attrs.type;
-
-                    // normalize name attribute.
-                    attrs.name = attrs.name || k;
-
-                    // set value.
-                    attrs.value = v || attrs.value || elem.value;
-                    if(attrs.type === undefined)
-                        attrs.type = parseType(attrs.value, options);
-
-                    // set default class value.
-                    attrs.class = attrs.class || '';
-
-                    // if ngModel is false delete from attrs.
-                    // if undefined create adding prefix.
-                    if(attrs.ngModel === false || elem.ngModel === false)
-                        delete attrs.ngModel;
-                    else
-                        attrs.ngModel =
-                            attrs.ngModel ||
-                            elem.ngModel ||
-                            options.prefix ? options.prefix + '.' + k : k;
-
-                    // if values array/object
-                    // supplied set type as select
-                    // if not specified by user
-                    // and not of type radio.
-                    if(elem.values){
-                        if(angular.isString(elem.values))
-                            elem.values = elem.values.split(',');
-                        if(!angular.isArray(elem.values) && angular.isObject(elem.values)){
-                            // if is object can only be select.
-                            attrs.type = 'select';
-                        }
-                        if(angular.isArray(elem.values)){
-                            attrs.type = attrs.type === 'radio' ? 'radio' : 'select';
-                        }
-                    }
-
-                    // test if textarea is needed.
-                    if(attrs.value && angular.isString(attrs.value) && attrs.value.length > options.textareaAt)
-                        attrs.type = 'textarea';
-
-                    // add default class for inputs/selects.
-                    if(!contains(['checkbox', 'radio'], attrs.type))
-                        attrs.class = trim(attrs.class.replace('form-control', '') + ' form-control');
-
-                    // store value temporarily.
-                    tmpValue = attrs.value;
-
-                    // set value as checked/selected if radio
-                    // or select delete from attrs.
-                    if(contains(['select', 'radio', 'textarea'], attrs.type)){
-                        if(attrs.type === 'radio')
-                            elem.checked = attrs.value;
-                        if(attrs.type === 'select')
-                            elem.selected = attrs.value;
-                        if(attrs.type === 'textarea')
-                            elem.content = attrs.value;
-                        delete attrs.value;
-                    }
-
-                    // parse all attributes.
-                    var attrsStr = elem.attributesStr = parseAttributes(attrs);
-
-                    // add value back in after parsing.
-                    attrs.value = tmpValue;
-
-                    var group = '';
-
-                    // create opening group markup.
-                    
-                    if(attrs.type !== 'checkbox'){
-                        group += '<div class="form-group">';
-                    } else {
-                        group += '<div class="checkbox">';
-                    }
-
-                    // generate labels.
-                    if(attrs.type !== 'radio') {
-                        var label = '<label{{FOR}}>';
-                        if(attrs.type !== 'checkbox') {
-                            label = label.replace('{{FOR}}', ' for="' + k + '"') + capName + '</label>';
-                        } else {
-                            label = label.replace('{{FOR}}', '');
-                        }
-
-                        // labels are required for checkboxes.
-                        if(options.labels !== false || attrs.type === 'checkbox')
-                            group += label;
-                    }
-
-                    // check if non-standard input type.
-                    if(contains(['select', 'textarea', 'radio'], attrs.type)) {
-
-                        if(attrs.type === 'textarea'){
-                            el = '<textarea {{ATTRS}}>{{CONTENT}}</textarea>';
-                            el = el.replace('{{CONTENT}}', attrs.value);
-                        }
-
-                        if(attrs.type === 'select'){
-                            var opts = '',
-                                isKeyVal = !angular.isArray(elem.values);
-                            el = '<select {{ATTRS}}>{{OPTIONS}}</select>';
-                            angular.forEach(elem.values, function (v,k) {
-                                var opt = '<option {{VALUE}}>{{TEXT}}</option>';
-                                if(isKeyVal)
-                                    opt = (opt.replace('{{VALUE}}', k).replace('{{TEXT}}', v));
-                                else
-                                    opt = (opt.replace('{{VALUE}}', '').replace('{{TEXT}}', v));
-                                opts += opt;
-                            });
-                            el = el.replace('{{OPTIONS}}', opts);
-                        }
-
-                        if(attrs.type === 'radio'){
-
-                            group += generateRadios(elem.values, attrsStr);
-                            group += '</div>';
-                        }
-
-                    } else {
-                        el = '<input {{ATTRS}}/>';
-                    }
-
-                    // add attribute string.
-                    if(el) {
-                        el = el.replace('{{ATTRS}}', attrsStr);
-                        // add element to group.
-                        group += el;
-                    }
-
-                    // close label if radio or checkbox.
-                    if(attrs.type === 'checkbox')
-                        group += capName + '</label>';
-                    
-                    // close markup group.
-                    if(!contains(['radio'], attrs.type))
-                        group += '</div>';
-                    
-                    // add to the collection.
-                    groups.push(group);
-
-                });
-
-                var wrapper = angular.element('<div></div>'),
-                    form = angular.element('<form></form>');
-
-                template = groups.join('\n');
-                element.replaceWith(wrapper);
-                form.html(template);
-                wrapper.append(form);
-
-                scope.model = options.source;
-                $helpers.compile(scope, wrapper.contents());
-
-                return $module;
-
-            }
-
-            return init();
-
-        }
-
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-
-.directive('aiAutoform', ['$autoform', function($autoform) {
-
-    return {
-        restrict: 'AC',
-        scope: true,
-        link: function (scope, element, attrs) {
-
-            var defaults, options, $module;
-
-            defaults = {
-                scope: scope
-            };
-
-            function init() {
-                // create the directive.
-                $module = $autoform(element, options, attrs);
-            }
-
-            // get options and model.
-            options = angular.extend(defaults, scope.$eval(attrs.aiAutoform || attrs.aiAutoformOptions || attrs.aiFormOptions));
-
-            // define the source.
-            //options.source = options.source || scope.$eval(attrs.source);
-            init();
-
-        }
-
-    };
-
-}]);
 
 angular.module('ai.list', ['ai.helpers'])
 
@@ -1827,14 +1827,6 @@ angular.module('ai.list', ['ai.helpers'])
                         }
                     });
 
-                    //scope.$watch(function() {
-                    //    return scope.source;
-                    //}, function (newVal, oldVal){
-                    //    //if($module.initialized){
-                    //        scope.clearFilter();
-                    //    //}
-                    //});
-
                 }
 
                 // verify valid element type.
@@ -1860,6 +1852,7 @@ angular.module('ai.list', ['ai.helpers'])
 
 
     }]);
+
 angular.module('ai.loader.factory', ['ai.helpers'])
 
     .provider('$loader', function $loader() {
@@ -2194,950 +2187,785 @@ angular.module('ai.loader', [
 
 angular.module('ai.passport.factory', [])
 
-    .provider('$passport', [function $passport() {
+.provider('$passport', [function $passport() {
 
-        var defaults, defaultRoles, get, set;
+  var defaults, defaultRoles, get, set;
 
-        // NOTE: if roles object keys are numeric roles are ordered
-        //       by the numeric keys. if keys are strings the roles
-        //       will be sorted by each property's value.
-        //       if roles are a simple array of strings a numeric
-        //       map will be created based on the order of the
-        //       array provided.
+  // NOTE: if roles object keys are numeric roles are ordered
+  //       by the numeric keys. if keys are strings the roles
+  //       will be sorted by each property's value.
+  //       if roles are a simple array of strings a numeric
+  //       map will be created based on the order of the
+  //       array provided.
 
+  defaults = {
 
+    router: 'ngRoute', // the router being used uiRouter or ngRoute.
+    // this is not the module name but the
+    rootKey: '$passport', // the rootScope property key to set to instance.
+    aclKey: 'acl', // the property within route object that contains acl levels.
 
-        defaults = {
+    401: true, // set to false to not handle 401 status codes.
+    403: true, // set to false to not handle 403 status codes.
 
-            router:             'ngRoute',                      // the router being used uiRouter or ngRoute.
-                                                                // this is not the module name but the 
-            rootKey:            'Passport',                     // the rootScope property key to set to instance.
-            routeKey:           'area',                         // the property within the current router's route object
+    rolesKey: 'roles', // the key which contains ALL roles.
+    userKey: 'user', // the object key which contains the user information
+    // returned in res.data of successful login.
+    // ex: res.data.user (see method $module.login)
+    userRolesKey: 'roles', // the key in the user object containing roles.
+    defaultRole: 0, // the default role to be used for public access.
+    extendKeys: undefined, // array of keys you wish to also track.
 
-            401: true,                                          // set to false to not handle 401 status codes.
-            403: true,                                          // set to false to not handle 403 status codes.
+    paranoid: undefined, // when NOT false, if security config missing go to login.
 
-            rolesKey:           'roles',                        // the key which contains ALL roles.
-            userKey:            'user',                         // the object key which contains the user information
-                                                                // returned in res.data of successful login.
-                                                                // ex: res.data.user (see method $module.login)
-            extendKeys:         undefined,                      // array of keys you wish to also track.
-                                                                         
-            paranoid:           false,                          // when true, fails if access level is missing.
-            delimiter:          ',',                            // char to use to separate roles when passing string.
+    defaultUrl: '/', // the default path or home page.
+    loginUrl: '/passport/login', // path to login form.
+    loginAction: 'post /api/passport/login', // endpoint/func used for authentication.
+    logoutAction: 'get /api/passport/logout', // endpoint/func used to logout/remove session.
+    syncAction: 'get /api/passport/sync', // syncs app roles and user profile. must return
+    // object containing user and/or roles.
+    // ex: { user: user, roles: roles }
 
-            defaultUrl:         '/',                            // the default path or home page.
-            loginUrl:           '/passport/login',              // path to login form.
-            resetUrl:           '/passport/reset',              // path to password reset form.
-            recoverUrl:         '/passport/recover',            // path to password recovery form.
+    onLoginSuccess: '/', // path or func on success.
+    onLoginFailed: '/passport/login', // path or func when login fails.
+    onLogoutSuccess: '/passport/login', // path or func on logout success.
+    onLogoutFailed: '/passport/login', // path or func on logout failed.
 
-            loginAction:        'post /api/passport/login',     // endpoint/func used fo r authentication.
-            logoutAction:       'get /api/passport/logout',     // endpoint/func used to logout/remove session.
-            resetAction:        'post /api/passport/reset',     // endpoint/func used for resetting password.
-            recoverAction:      'post /api/passport/recover',   // endpoint/func used for recovering password.
-            syncAction:         'get /api/passport/sync',       // syncs app roles and user profile. must return
-                                                                // object containing user and/or roles.
-                                                                // ex: { user: user, roles: roles }
+    onUnauthenticated: '/passport/login', // path or func when unauthenticated.
+    onUnauthorized: '/passport/login', // path or func when unauthorized.
+    onSyncSuccess: undefined, // func called when successfully synchronized w/ server.
 
-            onLoginSuccess:     '/',                            // path or func on success.
-            onLoginFailed:      '/passport/login',              // path or func when login fails.
-            onRecoverSuccess:   '/passport/login',              // path or func when recovery is success.
-            onRecoverFailed:    '/passport/recover',            // path or func when recover fails.
-            onUnauthenticated:  '/passport/login',              // path or func when unauthenticated.
-            onUnauthorized:     '/passport/login',              // path or func when unauthorized.
-            onSyncSuccess:      undefined,                      // func called when successfully synchronized w/ server.
+    welcomeText: 'Welcome ', // prefix string to identity.
+    welcomeParams: ['firstName'] // array of user properties which make up the
+      // user's identity or full name, properties are
+      // separated by a space.
 
-            welcomeText:        'Welcome ',                     // prefix string to identity.
-            welcomeParams:      [ 'firstName' ]                 // array of user properties which make up the
-                                                                // user's identity or full name, properties are
-                                                                // separated by a space.
+  };
+
+  defaultRoles = {
+    0: '*',
+    1: 'user',
+    2: 'manager',
+    3: 'admin',
+    4: 'superadmin'
+      //'*': 0,
+      //'user': 1,
+      //'manager': 2,
+      //'admin': 3,
+      //'superadmin': 4
+  };
+
+  set = function set(key, value) {
+    var obj = key;
+    if (arguments.length > 1) {
+      obj = {};
+      obj[key] = value;
+    }
+    defaults = angular.extend({}, defaults, obj);
+  };
+
+  get = ['$rootScope', '$location', '$http', '$q', '$injector', '$log', '$timeout',
+    function get($rootScope, $location, $http, $q, $injector, $log, $timeout) {
+
+      var instance,
+        $route;
+
+      // nomralize url to method/path object.
+      function urlToObject(url) {
+        var parts = url.split(' '),
+          obj = {
+            method: 'get'
+          };
+        obj.path = parts[0];
+        if (parts.length > 1) {
+          obj.method = parts[0];
+          obj.path = parts[1];
+        }
+        return obj;
+      }
+
+      // Parse float a string value.
+      function tryParseFloat(val) {
+        try {
+          if (isNaN(val))
+            return val;
+          return parseFloat(val);
+        } catch (ex) {
+          return val;
+        }
+      }
+
+      // normalize roles in format:
+      // { 0: 'role_name', 1: 'role_name' }
+      function normalizeRoles(roles) {
+
+        var obj = {},
+            keys, stringKeys, values;
+
+        // If a string remove spaces and split csv.
+        if (angular.isString(roles))
+            roles = roles.replace(/\s/g, '').split(',');
+
+        // If array iterate convert to object using index as key.
+        if (angular.isArray(roles)) {
+
+          if (!roles.length)
+            throw new Error('Fatal error normalizing passport roles, received empty array.');
+
+          angular.forEach(roles, function(v, k) {
+            obj[k] = v;
+          });
+
+        }
+
+        // If an object normalize.
+        else if (angular.isObject(roles)) {
+
+          keys = Object.keys(roles);
+
+          // Must have keys if not throw error.
+          if (!keys.length)
+            throw new Error('Fatal error normalizing passport roles, object has no keys.');
+
+          // Detect if keys are strings or numbers.
+          stringKeys = tryParseFloat(keys[0]);
+          stringKeys = typeof stringKeys === 'string';
+
+          obj = roles;
+
+          // Only need to normlize if string keys
+          // otherwise roles are alredy in correct format.
+          if (stringKeys) {
+
+            obj = {};
+            values = keys.map(function(k) {
+              k = tryParseFloat(k);
+              return roles[k];
+            });
+
+            // Should not hit this but to be safe throw
+            // error if we have no values.
+            if (!values.length)
+              throw new Error('Fatal error normalizing passport roles, object has no values.');
+
+            // iterate the values and creating map.
+            angular.forEach(values, function(v) {
+
+              var parsedVal = tryParseFloat(v);
+              var val;
+
+              angular.forEach(roles, function(v, k) {
+                if (val) return;
+                if (parsedVal === v)
+                  val = k;
+              });
+
+              // If no key to match value throw error.
+              if (!val)
+                throw new Error('Fatal error normalizing security roles, no matching key for value ' +
+                  parsedVal);
+
+              // Otherwise the parsed string to float is
+              // the key and the key is the value.
+              obj[parsedVal] = val;
+
+            });
+
+          }
+
+        }
+
+        // If not object array or csv then throw error.
+        else {
+
+          throw new Error('Fatal error normalizing security roles, the format is invalid.');
+
+        }
+        return obj;
+
+      }
+
+      // Passport factory module.
+      function ModuleFactory() {
+
+        var $module = {};
+
+        if (this.instance)
+          return instance;
+
+        // extends module with custom keys.
+        function extendModule(keys, obj) {
+          angular.forEach(keys, function(k) {
+            if (obj[k])
+              $module[k] = obj[k];
+          });
+        }
+
+        // Takes a string role and converts it to it's number key.
+        function stringToNumber(role) {
+          var result;
+          angular.forEach($module.roles, function(v, k) {
+            if (result !== undefined)
+              return;
+            if (role === v)
+              result = k;
+          });
+          return result;
+        }
+
+        // ensure the user proptery
+        // is undefined when passport
+        // class is initialized.
+        $module.user = undefined;
+
+        // Finds property by dot notation.
+        $module.findByNotation = function findByNotation(obj, prop) {
+          var props, comp, arrayData, match;
+          if (!obj || !prop)
+            return undefined;
+          props = prop.split('.');
+          while (props.length && obj) {
+            comp = props.shift();
+            match = new RegExp('(.+)\\[([0-9]*)\\]', 'i').exec(comp);
+            if ((match !== null) && (match.length === 3)) {
+              arrayData = {
+                arrName: match[1],
+                arrIndex: match[2]
+              };
+              if (obj[arrayData.arrName] !== undefined) {
+                obj = obj[arrayData.arrName][arrayData.arrIndex];
+              } else {
+                obj = undefined;
+              }
+            } else {
+              obj = obj[comp];
+            }
+          }
+          return obj;
         };
 
-        defaultRoles = {
-            0: '*',
-            1: 'user',
-            2: 'manager',
-            3: 'admin',
-            4: 'superadmin'
-            //'*': 0,
-            //'user': 1,
-            //'manager': 2,
-            //'admin': 3,
-            //'superadmin': 4
+        // set passport options.
+        $module.set = function set(key, value) {
+
+          var options;
+
+          if (!key && !value) {
+            options = {};
+          }
+          else {
+            if (angular.isObject(key)) {
+              options = key;
+              value = undefined;
+            } else {
+              options = {};
+              options[key] = value;
+            }
+          }
+
+          // merge the options.
+          $module.options = angular.extend({}, defaults, options);
+
+          // don't merge levels override instead.
+          $module.options.roles = $module.options.roles || defaultRoles;
+
+          // set levels and roles.
+          $module.roles = normalizeRoles($module.options.roles);
+
+          // define router change event name.
+          if ($module.options.router === 'ngRoute') {
+            $route = $injector.get('$route');
+            $module.routerChangeEvent = '$routeChangeStart';
+          }
+
+          else {
+            $module.routerChangeEvent = '$stateChangeStart';
+            $route = $injector.get('$state');
+          }
+
         };
 
-        set = function set (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
+        // login passport credentials.
+        $module.login = function login(data, success, failed) {
+
+          var url = urlToObject($module.options.loginAction),
+              roles;
+
+          success = success || $module.options.onLoginSuccess;
+          failed = failed || $module.options.onLoginFailed;
+
+          function onFailed(res) {
+            if (angular.isFunction(failed)) {
+              failed.call($module, res, $module);
             }
-            defaults = angular.extend({}, defaults, obj);
+            else {
+              $module.goto(failed);
+            }
+          }
+
+          $http[url.method](url.path, data)
+            .then(function(res) {
+
+              $module.user = $module.findByNotation(res.data, $module.options.userKey);
+              roles = $module.findByNotation(res.data, $module.options.rolesKey);
+
+              if (!$module.user)
+                return onFailed(res);
+
+              if (roles)
+                $module.roles = normalizeRoles(roles);
+
+              if ($module.options.extendKeys)
+                extendModule($module.options.extendKeys, res.data);
+
+              if (angular.isFunction(success)) {
+                success.call($module, res, $module);
+              }
+
+              else {
+                $module.goto(success);
+              }
+
+            }, onFailed);
+
         };
 
-        get = ['$rootScope', '$location', '$http', '$q', '$injector',
-            function get($rootScope, $location, $http, $q, $injector) {
+        // logout passport.
+        $module.logout = function logout(success, failed) {
 
-            var instance,
-                $route;
+          var url;
+          success = success || $module.options.onLogoutSuccess;
+          failed = failed || $module.options.onLogoutFailed;
 
-            // nomralize url to method/path object.
-            function urlToObject(url) {
-                var parts = url.split(' '),
-                    obj = { method: 'get' };
-                obj.path =  parts[0];
-                if(parts.length > 1){
-                    obj.method = parts[0];
-                    obj.path = parts[1];
-                }
-                return obj;
-            }
+          function done() {
+            $module.user = undefined;
+            $module.goto($module.options.loginUrl, true);
+          }
 
-            function tryParseFloat(val) {
-                try {
-                    if(isNaN(val))
-                        return val;
-                    return parseFloat(val);
-                } catch(ex) {
-                    return val;
-                }
-            }
+          if (angular.isFunction($module.options.logoutAction)) {
+            $module.options.logoutAction.call($module, $module);
+          }
 
-            //normalize roles in format:
-            // { 0: 'role_name', 1: 'role_name' }
-            function normalizeRoles(roles) {
-                var obj = {};
-                if(angular.isArray(roles)){
-                    if(!roles.length)
-                        throw new Error('Fatal error normalizing passport roles, received empty array.');
-                    angular.forEach(roles, function (v, k){
-                        obj[k] = v;
-                    });
-                }
+          else {
 
-                else if(angular.isObject(roles) && !angular.isFunction(roles)) {
-                    var keys = Object.keys(roles),
-                        stringKeys,
-                        values;
-                    if(!keys.length)
-                        throw new Error('Fatal error normalizing passport roles, object has no keys.');
-                    stringKeys = tryParseFloat(keys[0]);
-                    stringKeys = typeof stringKeys === 'string';
-                    obj = roles;
-                    if(stringKeys){
-                        obj = {};
-                        values = keys.map(function (k) {
-                            k = tryParseFloat(k);
-                            return roles[k];
-                        });
-                        if(!values.length)
-                            throw new Error('Fatal error normalizing passport roles, object has no values.');
-                        angular.forEach(values, function (v) {
-                            var parsedVal = tryParseFloat(v);
-                            var val;
-                            angular.forEach(roles, function (v, k) {
-                                if(val) return;
-                                if(parsedVal === v)
-                                    val = k;
-                            });
-                            if(!val)
-                                throw new Error('Fatal error normalizing security roles, no matching key for value ' +
-                                    parsedVal);
-                            obj[parsedVal] = val;
-                        });
-                    }
-                }
+            url = urlToObject($module.options.logoutAction);
 
-                else {
-                    throw new Error('Fatal error normalizing security roles, the format is invalid.');
-                }
-                return obj;
-            }
+            $http[url.method](url.path).then(function(res) {
 
-            // Passport factory module.
-            function ModuleFactory() {
-
-                if(this.instance)
-                    return instance;
-
-                var $module = {};
-
-                // extends module with custom keys.
-                function extendModule(keys, obj){
-                    angular.forEach(keys, function (k) {
-                        if(obj[k])
-                            $module[k] = obj[k];
-                    });
-                }
-               
-
-                // ensure the user proptery
-                // is undefined when passport
-                // class is initialized.
+              if (angular.isFunction(success)) {
                 $module.user = undefined;
+                success.call($module, res, $module);
+              }
 
-                $module.findByNotation = function findByNotation(obj, prop) {
-                    if(!obj || !prop)
-                        return undefined;
-                    var props = prop.split('.');
-                    while (props.length && obj) {
-                        var comp = props.shift(),
-                            match;
-                        match = new RegExp('(.+)\\[([0-9]*)\\]', 'i').exec(comp);
-                        if ((match !== null) && (match.length === 3)) {
-                            var arrayData = { arrName: match[1], arrIndex: match[2] };
-                            if (obj[arrayData.arrName] !== undefined) {
-                                obj = obj[arrayData.arrName][arrayData.arrIndex];
-                            } else {
-                                obj = undefined;
-                            }
-                        } else {
-                            obj = obj[comp];
-                        }
-                    }
-                    return obj;
-                };
+              else {
+                done();
+              }
 
-                // set passport options.
-                $module.set = function set(key, value) {
+            }, done);
+          }
 
-                    var options;
+        };
 
-                    if(!key && !value) {
-                        options = {};
-                    } else {
-                        if(angular.isObject(key)){
-                            options = key;
-                            value = undefined;
-                        } else {
-                            options = {};
-                            options[key] = value;
-                        }
-                    }
+        // sync passport with server.
+        // checking for session.
+        // Callback is used only on internal calls.
+        $module.sync = function sync(data, cb) {
 
-                    // don't merge levels override instead.
-                    options.roles = options.roles || defaultRoles;
+          var url, roles, obj, conf, user;
 
-                    // merge the options.
-                    $module.options = angular.extend({}, defaults, $module.options, options);
+          if (angular.isFunction(data)) {
+            cb = data;
+            data = undefined;
+          }
 
-                    // set levels and roles.
-                    $module.roles = normalizeRoles(options.roles);
+          function done(obj) {
 
-                    // define router change event name.
-                    if($module.options.router === 'ngRoute'){
-                        $route = $injector.get('$route');
-                        $module.routerChangeEvent = '$routeChangeStart';
-                    } else {
-                       $module.routerChangeEvent = '$stateChangeStart';
-                        $route = $injector.get('$state');
-                    }
+            if (obj) {
+              user = $module.findByNotation(obj, $module.options.userKey);
+              roles = $module.findByNotation(obj, $module.options.rolesKey);
+              if (user)
+                $module.user = user;
+              if (roles)
+                $module.roles = normalizeRoles(roles);
+              if ($module.options.extendKeys)
+                extendModule($module.options.extendKeys, obj);
+              if (cb)
+                cb();
+            }
 
-                };
+          }
 
-                // login passport credentials.
-                $module.login = function login(data) {
-                    var url = urlToObject($module.options.loginAction);
-                    function onFailed(res) {
-                        if(angular.isFunction($module.options.onLoginFailed)) {
-                            $module.options.onLoginFailed.call($module, res);
-                        } else {
-                            $location.path($module.options.onLoginFailed);
-                        }
-                    }
-                    $http[url.method](url.path, data)
-                        .then(function (res) {
-                            $module.user = $module.findByNotation(res.data, $module.options.userKey);
-                            var roles = $module.findByNotation(res.data, $module.options.rolesKey);
-                            if(!$module.user)
-                                throw new Error('Fatal error passport failed to set "user" on login.');
-                            if(roles)
-                                $module.roles = normalizeRoles(roles);
-                            delete $module.user._roles;
-                            if($module.options.extendKeys)
-                                extendModule($module.options.extendKeys, res.data);
-                            if(angular.isFunction($module.options.onLoginSuccess)) {
-                                $module.options.onLoginSuccess.call($module, res, $module.user);
-                            } else {
-                                $location.path($module.options.onLoginSuccess);
-                            }
-                        }, onFailed);
-                };
+          if (!$module.options.syncAction)
+            return done();
 
-                // logout passport.
-                $module.logout = function logout() {
-                    function done() {
-                        $module.user = undefined;
-                        $location.path($module.options.loginUrl);
-                        if($module.options.router === 'ngRoute')
-                            $route.reload();
-                        else
-                            $route.go($route.current, {}, {reload: true});
-                    }
-                    if(angular.isFunction($module.options.logoutAction)){
-                        $module.options.logoutAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.logoutAction);
-                        $http[url.method](url.path).then(function (res) {
-                            if(res)
-                                done();
-                        });
-                    }
-                };
+          // If is function call and set using returned result.
+          if (angular.isFunction($module.options.syncAction)) {
 
-                // recover passport
-                $module.recover = function recover() {
-                    if(angular.isFunction($module.options.recoverAction)){
-                        $module.options.recoverAction.call($module);
-                    } else {
-                        var url = urlToObject($module.options.recoverAction);
-                        $http[url.method](url.path).then(function (res){
-                            if(angular.isFunction($module.options.onRecoverSuccess)) {
-                                $module.options.onRecoverSuccess.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverSuccess);
-                            }
-                        }, function () {
-                            if(angular.isFunction($module.options.onRecoverFailed)) {
-                                $module.options.onRecoverFailed.call($module, res);
-                            } else {
-                                $location.path($module.options.onRecoverFailed);
-                            }
-                        });
-                    }
-                };
+            obj = $module.options.syncAction.call($module);
+            done(obj);
 
-                // reset passport password.
-                $module.reset = function reset() {
+          } else {
 
-                };
+            url = urlToObject($module.options.syncAction);
 
-                // sync passport with server.
-                // checking for session.
-                $module.sync = function sync(resync, data) {
-                  if(typeof resync === 'object'){
-                        data = resync;
-                        resync = undefined;
-                    }
-                    function done(obj) {
+            if (url.method && url.path) {
 
-                        if(obj) {
-                            var user = $module.findByNotation(obj, $module.options.userKey);
-                            var roles = $module.findByNotation(obj, $module.options.rolesKey);
-                            if(user)
-                                $module.user = user;
-                            if(roles)
-                                $module.roles = normalizeRoles(roles);   
-                            if($module.options.extendKeys)
-                                extendModule($module.options.extendKeys, obj);
-                        }
+              conf = {
+                method: url.method,
+                url: url.path
+              };
 
-                    }
+              data = data || {};
 
-                    if(!$module.options.syncAction)
-                        return done();
+              if (conf.method.toLowerCase() === 'get')
+                conf.params = data;
+              else
+                conf.data = data;
 
-                    if(angular.isFunction($module.options.syncAction)){
-                        var obj = $module.options.syncAction.call($module);
-                        done(obj);
+              $http(conf).then(function(res) {
 
-                    } else {
+                if (res) {
 
-                        var url = urlToObject($module.options.syncAction);
+                  // Set roles and user.
+                  done(res.data);
 
-                        if (url.method && url.path) {
-                            var conf = { method: url.method, url: url.path };
-                            data = data || {};
-                            data.resync = resync;
-                            if(conf.method.toLowerCase() === 'get')
-                                conf.params = data;
-                            else
-                                conf.data = data;
-                            $http(conf).then(function (res) {
-                                if(res){
-                                    done(res.data);
-                                    if(angular.isFunction($module.options.onSyncSuccess))
-                                        return $module.options.onSyncSuccess
-                                            .call($module, res, $module.user);
-                                }                  
-                            }, function (res) {
-                                if(console && console.warn)
-                                    console.warn(res.data);
-                            });
-                        }
-                    }
+                  // check if on sync success is function.
+                  if (angular.isFunction($module.options.onSyncSuccess))
+                    return $module.options.onSyncSuccess
+                      .call($module, res, $module.user);
+                }
+              }, function(res) {
 
-                };
+                  $log.warn(res.data);
 
-                // expects string.
-                $module.hasRole = function hasRole(role) {
-                   // var userRoles = $module.userRoles(),
-                        //level =
-                    //if(!level)
-                        //return false;
-                    // if public return true
-                    //if(level === 0)
-                    //    return true;
-                    //return passportRoles.indexOf(role) !== -1;
-                };
-
-                // expects string or array of strings.
-                $module.hasAnyRole = function hasAnyRole(roles) {
-                    //var passportRoles = $module.roles || [];
-                    // if a string convert to role levels.
-                    //if(angular.isString(roles)){
-                    //    roles = roles.split($module.options.delimiter);
-                    //    roles = rolesToLevels($module.options.roles, roles);
-                    //}
-                    // if public return true
-                    //if(roles.indexOf(0) !== -1)
-                    //    return true;
-                    //return roles.some(function (v) {
-                    //    return passportRoles.indexOf(v) !== -1;
-                    //});
-                };
-
-                // check if meets the minimum roll required.
-                $module.minRole = function minRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole >= role;
-                };
-
-                // check if role is not greater than.
-                $module.maxRole = function maxRole(role) {
-                    var passportRoles = $module.roles || [],
-                        maxRole;
-                    if(angular.isString(role))
-                        role = $module.options.roles[role] || undefined;
-                    // get the passport's maximum role.
-                    maxRole = Math.max.apply(Math, passportRoles);
-                    return maxRole < role;
-                };
-
-                // unauthorized handler.
-                $module.unauthenticated = function unauthenticated() {
-                    var action = $module.options.onUnauthenticated;
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-                };
-
-                // unauthorized handler.
-                $module.unauthorized = function unauthorized() {
-                    var action = $module.options.onUnauthorized;
-                    // if func call pass context.
-                    if(angular.isFunction(action))
-                        return action.call($module);
-                    // default to the login url.
-                    $location.path(action || $module.options.loginUrl);
-                };
-
-                // gets the identity name of the authenticated user.
-                $module.displayName = function displayName(arr) {
-                    var result = '';
-                    arr = arr || $module.options.welcomeParams;
-                    if(!$module.user)
-                        return undefined;
-                    angular.forEach(arr, function (v, k){
-                        if($module.user[v]){
-                            if(k === 0)
-                                result += $module.user[v];
-                            else
-                                result += (' ' + $module.user[v]);
-                        }
-                    });
-                    return result;
-                };
-
-                // returns welcome text and displayName or text only.
-                $module.welcome = function welcome(textOnly) {
-                    if(textOnly)
-                        return $module.options.welcomeText;
-                    return $module.options.welcomeText + ' ' + $module.displayName();
-                };
-
-                // return roles array from user object.
-                $module.userRoles = function userRoles() {
-                    if(!$module.user || !$module.user[$module.options.rolesKey])
-                        return [0];
-                    return $module.user[$module.options.rolesKey];
-                };
-
-                // navigate to path.
-                $module.goto = function goto(path) {
-                    if(path)
-                        $location.path(path);
-                };
-
-                // set initial options
-                $module.set();
-
-                // sync with server.
-                $module.sync();
-
-                $rootScope[$module.options.rootKey] = $module;
-
-                // return for chaining.
-                return $module;
+              });
 
             }
 
-            ModuleFactory.instance = undefined;
+          }
 
-            // return new instance of Passport.
-            return new ModuleFactory();
-
-        }];
-
-        return {
-            $get: get,
-            $set: set
         };
 
-    }]);
+        // expects string.
+        $module.hasRole = function hasRole(role) {
+
+          var userRoles;
+
+          // Get the users roles.
+          userRoles = $module.userRoles();
+
+          // If role is string need to convert to number.
+          if (angular.isString(role))
+            role = stringToNumber(role);
+
+          // If we don't have a role return false;
+          if (!role)
+            return false;
+
+          // If the role equals the defualt
+          // public role return true.
+          if (role === $module.options.defaultRole)
+            return true;
+
+          // Otherwise we check if the user has the role.
+          return userRoles.indexOf(role) !== -1;
+
+        };
+
+        // expects string or array of strings.
+        $module.hasAnyRole = function hasAnyRole(roles) {
+
+          var result;
+
+          // Check if csv string.
+          if (angular.isString(roles))
+            roles = roles.replace('/\s/g', '').split(',');
+
+          if (!angular.isArray(roles))
+            roles = [roles];
+
+          // Check for public role if exists we don't
+          // need to check user roles as the route is public.
+          if (roles.indexOf($module.options.defaultRole) !== -1)
+            return true;
+
+          result = roles.some(function (v) {
+            return $module.hasRole(v);
+          });
+
+          return result;
+
+        };
+
+        // check if meets the minimum roll required.
+        $module.hasMinRole = function hasMinRole(role) {
+
+          var userRoles = $module.user[$module.options.userRolesKey] || [],
+              maxRole;
+
+          if (angular.isString(role))
+            role = stringToNumber(role);
+
+          // get the passport's maximum role.
+          maxRole = Math.max.apply(Math, userRoles);
+  
+          return maxRole >= role;
+
+        };
+
+        // check if role is not greater than.
+        $module.lessThanRole = function lessThanRole(role) {
+
+          var userRoles = $module.user[$module.options.userRolesKey] || [],
+              maxRole;
+
+          if (angular.isString(role))
+            role = stringToNumber(role);
+
+          // get the passport's maximum role.
+          maxRole = Math.max.apply(Math, userRoles);
+
+          return maxRole < role;
+
+        };
+
+        // Unauthenticated redirect handler.
+        $module.unauthenticated = function unauthenticated() {
+
+          var action = $module.options.onUnauthenticated;
+
+          // if func call pass context.
+          if (angular.isFunction(action))
+            return action.call($module);
+
+          // default to the login url.
+          //$location.path(action || $module.options.loginUrl);
+          $module.goto(action);
+
+        };
+
+        // Unauthorized redirect handler.
+        // The following params are only passed internally
+        // by the route interceptor.
+        // e - the event only passed internally.
+        // next - the next route
+        // prev - the previous route.
+        $module.unauthorized = function unauthorized(e, next, prev) {
+
+          var action = $module.options.onUnauthorized,
+              reload = e ? true : false;
+
+          // if func call pass context.
+          if (angular.isFunction(action))
+            return action.call($module);
+
+          // default to the login url.
+          //$location.path(action || $module.options.loginUrl);
+          $module.goto(action, reload);
+
+        };
+
+        // gets the identity name of the authenticated user.
+        $module.displayName = function displayName(arr) {
+
+          var result = '';
+          arr = arr || $module.options.welcomeParams;
+
+          if (!$module.user)
+            return undefined;
+          angular.forEach(arr, function(v, k) {
+
+            if ($module.user[v]) {
+              if (k === 0)
+                result += $module.user[v];
+              else
+                result += (' ' + $module.user[v]);
+            }
+
+          });
+
+          return result;
+        };
+
+        // returns welcome text and displayName or text only.
+        $module.welcome = function welcome(textOnly) {
+
+          if (textOnly)
+            return $module.options.welcomeText;
+
+          return $module.options.welcomeText + ' ' + $module.displayName();
+
+        };
+
+        // return roles array from user object.
+        $module.userRoles = function userRoles() {
+
+          var userRoles = $module.user && $module.user[$module.options.userRolesKey];
+
+          // Ensure that userRoles is an array.
+          if (userRoles && (angular.isString(userRoles) || angular.isNumber(userRoles)))
+            userRoles = [userRoles];
+
+          return userRoles || [$module.options.defaultRole || 0];
+
+        };
+
+        // navigate to path.
+        $module.goto = function goto(url, reload) {
+
+          $location.path(url);
+
+          if (reload) {
+            // Use timeout to ensure $rootScope variables trigger.
+            $timeout(function() {
+              if ($module.options.router === 'ngRoute')
+                $route.reload();
+              else
+                $route.go($route.current, {}, { reload: true });
+            });
+          }
+
+        };
+
+        // set initial options
+        $module.set();
+
+        $rootScope[$module.options.rootKey] = $module;
+
+        // return for chaining.
+        return $module;
+
+      }
+
+      ModuleFactory.instance = undefined;
+
+      // return new instance of Passport.
+      return new ModuleFactory();
+
+    }
+  ];
+
+  return {
+    $get: get,
+    $set: set
+  };
+
+}]);
 
 // intercepts 401 and 403 errors.
 angular.module('ai.passport.interceptor', [])
 
-    .factory('$passportInterceptor', ['$q', '$injector', function ($q, $injector) {
-        return {
-            responseError: function(res) {
-                 //get passport here to prevent circ dependency.
-                var passport = $injector.get('$passport');
-                // handle unauthenticated response
-                if (res.status === 401 && passport.options['401'])
-                    passport.unauthenticated();
-                // handle unauthorized.
-                if(res.status === 403 && passport.options['403'])
-                    passport.unauthorized();
-                return $q.reject(res);
-            }
-        };
-    }])
-    .config(['$httpProvider', function ($httpProvider) {
-        $httpProvider.interceptors.push('$passportInterceptor');
-    }]);
+.factory('$passportInterceptor', ['$q', '$injector', function($q, $injector) {
+    return {
+      responseError: function(res) {
+        //get passport here to prevent circ dependency.
+        var passport = $injector.get('$passport');
+        // handle unauthenticated response
+        if (res.status === 401 && passport.options['401'])
+          passport.unauthenticated();
+        // handle unauthorized.
+        if (res.status === 403 && passport.options['403'])
+          passport.unauthorized();
+        return $q.reject(res);
+      }
+    };
+  }])
+  .config(['$httpProvider', function($httpProvider) {
+    $httpProvider.interceptors.push('$passportInterceptor');
+  }]);
 
 // handles intercepting route when
 // required permissions are not met.
 angular.module('ai.passport.route', [])
 
-    .run(['$rootScope', '$location', '$passport', function ($rootScope, $location, $passport) {
+.run(['$rootScope', '$location', '$passport', function($rootScope, $location, $passport) {
 
-        var changeEvent = $passport.routerChangeEvent;
+  var changeEvent = $passport.routerChangeEvent;
 
-        // ngRoute:
-        //      event - the JavaScript event.
-        //      next  - the next route.
-        //      current - the current route.
-        // uiRouter:
-        //      event - the JavaScript event.
-        //      toState - the next state.
-        //      toParams - the next state's params.
-        //      fromState - the current or previous state.
-        //      fromParams - the current or previous state's params.
-        $rootScope.$on(changeEvent, function () {
+  // ngRoute:
+  //      event - the JavaScript event.
+  //      next  - the next route.
+  //      current - the current route.
+  // uiRouter:
+  //      event - the JavaScript event.
+  //      toState - the next state.
+  //      toParams - the next state's params.
+  //      fromState - the current or previous state.
+  //      fromParams - the current or previous state's params.
+  $rootScope.$on(changeEvent, function(e) {
 
-            var args = Array.prototype.slice.call(arguments),
-                area = {},
-                route = {},
-                access,
-                authorized,
-                next, prev;
+    var args = Array.prototype.slice.call(arguments, 0),
+      area = {},
+      route = {},
+      acl,
+      authorized,
+      next, prev;
 
-            next = args[1];
-            prev = args[2];
+    next = args[1];
+    prev = args[2];
 
-            // for ui router the prev route
-            // is at diff arg position.
-            if(changeEvent === '$stateChangeStart')
-                prev = args[3];
-            
-            
-            if(next && next.$$route)
-                route = next.$$route;
+    // for ui router the prev route
+    // is at diff arg position.
+    if (changeEvent === '$stateChangeStart')
+      prev = args[3];
 
-            access = $passport.findByNotation(route, $passport.routeKey);
+    // Set the route to next object.
+    route = next;
 
-            // when paranoid all routes must contain
-            // an access key containing roles otherwise
-            // direct to unauthorized.
-            if($passport.options.paranoid && access === undefined){
-                return $passport.unauthorized();
-            }
+    // If next.$$route using angular-route.
+    if (next && next.$$route)
+      route = next.$$route;
 
-            if(access !== undefined){
-                authorized = $passport.hasAnyRole('*');
-                if(!authorized){
-                    $passport.unauthorized();
-                }
-            }
+    acl = $passport.findByNotation(route, $passport.options.aclKey);
 
-        });
+    // when paranoid all routes must contain
+    // an access key containing roles otherwise
+    // direct to unauthorized.
+    if (acl === undefined && $passport.options.paranoid === true)
+      return $passport.unauthorized();
 
-    }]);
+    // We've passed paranoid setting so safe to
+    // set default acl.
+    if (!acl)
+      acl = [$passport.options.defaultRole];
+
+   // If we already have a user.
+   if ($passport.user) {
+
+     authorized = $passport.hasAnyRole(acl);
+
+     if (!authorized) {
+       e.preventDefault();
+       $passport.unauthorized(e, next, prev);
+     }
+
+   }
+
+   // Otherwise ensure user before continuing.
+   else {
+
+     $passport.sync(function() {
+
+       authorized = $passport.hasAnyRole(acl);
+
+       if (!authorized) {
+         e.preventDefault();
+         $passport.unauthorized(e, next, prev);
+       }
+
+     });
+
+   }
+
+  });
+
+}]);
 
 // imports above modules.
 angular.module('ai.passport', [
-    'ai.passport.factory',
-    'ai.passport.interceptor',
-    'ai.passport.route'
+  'ai.passport.factory',
+  'ai.passport.interceptor',
+  'ai.passport.route'
 ]);
-angular.module('ai.storage', [])
-
-    .provider('$storage', function $storage() {
-
-        var defaults = {
-            ns: 'app',              // the namespace for saving cookie/localStorage keys.
-            cookiePath: '/',        // the path for storing cookies.
-            cookieExpiry: 30        // the time in minutes for which cookies expires.
-        }, get, set;
-
-
-        /**
-         * Checks if cookies or localStorage are supported.
-         * @private
-         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
-         * @returns {boolean}
-         */
-        function supports(cookie) {
-            if(!cookie)
-                return ('localStorage' in window && window.localStorage !== null);
-            else
-                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
-                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
-        }
-
-        /**
-         * Get element by property name.
-         * @private
-         * @param {object} obj - the object to parse.
-         * @param {array} keys - array of keys to filter by.
-         * @param {*} [def] - default value if not found.
-         * @param {number} [ctr] - internal counter for looping.
-         * @returns {*}
-         */
-        function getByProperty(obj, keys, def, ctr) {
-            if (!keys) return def;
-            def = def || null;
-            ctr = ctr || 0;
-            var len = keys.length;
-            for (var p in obj) {
-                if (obj.hasOwnProperty(p)) {
-                    if (p === keys[ctr]) {
-                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
-                            ctr += 1;
-                            return getByProperty(obj[p], keys, def, ctr) || def;
-                        }
-                        else {
-                            return obj[p] || def;
-                        }
-                    }
-                }
-            }
-            return def;
-        }
-
-        /**
-         * Sets provider defaults.
-         */
-        set = function (key, value) {
-            var obj = key;
-            if(arguments.length > 1){
-                obj = {};
-                obj[key] = value;
-            }
-            defaults = angular.extend({}, defaults, obj);
-        };
-
-        /**
-         * Angular get method for returning factory.
-         * @type {*[]}
-         */
-        get = [ function () {
-
-            function ModuleFactory(options) {
-
-                var $module = {},
-                    ns, cookie, nsLen,
-                    cookieSupport, storageSupport;
-
-                // extend defaults with supplied options.
-                options = angular.extend(defaults, options);
-
-                // set the namespace.
-                ns = options.ns + '.';
-
-                // get the namespace length.
-                nsLen = ns.length;
-
-                storageSupport = supports();
-                cookieSupport = supports(true);
-
-                // make sure either cookies or local storage are supported.
-                if (!storageSupport && !cookieSupport)
-                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
-
-                /**
-                 * Get list of storage keys.
-                 * @memberof StorageFactory
-                 * @private
-                 * @returns {array}
-                 */
-                function storageKeys() {
-
-                    if (!storageSupport)
-                        return new Error('Keys can only be obtained when localStorage is available.');
-                    var keys = [];
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    keys.push(key.substr(nsLen));
-                                } catch (e) {
-                                    return e;
-                                }
-                            }
-                        }
-                    }
-                    return keys;
-                }
-
-                /**
-                 * Set storage value.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setStorage(key, value) {
-                    if (!storageSupport)
-                        return setCookie(key, value);
-                    if (typeof value === undefined)
-                        value = null;
-                    try {
-                        if (angular.isObject(value) || angular.isArray(value))
-                            value = angular.toJson(value);
-                        localStorage.setItem(ns + key, value);
-                    } catch (e) {
-                        return setCookie(key, value);
-                    }
-                }
-
-                /**
-                 * Get storate by key
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key to lookup.
-                 * @param {string} [property] - the property name to find.
-                 * @returns {*}
-                 */
-                function getStorage(key, property) {
-                    var item;
-                    if(property)
-                        return getProperty(key, property);
-                    if (!storageSupport)
-                        return getCookie(key);
-                    item = localStorage.getItem(ns + key);
-                    if (!item)
-                        return null;
-                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
-                        return angular.fromJson(item);
-                    return item;
-                }
-
-                /**
-                 * Get object property.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the storage key.
-                 * @param {string} property - the property to lookup.
-                 * @returns {*}
-                 */
-                function getProperty(key, property) {
-                    var item, isObject;
-                    if(!storageSupport)
-                        return new Error('Cannot get by property, localStorage must be enabled.');
-                    item = getStorage(key);
-                    isObject = angular.isObject(item) || false;
-                    if (item) {
-                        if (isObject)
-                            return getByProperty(item, property);
-                        else
-                            return item;
-                    } else {
-                        return new Error('Invalid operation, storage item must be an object.');
-                    }
-                }
-
-                /**
-                 * Delete storage item.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key
-                 * @returns {boolean}
-                 */
-                function deleteStorage (key) {
-                    if (!storageSupport)
-                        return deleteCookie(key);
-                    try {
-                        localStorage.removeItem(ns + key);
-                    } catch (e) {
-                        return deleteCookie(key);
-                    }
-                }
-
-                /**
-                 * Clear all storage CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearStorage () {
-
-                    if (!storageSupport)
-                        return clearCookie();
-
-                    for (var key in localStorage) {
-                        if(localStorage.hasOwnProperty(key)) {
-                            if (key.substr(0, nsLen) === ns) {
-                                try {
-                                    deleteStorage(key.substr(nsLen));
-                                } catch (e) {
-                                    return clearCookie();
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                /**
-                 * Set a cookie.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to set.
-                 * @param {*} value - the value to set.
-                 */
-                function setCookie (key, value) {
-
-                    if (typeof value === undefined) return false;
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    try {
-                        var expiry = '',
-                            expiryDate = new Date();
-                        if (value === null) {
-                            cookie.expiry = -1;
-                            value = '';
-                        }
-                        if (cookie.expiry) {
-                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
-                            expiry = "; expires=" + expiryDate.toGMTString();
-                        }
-                        if (!!key)
-                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
-                                options.cookiePath;
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-
-
-                /**
-                 * Get a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param {string} key - the key to find.
-                 * @returns {*}
-                 */
-                function getCookie (key) {
-
-                    if (!cookieSupport)
-                        return new Error('Cookies are not supported by this browser.');
-                    var cookies = document.cookie.split(';');
-                    for (var i = 0; i < cookies.length; i++) {
-                        var ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        if (ck.indexOf(ns + key + '=') === 0)
-                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
-                    }
-                    return null;
-                }
-
-                /**
-                 * Delete a cookie by key.
-                 * @memberof StorageFactory
-                 * @private
-                 * @param key
-                 */
-                function deleteCookie(key) {
-                    setCookie(key, null);
-                }
-
-                /**
-                 * Clear all cookies CAUTION!!
-                 * @memberof StorageFactory
-                 * @private
-                 */
-                function clearCookie() {
-                    var ck = null,
-                        cookies = document.cookie.split(';'),
-                        key;
-                    for (var i = 0; i < cookies.length; i++) {
-                        ck = cookies[i];
-                        while (ck.charAt(0) === ' ')
-                            ck = ck.substring(1, ck.length);
-                        key = ck.substring(nsLen, ck.indexOf('='));
-                        return deleteCookie(key);
-                    }
-                }
-
-                //check for browser support
-                $module.supports =  {
-                    localStorage: supports(),
-                    cookies: supports(true)
-                };
-
-                // storage methods.
-                $module.get = getStorage;
-                $module.set = setStorage;
-                $module.delete = deleteStorage;
-                $module.clear = clearStorage;
-                $module.storage = {
-                    keys: storageKeys,
-                    supported: storageSupport
-                };
-                $module.cookie = {
-                    get: getCookie,
-                    set: setCookie,
-                    'delete': deleteCookie,
-                    clear: clearCookie,
-                    supported: cookieSupport
-                };
-
-                return $module;
-
-            }
-
-            return ModuleFactory;
-
-        }];
-
-        return {
-            $set: set,
-            $get: get
-        };
-
-    });
 
 angular.module('ai.step', ['ai.helpers'])
 
@@ -3637,6 +3465,355 @@ angular.module('ai.step', ['ai.helpers'])
     };
 
 }]);
+angular.module('ai.storage', [])
+
+    .provider('$storage', function $storage() {
+
+        var defaults = {
+            ns: 'app',              // the namespace for saving cookie/localStorage keys.
+            cookiePath: '/',        // the path for storing cookies.
+            cookieExpiry: 30        // the time in minutes for which cookies expires.
+        }, get, set;
+
+
+        /**
+         * Checks if cookies or localStorage are supported.
+         * @private
+         * @param {boolean} [cookie] - when true checks for cookie support otherwise checks localStorage.
+         * @returns {boolean}
+         */
+        function supports(cookie) {
+            if(!cookie)
+                return ('localStorage' in window && window.localStorage !== null);
+            else
+                return navigator.cookieEnabled || ("cookie" in document && (document.cookie.length > 0 ||
+                    (document.cookie = "test").indexOf.call(document.cookie, "test") > -1));
+        }
+
+        /**
+         * Get element by property name.
+         * @private
+         * @param {object} obj - the object to parse.
+         * @param {array} keys - array of keys to filter by.
+         * @param {*} [def] - default value if not found.
+         * @param {number} [ctr] - internal counter for looping.
+         * @returns {*}
+         */
+        function getByProperty(obj, keys, def, ctr) {
+            if (!keys) return def;
+            def = def || null;
+            ctr = ctr || 0;
+            var len = keys.length;
+            for (var p in obj) {
+                if (obj.hasOwnProperty(p)) {
+                    if (p === keys[ctr]) {
+                        if ((len - 1) > ctr && angular.isObject(obj[p])) {
+                            ctr += 1;
+                            return getByProperty(obj[p], keys, def, ctr) || def;
+                        }
+                        else {
+                            return obj[p] || def;
+                        }
+                    }
+                }
+            }
+            return def;
+        }
+
+        /**
+         * Sets provider defaults.
+         */
+        set = function (key, value) {
+            var obj = key;
+            if(arguments.length > 1){
+                obj = {};
+                obj[key] = value;
+            }
+            defaults = angular.extend({}, defaults, obj);
+        };
+
+        /**
+         * Angular get method for returning factory.
+         * @type {*[]}
+         */
+        get = [ function () {
+
+            function ModuleFactory(options) {
+
+                var $module = {},
+                    ns, cookie, nsLen,
+                    cookieSupport, storageSupport;
+
+                // extend defaults with supplied options.
+                options = angular.extend(defaults, options);
+
+                // set the namespace.
+                ns = options.ns + '.';
+
+                // get the namespace length.
+                nsLen = ns.length;
+
+                storageSupport = supports();
+                cookieSupport = supports(true);
+
+                // make sure either cookies or local storage are supported.
+                if (!storageSupport && !cookieSupport)
+                    return new Error('Storage Factory requires localStorage browser support or cookies must be enabled.');
+
+                /**
+                 * Get list of storage keys.
+                 * @memberof StorageFactory
+                 * @private
+                 * @returns {array}
+                 */
+                function storageKeys() {
+
+                    if (!storageSupport)
+                        return new Error('Keys can only be obtained when localStorage is available.');
+                    var keys = [];
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    keys.push(key.substr(nsLen));
+                                } catch (e) {
+                                    return e;
+                                }
+                            }
+                        }
+                    }
+                    return keys;
+                }
+
+                /**
+                 * Set storage value.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setStorage(key, value) {
+                    if (!storageSupport)
+                        return setCookie(key, value);
+                    if (typeof value === undefined)
+                        value = null;
+                    try {
+                        if (angular.isObject(value) || angular.isArray(value))
+                            value = angular.toJson(value);
+                        localStorage.setItem(ns + key, value);
+                    } catch (e) {
+                        return setCookie(key, value);
+                    }
+                }
+
+                /**
+                 * Get storate by key
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key to lookup.
+                 * @param {string} [property] - the property name to find.
+                 * @returns {*}
+                 */
+                function getStorage(key, property) {
+                    var item;
+                    if(property)
+                        return getProperty(key, property);
+                    if (!storageSupport)
+                        return getCookie(key);
+                    item = localStorage.getItem(ns + key);
+                    if (!item)
+                        return null;
+                    if (item.charAt(0) === "{" || item.charAt(0) === "[")
+                        return angular.fromJson(item);
+                    return item;
+                }
+
+                /**
+                 * Get object property.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the storage key.
+                 * @param {string} property - the property to lookup.
+                 * @returns {*}
+                 */
+                function getProperty(key, property) {
+                    var item, isObject;
+                    if(!storageSupport)
+                        return new Error('Cannot get by property, localStorage must be enabled.');
+                    item = getStorage(key);
+                    isObject = angular.isObject(item) || false;
+                    if (item) {
+                        if (isObject)
+                            return getByProperty(item, property);
+                        else
+                            return item;
+                    } else {
+                        return new Error('Invalid operation, storage item must be an object.');
+                    }
+                }
+
+                /**
+                 * Delete storage item.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key
+                 * @returns {boolean}
+                 */
+                function deleteStorage (key) {
+                    if (!storageSupport)
+                        return deleteCookie(key);
+                    try {
+                        localStorage.removeItem(ns + key);
+                    } catch (e) {
+                        return deleteCookie(key);
+                    }
+                }
+
+                /**
+                 * Clear all storage CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearStorage () {
+
+                    if (!storageSupport)
+                        return clearCookie();
+
+                    for (var key in localStorage) {
+                        if(localStorage.hasOwnProperty(key)) {
+                            if (key.substr(0, nsLen) === ns) {
+                                try {
+                                    deleteStorage(key.substr(nsLen));
+                                } catch (e) {
+                                    return clearCookie();
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                /**
+                 * Set a cookie.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to set.
+                 * @param {*} value - the value to set.
+                 */
+                function setCookie (key, value) {
+
+                    if (typeof value === undefined) return false;
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    try {
+                        var expiry = '',
+                            expiryDate = new Date();
+                        if (value === null) {
+                            cookie.expiry = -1;
+                            value = '';
+                        }
+                        if (cookie.expiry) {
+                            expiryDate.setTime(expiryDate.getTime() + (options.cookieExpiry * 24 * 60 * 60 * 1000));
+                            expiry = "; expires=" + expiryDate.toGMTString();
+                        }
+                        if (!!key)
+                            document.cookie = ns + key + "=" + encodeURIComponent(value) + expiry + "; path=" +
+                                options.cookiePath;
+                    } catch (e) {
+                        throw e;
+                    }
+                }
+
+
+                /**
+                 * Get a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param {string} key - the key to find.
+                 * @returns {*}
+                 */
+                function getCookie (key) {
+
+                    if (!cookieSupport)
+                        return new Error('Cookies are not supported by this browser.');
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        if (ck.indexOf(ns + key + '=') === 0)
+                            return decodeURIComponent(ck.substring(ns.length + key.length + 1, ck.length));
+                    }
+                    return null;
+                }
+
+                /**
+                 * Delete a cookie by key.
+                 * @memberof StorageFactory
+                 * @private
+                 * @param key
+                 */
+                function deleteCookie(key) {
+                    setCookie(key, null);
+                }
+
+                /**
+                 * Clear all cookies CAUTION!!
+                 * @memberof StorageFactory
+                 * @private
+                 */
+                function clearCookie() {
+                    var ck = null,
+                        cookies = document.cookie.split(';'),
+                        key;
+                    for (var i = 0; i < cookies.length; i++) {
+                        ck = cookies[i];
+                        while (ck.charAt(0) === ' ')
+                            ck = ck.substring(1, ck.length);
+                        key = ck.substring(nsLen, ck.indexOf('='));
+                        return deleteCookie(key);
+                    }
+                }
+
+                //check for browser support
+                $module.supports =  {
+                    localStorage: supports(),
+                    cookies: supports(true)
+                };
+
+                // storage methods.
+                $module.get = getStorage;
+                $module.set = setStorage;
+                $module.delete = deleteStorage;
+                $module.clear = clearStorage;
+                $module.storage = {
+                    keys: storageKeys,
+                    supported: storageSupport
+                };
+                $module.cookie = {
+                    get: getCookie,
+                    set: setCookie,
+                    'delete': deleteCookie,
+                    clear: clearCookie,
+                    supported: cookieSupport
+                };
+
+                return $module;
+
+            }
+
+            return ModuleFactory;
+
+        }];
+
+        return {
+            $set: set,
+            $get: get
+        };
+
+    });
+
 
 angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
@@ -5514,576 +5691,6 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
         };
 
     }]);
-angular.module('ai.widget', [])
-
-.provider('$widget', function $widget() {
-
-    var defaults = {            
-            number: {
-                defaultValue: undefined,        // default value if initialized undefined.
-                places: 2,                      // default decimal places.
-                event: 'blur'                   // event that triggers formatting.
-            },            
-            case: {
-                casing: 'first',
-                event: 'blur'
-            },
-            compare: {
-                defaultValue: undefined,        // the default value when undefined.
-                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
-                dataType: 'string',             // options are string, date, time, datetime, integer
-                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
-                                                // valid options 'minutes', 'seconds', 'milliseconds'
-            },
-            lazyload: {
-                src: undefined,                 // placeholder option.
-                parent: 'head',                 // the parent element where the script should be insert into.
-                position: 'append'              // either append, prepend or integer to insert script at.
-            }
-            //nicescroll: {
-            //    horizrailenabled: false         // disables horizontal scroll bar.
-            //},
-            //redactor: {
-            //    focus: true,
-            //    plugins: ['fullscreen']
-            //},
-        },
-        get, set;
-
-    set = function set(key, options) {
-        if(angular.isObject(key)){
-            options = key;
-            key = undefined;
-            defaults = angular.extend(defaults, options);
-        } else {
-            defaults[key] = angular.extend(defaults[key], options);
-        }
-    };
-
-    get = [ function get() {
-
-        // factory allows for globally
-        // setting widget options.
-        function ModuleFactory(key, options) {
-            options = options || {};
-            if(!defaults[key]) return options;
-            options = angular.extend({}, defaults[key], options);
-            return options;
-        }
-        return ModuleFactory;
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-
-// simple directive to prevent default
-// on click, for use as attribute/class only.
-.directive('aiPrevent',[ function() {
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-            if(attrs.ngClick){
-                element.on('click', function(e){
-                    e.preventDefault();
-                });
-            }
-        }
-    };
-}])
-    
-//
-//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
-//
-//    return {
-//        restrict: 'AC',
-//        link: function(scope, element, attrs) {
-//
-//            var defaults, options, $module, _attrs;
-//
-//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
-//                'see: http://areaaperta.com/nicescroll');
-//
-//            defaults = angular.copy($widget('nicescroll'));
-//
-//            function init() {
-//                $timeout(function () {
-//                    $module = element.niceScroll(options);
-//                },0);
-//            }
-//
-//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
-//            options = angular.extend(defaults, _attrs, scope.$eval(options));
-//            init();
-//        }
-//    };
-//}])
-
-// ensures handling decimal values.
-.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function(scope, element, attrs, ngModel) {
-
-            var defaults, options, _attrs, lastVal;
-
-            defaults = angular.copy($widget('number'));
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            function parseVal(val){
-                val = $helpers.tryParseFloat(val);  
-                if(val) 
-                    val = val.toFixed(options.places);
-                return val;
-            }
-            
-            // format and set value.
-            function format(val) {
-                if(val !== undefined)  {
-                    val = parseVal(val);
-                    if(!val)
-                        val = parseVal(lastVal);                
-                }
-                if(val === undefined)
-                    val = options.defaultValue !== undefined ? options.defaultValue : '';
-                element.val(val);           
-                ngModel.$modelValue = val;
-                lastVal = val;
-            }
-
-            function init() {
-                
-                // bind event call apply
-                // format the value. 
-                // use simple event binding instead
-                // of adding watchers etc.
-                element.unbind(options.event);
-                element.on(options.event, function (e) {
-                    scope.$apply(function () {
-                        format(e.target.value);
-                    });
-                });
-                
-                // use timeout make sure dom is ready.
-                $timeout(function () {
-                    var val = element.val();
-                    if(!val)
-                        if(options.defaultValue !== undefined)
-                            val = options.defaultValue;
-                    format(val);
-                }, 0);                
-            }
-            
-            options = attrs.aiNumber|| attrs.aiNumberOptions;
-            options = angular.extend(defaults, _attrs, scope.$eval(options));
-            
-            init();
-        }
-    };
-}])
-
-//// Angular wrapper for using Redactor.
-//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
-//    return {
-//        restrict: 'AC',
-//        scope: true,
-//        require: '?ngModel',
-//        link: function (scope, element, attrs) {
-//            var defaults, options, $directive, _attrs;
-//
-//            defaults = angular.copy($widget('redactor'));
-//
-//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-//
-//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
-//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
-//
-//            function init() {
-//                $directive = element.redactor(options);
-//            }
-//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
-//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
-//
-//            init();
-//        }
-//    };
-//}])
-
-.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
-
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, casing, _attrs;
-
-            defaults = angular.copy($widget('case'));
-            options = {};
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function getCase(val) {
-                if (!val) return;
-
-                if (casing === 'title')
-                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
-                else if (casing === 'first')
-                    return val.charAt(0).toUpperCase() + val.slice(1);
-                else if (casing === 'camel') {
-                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
-                        return group1.toUpperCase();
-                    });
-                }
-                else if (casing === 'pascal')
-                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
-                else if (casing === 'lower')
-                    return val.toLowerCase();
-                else if (casing === 'upper')
-                    return val.toUpperCase();
-                else return val;
-            }
-
-           function applyCase(e){
-
-               scope.$apply(function () {
-                   var val = element.val(),
-                       cased = getCase(val);
-                   if (ngModel) {
-                       ngModel.$modelValue = cased;
-                   } else {
-                       element.val(getCase(val));
-                   }
-               });
-
-            }
-
-            function init() {
-
-                casing = options.casing;
-
-                element.on(options.event, function (e) {
-                    applyCase(e);
-                });
-
-                element.on('keyup', function (e) {
-                    var code = e.which || e.keyCode;
-                    if(code === 13){
-                        /* prevent default or submit could happen
-                        prior to apply case updates model */
-                        e.preventDefault();
-                        applyCase(e);
-                    }
-                });
-
-                $timeout(function () {
-                    applyCase();
-                },100);
-
-            }
-
-            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
-            if(angular.isString(tmpOpt))
-                options.casing = tmpOpt;
-            if(angular.isObject(tmpOpt))
-                options = scope.$eval(tmpOpt);
-            options = angular.extend(defaults, _attrs, options);
-
-            init();
-
-        }
-
-    };
-
-}])
-
-.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
-
-    function checkMoment() {
-        try{
-            var m = moment();
-            return true;
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    function isNumber(val) {
-        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
-    }
-
-    return {
-        restrict: 'AC',
-        require: '^ngModel',
-        link: function (scope, element, attrs, ngModel) {
-
-            var defaults, options, formElem, form, momentLoaded,
-                ngModelCompare, _attrs;
-
-            // check moment is loaded for datetime compares.
-            momentLoaded = checkMoment();
-            defaults = angular.copy($widget('compare'));
-
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-
-            function validate(value) {
-
-                var valid;
-
-                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
-
-                    valid = options.defaultValue || '';
-
-                } else {
-
-                    if(options.dataType === 'string') {
-
-                        valid = ngModelCompare.$viewValue === value;
-
-                    } else if(options.dataType === 'integer'){
-
-                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
-                            valid = false;
-                        } else {
-                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
-                        }
-
-                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
-
-                        var comp, model, diff, diffMin;
-
-                        comp = ngModelCompare.$viewValue;
-                        model = ngModel.$viewValue;
-
-                        if(options.dataType === 'time'){
-                            comp = '01/01/1970 ' + comp;
-                            model = '01/01/1970 ' + model;
-                        }
-                        comp = moment(comp);
-                        model = moment(model);
-
-                        if(options.dataType === 'date'){
-
-                            diff = model.diff(comp, 'days');
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'time'){
-
-                            diff = model.diff(comp, options.precision);
-                            valid = diff === 0;
-
-                        } else if(options.dataType === 'datetime') {
-
-                            diff = model.diff(comp, 'days');
-                            diffMin = model.diff(comp, options.precision);
-                            valid = (diff === 0) && (diffMin === 0);
-
-                        } else {
-
-                            valid = false;
-
-                        }
-
-                    } else {
-
-                        valid = false;
-
-                    }
-
-                }
-
-                ngModel.$setValidity('compare', valid);
-                return valid;
-            }
-
-            function init() {
-
-                formElem = element[0].form;
-
-                /* can't continue without the form */
-                if(!formElem) return;
-
-                form = scope[formElem.name];
-                ngModelCompare = form[options.compareTo] || options.compareTo;
-
-                /* must have valid form in scope */
-                if(!form || !options.compareTo || !ngModelCompare) return;
-
-                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
-                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
-
-                ngModel.$formatters.unshift(validate);
-                ngModel.$parsers.unshift(validate);
-
-            }
-
-            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
-            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
-                tmpOpt = { compareTo: tmpOpt };
-            else
-                tmpOpt = scope.$eval(tmpOpt);
-
-            options = angular.extend({}, defaults, _attrs, tmpOpt);
-
-            init();
-
-        }
-    };
-        
-}])
-
-.directive('aiPlaceholder', [ '$widget', function($widget) {
-
-    // get the previous sibling
-    // to the current element.
-    function prevSibling(elem, ts) {
-        try {
-            var parents = elem.parent(),
-                prevIdx;
-            angular.forEach(parents.children(), function (v,k) {
-                var child = angular.element(v),
-                    _ts = child.attr('_ts_');
-                if(ts.toString() === _ts){
-                    prevIdx = k -1;
-                }
-            });
-            elem.removeAttr('_ts_');
-            if(prevIdx < 0)
-                return { element: angular.element(elem.parent()), method: 'prepend' };
-            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
-        } catch(ex) {
-            return false;
-        }
-    }
-
-    // capitalize a string.
-    function capitalize(str) {
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    // test if placeholder is supported.
-    function placeholderSupported() {
-        var test = document.createElement('input');
-        return ('placeholder' in test);
-    }
-
-    return {
-        restrict: 'AC',
-        link: function(scope, element, attrs) {
-
-            var placeholder, isNative;
-
-            function init() {
-
-                var label = '<label>{{NAME}}</label>',
-                    ts = new Date().getTime(),
-                    prev;
-
-                placeholder = capitalize(placeholder);
-                
-                if(!isNative && placeholder)
-                    element.attr('placeholder', placeholder);
-
-                // since angular doesn't support .index()
-                // set attr so we can find it when iterating.
-                element.attr('_ts_', ts);
-                prev = prevSibling(element, ts);
-
-                // test if dot notation model name.
-                if(placeholder.indexOf('.') !== -1){
-                    placeholder = placeholder.split('.');
-                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
-                }
-
-                if(!placeholderSupported() && prev) {
-                    label = label.replace('{{NAME}}', placeholder);
-                    label = angular.element(label);
-                    prev.element[prev.method](label);
-                }
-
-            }
-
-            isNative = element.attr('placeholder');
-            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
-
-            init();
-
-        }
-    };
-}])
-
-.directive('aiLazyload', [ '$widget', '$helpers', '$rootScope', function($widget, $helpers, $rootScope) {
-    return {
-        restrict: 'EA',
-        scope: false,
-        link: function(scope, elem, attrs) {
-
-            var script, scripts, defaults, options, parentElem, childElem;
-
-            defaults = angular.copy($widget('lazyload'));
-            options = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            options = angular.extend({}, defaults, options);
-
-            // the parent element where
-            // scripts will be inserted.
-            parentElem = $helpers.findElement(options.parent)[0];
-
-            if(!parentElem || !parentElem.appendChild)
-                return console.error('Cannot lazy load script using parent ' + options.parent +
-                                      '. Ensure the dom element exists.');
-
-            // get all scripts in element.
-            scripts = $helpers.findElement('script', document[options.parent]) || [];
-
-            if(options.position === 'prepend')
-                options.position = 0;
-
-            // insert at this position wihtin children.
-            childElem = angular.isNumber(options.position) ? scripts[options.position] : undefined;
-
-            // if no scripts in element just use append.
-            if(!scripts.length || childElem === undefined)
-                options.position = 'append';
-
-            // create script element
-            script = document.createElement('script');
-
-            // check if inline or
-            // is external file.
-            if(undefined === options.src){
-                script.text = elem.text();
-            } else {
-                script.src = options.src;
-            }
-
-            // add the script to parent.
-            if(childElem)
-                parentElem.insertBefore(script, childElem);
-            else
-                parentElem.appendChild(script);
-
-            // remove original element
-            elem.remove();
-
-            function removeScript() {
-                if(script && parentElem.contains(script))
-                    parentElem.removeChild(script);
-            }
-
-            // remove script on route change, prevents dups.
-            $rootScope.$on('$routeChangeSuccess', removeScript);
-
-            // remove lazy loaded script on destroy.
-            scope.$on('destroy', removeScript);
-
-        }
-    };
-}]);
-
 angular.module('ai.tree', ['ai.helpers'])
     .provider('$tree', function $tree() {
 
@@ -7373,6 +6980,576 @@ var form = angular.module('ai.validate', ['ai.helpers'])
 }]);
 
 
+
+angular.module('ai.widget', [])
+
+.provider('$widget', function $widget() {
+
+    var defaults = {            
+            number: {
+                defaultValue: undefined,        // default value if initialized undefined.
+                places: 2,                      // default decimal places.
+                event: 'blur'                   // event that triggers formatting.
+            },            
+            case: {
+                casing: 'first',
+                event: 'blur'
+            },
+            compare: {
+                defaultValue: undefined,        // the default value when undefined.
+                compareTo: undefined,           // the html name attribute of the element or form scope property to compare to.
+                dataType: 'string',             // options are string, date, time, datetime, integer
+                precision: 'minutes'            // only valid when evaluating time when dataType is time or datetime.
+                                                // valid options 'minutes', 'seconds', 'milliseconds'
+            },
+            lazyload: {
+                src: undefined,                 // placeholder option.
+                parent: 'head',                 // the parent element where the script should be insert into.
+                position: 'append'              // either append, prepend or integer to insert script at.
+            }
+            //nicescroll: {
+            //    horizrailenabled: false         // disables horizontal scroll bar.
+            //},
+            //redactor: {
+            //    focus: true,
+            //    plugins: ['fullscreen']
+            //},
+        },
+        get, set;
+
+    set = function set(key, options) {
+        if(angular.isObject(key)){
+            options = key;
+            key = undefined;
+            defaults = angular.extend(defaults, options);
+        } else {
+            defaults[key] = angular.extend(defaults[key], options);
+        }
+    };
+
+    get = [ function get() {
+
+        // factory allows for globally
+        // setting widget options.
+        function ModuleFactory(key, options) {
+            options = options || {};
+            if(!defaults[key]) return options;
+            options = angular.extend({}, defaults[key], options);
+            return options;
+        }
+        return ModuleFactory;
+
+    }];
+
+    return {
+        $get: get,
+        $set: set
+    };
+
+})
+
+// simple directive to prevent default
+// on click, for use as attribute/class only.
+.directive('aiPrevent',[ function() {
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+            if(attrs.ngClick){
+                element.on('click', function(e){
+                    e.preventDefault();
+                });
+            }
+        }
+    };
+}])
+    
+//
+//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
+//
+//    return {
+//        restrict: 'AC',
+//        link: function(scope, element, attrs) {
+//
+//            var defaults, options, $module, _attrs;
+//
+//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
+//                'see: http://areaaperta.com/nicescroll');
+//
+//            defaults = angular.copy($widget('nicescroll'));
+//
+//            function init() {
+//                $timeout(function () {
+//                    $module = element.niceScroll(options);
+//                },0);
+//            }
+//
+//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
+//            options = angular.extend(defaults, _attrs, scope.$eval(options));
+//            init();
+//        }
+//    };
+//}])
+
+// ensures handling decimal values.
+.directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function(scope, element, attrs, ngModel) {
+
+            var defaults, options, _attrs, lastVal;
+
+            defaults = angular.copy($widget('number'));
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            
+            function parseVal(val){
+                val = $helpers.tryParseFloat(val);  
+                if(val) 
+                    val = val.toFixed(options.places);
+                return val;
+            }
+            
+            // format and set value.
+            function format(val) {
+                if(val !== undefined)  {
+                    val = parseVal(val);
+                    if(!val)
+                        val = parseVal(lastVal);                
+                }
+                if(val === undefined)
+                    val = options.defaultValue !== undefined ? options.defaultValue : '';
+                element.val(val);           
+                ngModel.$modelValue = val;
+                lastVal = val;
+            }
+
+            function init() {
+                
+                // bind event call apply
+                // format the value. 
+                // use simple event binding instead
+                // of adding watchers etc.
+                element.unbind(options.event);
+                element.on(options.event, function (e) {
+                    scope.$apply(function () {
+                        format(e.target.value);
+                    });
+                });
+                
+                // use timeout make sure dom is ready.
+                $timeout(function () {
+                    var val = element.val();
+                    if(!val)
+                        if(options.defaultValue !== undefined)
+                            val = options.defaultValue;
+                    format(val);
+                }, 0);                
+            }
+            
+            options = attrs.aiNumber|| attrs.aiNumberOptions;
+            options = angular.extend(defaults, _attrs, scope.$eval(options));
+            
+            init();
+        }
+    };
+}])
+
+//// Angular wrapper for using Redactor.
+//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
+//    return {
+//        restrict: 'AC',
+//        scope: true,
+//        require: '?ngModel',
+//        link: function (scope, element, attrs) {
+//            var defaults, options, $directive, _attrs;
+//
+//            defaults = angular.copy($widget('redactor'));
+//
+//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+//
+//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
+//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
+//
+//            function init() {
+//                $directive = element.redactor(options);
+//            }
+//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
+//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
+//
+//            init();
+//        }
+//    };
+//}])
+
+.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
+
+    return {
+        restrict: 'AC',
+        require: '?ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, casing, _attrs;
+
+            defaults = angular.copy($widget('case'));
+            options = {};
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function getCase(val) {
+                if (!val) return;
+
+                if (casing === 'title')
+                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+                else if (casing === 'first')
+                    return val.charAt(0).toUpperCase() + val.slice(1);
+                else if (casing === 'camel') {
+                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
+                        return group1.toUpperCase();
+                    });
+                }
+                else if (casing === 'pascal')
+                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
+                else if (casing === 'lower')
+                    return val.toLowerCase();
+                else if (casing === 'upper')
+                    return val.toUpperCase();
+                else return val;
+            }
+
+           function applyCase(e){
+
+               scope.$apply(function () {
+                   var val = element.val(),
+                       cased = getCase(val);
+                   if (ngModel) {
+                       ngModel.$modelValue = cased;
+                   } else {
+                       element.val(getCase(val));
+                   }
+               });
+
+            }
+
+            function init() {
+
+                casing = options.casing;
+
+                element.on(options.event, function (e) {
+                    applyCase(e);
+                });
+
+                element.on('keyup', function (e) {
+                    var code = e.which || e.keyCode;
+                    if(code === 13){
+                        /* prevent default or submit could happen
+                        prior to apply case updates model */
+                        e.preventDefault();
+                        applyCase(e);
+                    }
+                });
+
+                $timeout(function () {
+                    applyCase();
+                },100);
+
+            }
+
+            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
+            if(angular.isString(tmpOpt))
+                options.casing = tmpOpt;
+            if(angular.isObject(tmpOpt))
+                options = scope.$eval(tmpOpt);
+            options = angular.extend(defaults, _attrs, options);
+
+            init();
+
+        }
+
+    };
+
+}])
+
+.directive('aiCompare', [ '$widget', '$helpers', function ($widget, $helpers) {
+
+    function checkMoment() {
+        try{
+            var m = moment();
+            return true;
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    function isNumber(val) {
+        return !isNaN(parseInt(val,10)) && (parseFloat(val,10) === parseInt(val,10));
+    }
+
+    return {
+        restrict: 'AC',
+        require: '^ngModel',
+        link: function (scope, element, attrs, ngModel) {
+
+            var defaults, options, formElem, form, momentLoaded,
+                ngModelCompare, _attrs;
+
+            // check moment is loaded for datetime compares.
+            momentLoaded = checkMoment();
+            defaults = angular.copy($widget('compare'));
+
+            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+
+            function validate(value) {
+
+                var valid;
+
+                if(!ngModelCompare.$viewValue || !ngModel.$viewValue){
+
+                    valid = options.defaultValue || '';
+
+                } else {
+
+                    if(options.dataType === 'string') {
+
+                        valid = ngModelCompare.$viewValue === value;
+
+                    } else if(options.dataType === 'integer'){
+
+                        if(!isNumber(ngModelCompare.$viewValue) || !isNumber(ngModel.$viewValue)){
+                            valid = false;
+                        } else {
+                            valid = parseInt(ngModelCompare.$viewValue) === parseInt(value);
+                        }
+
+                    } else if(/^(date|time|datetime)$/.test(options.dataType)) {
+
+                        var comp, model, diff, diffMin;
+
+                        comp = ngModelCompare.$viewValue;
+                        model = ngModel.$viewValue;
+
+                        if(options.dataType === 'time'){
+                            comp = '01/01/1970 ' + comp;
+                            model = '01/01/1970 ' + model;
+                        }
+                        comp = moment(comp);
+                        model = moment(model);
+
+                        if(options.dataType === 'date'){
+
+                            diff = model.diff(comp, 'days');
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'time'){
+
+                            diff = model.diff(comp, options.precision);
+                            valid = diff === 0;
+
+                        } else if(options.dataType === 'datetime') {
+
+                            diff = model.diff(comp, 'days');
+                            diffMin = model.diff(comp, options.precision);
+                            valid = (diff === 0) && (diffMin === 0);
+
+                        } else {
+
+                            valid = false;
+
+                        }
+
+                    } else {
+
+                        valid = false;
+
+                    }
+
+                }
+
+                ngModel.$setValidity('compare', valid);
+                return valid;
+            }
+
+            function init() {
+
+                formElem = element[0].form;
+
+                /* can't continue without the form */
+                if(!formElem) return;
+
+                form = scope[formElem.name];
+                ngModelCompare = form[options.compareTo] || options.compareTo;
+
+                /* must have valid form in scope */
+                if(!form || !options.compareTo || !ngModelCompare) return;
+
+                if(/^(date|time|datetime)$/.test(options.dataType) && !momentLoaded)
+                    return console.warn('ai-compare requires moment.js, see http://momentjs.com/.');
+
+                ngModel.$formatters.unshift(validate);
+                ngModel.$parsers.unshift(validate);
+
+            }
+
+            var tmpOpt = attrs.aiCompare || attrs.aiCompareOptions;
+            if(angular.isString(tmpOpt) && tmpOpt.indexOf('{') === -1)
+                tmpOpt = { compareTo: tmpOpt };
+            else
+                tmpOpt = scope.$eval(tmpOpt);
+
+            options = angular.extend({}, defaults, _attrs, tmpOpt);
+
+            init();
+
+        }
+    };
+        
+}])
+
+.directive('aiPlaceholder', [ '$widget', function($widget) {
+
+    // get the previous sibling
+    // to the current element.
+    function prevSibling(elem, ts) {
+        try {
+            var parents = elem.parent(),
+                prevIdx;
+            angular.forEach(parents.children(), function (v,k) {
+                var child = angular.element(v),
+                    _ts = child.attr('_ts_');
+                if(ts.toString() === _ts){
+                    prevIdx = k -1;
+                }
+            });
+            elem.removeAttr('_ts_');
+            if(prevIdx < 0)
+                return { element: angular.element(elem.parent()), method: 'prepend' };
+            return { element: angular.element(parents.children().eq(prevIdx)), method: 'after' };
+        } catch(ex) {
+            return false;
+        }
+    }
+
+    // capitalize a string.
+    function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    // test if placeholder is supported.
+    function placeholderSupported() {
+        var test = document.createElement('input');
+        return ('placeholder' in test);
+    }
+
+    return {
+        restrict: 'AC',
+        link: function(scope, element, attrs) {
+
+            var placeholder, isNative;
+
+            function init() {
+
+                var label = '<label>{{NAME}}</label>',
+                    ts = new Date().getTime(),
+                    prev;
+
+                placeholder = capitalize(placeholder);
+                
+                if(!isNative && placeholder)
+                    element.attr('placeholder', placeholder);
+
+                // since angular doesn't support .index()
+                // set attr so we can find it when iterating.
+                element.attr('_ts_', ts);
+                prev = prevSibling(element, ts);
+
+                // test if dot notation model name.
+                if(placeholder.indexOf('.') !== -1){
+                    placeholder = placeholder.split('.');
+                    placeholder = placeholder[1] ? placeholder[1] : placeholder[0];
+                }
+
+                if(!placeholderSupported() && prev) {
+                    label = label.replace('{{NAME}}', placeholder);
+                    label = angular.element(label);
+                    prev.element[prev.method](label);
+                }
+
+            }
+
+            isNative = element.attr('placeholder');
+            placeholder = element.attr('placeholder') ||  attrs.aiPlaceholder || attrs.ngModel;
+
+            init();
+
+        }
+    };
+}])
+
+.directive('aiLazyload', [ '$widget', '$helpers', '$rootScope', function($widget, $helpers, $rootScope) {
+    return {
+        restrict: 'EA',
+        scope: false,
+        link: function(scope, elem, attrs) {
+
+            var script, scripts, defaults, options, parentElem, childElem;
+
+            defaults = angular.copy($widget('lazyload'));
+            options = $helpers.parseAttrs(Object.keys(defaults), attrs);
+            options = angular.extend({}, defaults, options);
+
+            // the parent element where
+            // scripts will be inserted.
+            parentElem = $helpers.findElement(options.parent)[0];
+
+            if(!parentElem || !parentElem.appendChild)
+                return console.error('Cannot lazy load script using parent ' + options.parent +
+                                      '. Ensure the dom element exists.');
+
+            // get all scripts in element.
+            scripts = $helpers.findElement('script', document[options.parent]) || [];
+
+            if(options.position === 'prepend')
+                options.position = 0;
+
+            // insert at this position wihtin children.
+            childElem = angular.isNumber(options.position) ? scripts[options.position] : undefined;
+
+            // if no scripts in element just use append.
+            if(!scripts.length || childElem === undefined)
+                options.position = 'append';
+
+            // create script element
+            script = document.createElement('script');
+
+            // check if inline or
+            // is external file.
+            if(undefined === options.src){
+                script.text = elem.text();
+            } else {
+                script.src = options.src;
+            }
+
+            // add the script to parent.
+            if(childElem)
+                parentElem.insertBefore(script, childElem);
+            else
+                parentElem.appendChild(script);
+
+            // remove original element
+            elem.remove();
+
+            function removeScript() {
+                if(script && parentElem.contains(script))
+                    parentElem.removeChild(script);
+            }
+
+            // remove script on route change, prevents dups.
+            $rootScope.$on('$routeChangeSuccess', removeScript);
+
+            // remove lazy loaded script on destroy.
+            scope.$on('destroy', removeScript);
+
+        }
+    };
+}]);
 
 function sayHello() {
     alert('Hello lazy loaded script!');
