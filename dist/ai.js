@@ -2,7 +2,7 @@
 /**
 * @license
 * Ai: <http://github.com/origin1tech/ai>
-* Version: 0.2.9
+* Version: 0.2.10
 * Author: Origin1 Technologies <origin1tech@gmail.com>
 * Copyright: 2014 Origin1 Technologies
 * Available under MIT license <http://github.com/origin1tech/stukko-client/license.md>
@@ -2184,7 +2184,6 @@ angular.module('ai.loader', [
    
 
 
-
 angular.module('ai.passport.factory', [])
 
 .provider('$passport', [function $passport() {
@@ -2221,10 +2220,9 @@ angular.module('ai.passport.factory', [])
     defaultUrl: '/', // the default path or home page.
     loginUrl: '/passport/login', // path to login form.
     loginAction: 'post /api/passport/login', // endpoint/func used for authentication.
-    logoutAction: 'get /api/passport/logout', // endpoint/func used to logout/remove session.
-    syncAction: 'get /api/passport/sync', // syncs app roles and user profile. must return
-    // object containing user and/or roles.
-    // ex: { user: user, roles: roles }
+    logoutAction: 'get /api/passport/logout', // endpoint/func used to logout.
+    profileAction: 'passport/profile', // enpoint/funct for navigating to profile.
+    syncAction: 'get /api/passport/sync', // syncs app roles and user profile.
 
     onLoginSuccess: '/', // path or func on success.
     onLoginFailed: '/passport/login', // path or func when login fails.
@@ -2235,10 +2233,9 @@ angular.module('ai.passport.factory', [])
     onUnauthorized: '/passport/login', // path or func when unauthorized.
     onSyncSuccess: undefined, // func called when successfully synchronized w/ server.
 
-    welcomeText: 'Welcome ', // prefix string to identity.
-    welcomeParams: ['firstName'] // array of user properties which make up the
-      // user's identity or full name, properties are
-      // separated by a space.
+    guestText: 'Guest', // The text displayed when no user is logged in.
+    welcomeText: 'Welcome', // prefix string to identity.
+    welcomeParams: ['firstName'] // array of user properties. Each property provided will be separated by a space.
 
   };
 
@@ -2418,6 +2415,9 @@ angular.module('ai.passport.factory', [])
         // class is initialized.
         $module.user = undefined;
 
+        // Indicates if the user provfile has yet to synchronize.
+        $module.userSync = false;
+
         // Finds property by dot notation.
         $module.findByNotation = function findByNotation(obj, prop) {
           var props, comp, arrayData, match;
@@ -2464,6 +2464,10 @@ angular.module('ai.passport.factory', [])
 
           // merge the options.
           $module.options = angular.extend({}, defaults, options);
+
+          // Ensure that defaultUrl and loginUrl are not the same.
+          if ($module.options.defaultUrl && $module.options.defaultUrl === $module.options.loginUrl)
+            throw new Error('$passport defaultUrl and loginUrl cannot be the same path.');
 
           // don't merge levels override instead.
           $module.options.roles = $module.options.roles || defaultRoles;
@@ -2582,8 +2586,13 @@ angular.module('ai.passport.factory', [])
             if (obj) {
               user = $module.findByNotation(obj, $module.options.userKey);
               roles = $module.findByNotation(obj, $module.options.rolesKey);
-              if (user)
+              if (user) {
                 $module.user = user;
+                $module.userSync = true;
+              }
+              else {
+                $module.userSync = false;
+              }
               if (roles)
                 $module.roles = normalizeRoles(roles);
               if ($module.options.extendKeys)
@@ -2707,13 +2716,13 @@ angular.module('ai.passport.factory', [])
 
           // get the passport's maximum role.
           maxRole = Math.max.apply(Math, userRoles);
-  
+
           return maxRole >= role;
 
         };
 
         // check if role is not greater than.
-        $module.lessThanRole = function lessThanRole(role) {
+        $module.hasMaxRole = function hasMaxRole(role) {
 
           var userRoles = $module.user[$module.options.userRolesKey] || [],
               maxRole;
@@ -2767,32 +2776,52 @@ angular.module('ai.passport.factory', [])
         // gets the identity name of the authenticated user.
         $module.displayName = function displayName(arr) {
 
-          var result = '';
+          var result = [];
           arr = arr || $module.options.welcomeParams;
 
           if (!$module.user)
-            return undefined;
+            return $module.options.guestText;
+
           angular.forEach(arr, function(v, k) {
-
-            if ($module.user[v]) {
-              if (k === 0)
-                result += $module.user[v];
-              else
-                result += (' ' + $module.user[v]);
-            }
-
+            var found = $module.findByNotation($module.user, v);
+            if (found)
+                result.push(found);
           });
 
-          return result;
+          return result.join(' ');
+
         };
 
-        // returns welcome text and displayName or text only.
-        $module.welcome = function welcome(textOnly) {
+        // returns welcome text and display name as link or text only.
+        $module.welcome = function welcome(prefix) {
+          var result;
+          prefix = prefix || $module.options.welcomeText;
+          result = prefix + ': ' + $module.displayName();
+          return result.replace(/\s$/, '');
+        };
 
-          if (textOnly)
-            return $module.options.welcomeText;
+        // Returns the event link for toggling log in and log out.
+        $module.link = function link() {
 
-          return $module.options.welcomeText + ' ' + $module.displayName();
+          var logoutAction = $module.options.logoutAction,
+              loginAction = $module.options.loginAction;
+
+          // Normalizes return the proper link action.
+          function linkAction(action) {
+            if (angular.isFunction(action))
+              return function() {
+                action.apply($module, arguments);
+              };
+            else
+              return function() {
+                $location.path(action);
+              };
+          }
+
+          if ($module.user)
+            return linkAction(logoutAction);
+          else
+            return linkAction(loginAction);
 
         };
 
@@ -2894,11 +2923,16 @@ angular.module('ai.passport.route', [])
   $rootScope.$on(changeEvent, function(e) {
 
     var args = Array.prototype.slice.call(arguments, 0),
+      url = $location.path(),
       area = {},
       route = {},
       acl,
       authorized,
-      next, prev;
+      next, prev, urlExp;
+
+    //url = url.replace(/^\//, '');
+    url = url.split('?')[0];
+    //urlExp = new RegExp('^' + $passport.options.loginUrl + '.+');
 
     next = args[1];
     prev = args[2];
@@ -2938,6 +2972,14 @@ angular.module('ai.passport.route', [])
        $passport.unauthorized(e, next, prev);
      }
 
+     // Check if default url is enabled and path is
+     // is the login url if true then redirect to
+     // the default url.
+    if ($passport.userSync && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
+      e.preventDefault();
+      $passport.goto($passport.options.defaultUrl, true);
+    }
+
    }
 
    // Otherwise ensure user before continuing.
@@ -2951,6 +2993,14 @@ angular.module('ai.passport.route', [])
          e.preventDefault();
          $passport.unauthorized(e, next, prev);
        }
+
+       // Check if default url is enabled and path is
+       // is the login url if true then redirect to
+       // the default url.
+      if ($passport.user && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
+        e.preventDefault();
+        $passport.goto($passport.options.defaultUrl, true);
+      }
 
      });
 
