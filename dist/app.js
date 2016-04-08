@@ -4,7 +4,6 @@ require([
     'table/table',
     'widget/widget',
     'flash/flash',
-    'validate/validate',
     'storage/storage',
     'passport/passport',
     'list/list',
@@ -17,13 +16,12 @@ require([
     var app, tmpAreas, keys, areas, controller;
 
     tmpAreas = {
-        '/passport': 'Simplifies handling authentication within Angular app. (Alpha)',
+        '/passport': ' (Alpha) Simplifies handling authentication within Angular app.',
         '/storage': 'Use local storage with auto cookie fallback.',
         '/autoform': 'Handy during dev to quickly create a form.',
         '/list': 'Advanced customizable dropdown directive.',
         '/flash': 'Allows for showing flash/popup messages.',
         '/table': 'Bind local or remote data to table/grid.',
-        '/validate': 'Form validation with auto model binding.',
         '/widget': 'Various widgets - casing, number, compare, placeholder and lazyload',
         '/step': 'Creates form step wizard.',
         '/loader': 'Shows loading message/spinner on ajax calls.',
@@ -38,12 +36,13 @@ require([
         areas[k] = tmpAreas[k];
     });
 
+    //'ai.passport',
     app = angular.module('app', ['ngRoute', 'ngAnimate', 'ai.step', 'ai.table',
         'ai.storage', 'ai.list', 'ai.widget', 'ai.flash',
-        'ai.passport', 'ai.validate', 'ai.autoform', 'ai.loader', 'ai.tree']);
-
-    app.config(['$routeProvider', '$locationProvider', '$passportProvider', '$loaderProvider',
-        function ($routeProvider, $locationProvider, $passportProvider, $loaderProvider) {
+         'ai.autoform', 'ai.loader', 'ai.tree', 'ai.passport']);
+    // '$passportProvider' $passportProvider,,
+    app.config(['$routeProvider', '$locationProvider', '$loaderProvider', '$passportProvider',
+        function ($routeProvider, $locationProvider,  $loaderProvider, $passportProvider) {
             $routeProvider.when('/', {templateUrl: '/home.html', controller: 'Controller', title: 'Ai'});
             angular.forEach(areas, function (v, k) {
                 var config, cap;
@@ -58,6 +57,8 @@ require([
             $loaderProvider.$set('onLoading', function (loader, instances) {
                 return true;
             });
+
+            $passportProvider.$set({ welcomeParams: ['firstName', 'lastName']});
             $locationProvider.html5Mode(true);
 
         }]);
@@ -117,7 +118,7 @@ require([
             };
 
             if (area === 'home') {
-                $scope.items = areas;
+              $scope.items = areas;
             }
 
             if (area === 'table') {
@@ -160,28 +161,28 @@ require([
                 };
             }
 
-            if (area === 'validate') {
-                $scope.phonePattern = /^(?!.*911.*\d{4})((\+?1[\/ ]?)?(?![\(\. -]?555.*)\( ?[2-9][0-9]{2} ?\) ?|(\+?1[\.\/ -])?[2-9][0-9]{2}[\.\/ -]?)(?!555.?01..)([2-9][0-9]{2})[\.\/ -]?([0-9]{4})$/;
-                $scope.submitValidate = function (form, model) {
-                    if (form.$invalid) return;
-                    // alert feedback.
-                    alert('Passed validation your data would submit here.');
-                };
-                $scope.validateFormConf = {
-                    onLoad: function (form, ctrl) {
-                    },
-                    validators: {
-                        phone: {
-                            'ng-pattern': function (obj, form) {
-                                // eval the value to get orig
-                                // source expression used in ng-pattern.
-                                var getExp = $scope.$eval(obj.value);
-                                return '{{name}} does not match the pattern required.';
-                            }
-                        }
-                    }
-                };
-            }
+            // if (area === 'validate') {
+            //     $scope.phonePattern = /^(?!.*911.*\d{4})((\+?1[\/ ]?)?(?![\(\. -]?555.*)\( ?[2-9][0-9]{2} ?\) ?|(\+?1[\.\/ -])?[2-9][0-9]{2}[\.\/ -]?)(?!555.?01..)([2-9][0-9]{2})[\.\/ -]?([0-9]{4})$/;
+            //     $scope.submitValidate = function (form, model) {
+            //         if (form.$invalid) return;
+            //         // alert feedback.
+            //         alert('Passed validation your data would submit here.');
+            //     };
+            //     $scope.validateFormConf = {
+            //         onLoad: function (form, ctrl) {
+            //         },
+            //         validators: {
+            //             phone: {
+            //                 'ng-pattern': function (obj, form) {
+            //                     // eval the value to get orig
+            //                     // source expression used in ng-pattern.
+            //                     var getExp = $scope.$eval(obj.value);
+            //                     return '{{name}} does not match the pattern required.';
+            //                 }
+            //             }
+            //         }
+            //     };
+            // }
 
             if (area === 'widget') {
                 $scope.decimal = 25;
@@ -370,7 +371,7 @@ require([
                     $http.get('/api/loader?timeout=' + timeout).then(function (res) {
                     });
                 };
-                $scope.customLoader = function (timeout) {                   
+                $scope.customLoader = function (timeout) {
                     var loaders = $loader();
                     timeout = timeout || 2000;
                     loaders.custom.start();
@@ -412,8 +413,28 @@ require([
                 };
             }
 
-            if (area === 'passport'){
-
+            if (area === 'passport') {
+              
+                $scope.displayName = $passport.displayName();
+              
+                $scope.roleMethod = 'hasRole';
+                $scope.role = 3;
+                $scope.roleResult = '';
+                $scope.checkRole = function(method, role) {
+                  if ($passport[method]) {
+                    $scope.roleResult = $passport[method](role);
+                  }
+                };
+              
+                $scope.roleMinMaxMethod = 'hasMinRole';
+                $scope.roleMinMax = 3;
+                $scope.roleMinMaxResult = '';
+                $scope.checkMinMaxRole = function(method, role) {
+                  if ($passport[method]) {
+                    $scope.roleMinMaxResult = $passport[method](role);
+                  }
+                };
+              
             }
         }
     ];

@@ -8,6 +8,5 @@ angular.module('ai', [
     'ai.step',
     'ai.storage',
     'ai.table',
-    'ai.widget',
-    'ai.validate'
+    'ai.widget'
 ]);

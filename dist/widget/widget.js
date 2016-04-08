@@ -2,12 +2,12 @@ angular.module('ai.widget', [])
 
 .provider('$widget', function $widget() {
 
-    var defaults = {            
+    var defaults = {
             number: {
                 defaultValue: undefined,        // default value if initialized undefined.
                 places: 2,                      // default decimal places.
                 event: 'blur'                   // event that triggers formatting.
-            },            
+            },
             case: {
                 casing: 'first',
                 event: 'blur'
@@ -24,13 +24,6 @@ angular.module('ai.widget', [])
                 parent: 'head',                 // the parent element where the script should be insert into.
                 position: 'append'              // either append, prepend or integer to insert script at.
             }
-            //nicescroll: {
-            //    horizrailenabled: false         // disables horizontal scroll bar.
-            //},
-            //redactor: {
-            //    focus: true,
-            //    plugins: ['fullscreen']
-            //},
         },
         get, set;
 
@@ -79,33 +72,6 @@ angular.module('ai.widget', [])
         }
     };
 }])
-    
-//
-//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
-//
-//    return {
-//        restrict: 'AC',
-//        link: function(scope, element, attrs) {
-//
-//            var defaults, options, $module, _attrs;
-//
-//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
-//                'see: http://areaaperta.com/nicescroll');
-//
-//            defaults = angular.copy($widget('nicescroll'));
-//
-//            function init() {
-//                $timeout(function () {
-//                    $module = element.niceScroll(options);
-//                },0);
-//            }
-//
-//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
-//            options = angular.extend(defaults, _attrs, scope.$eval(options));
-//            init();
-//        }
-//    };
-//}])
 
 // ensures handling decimal values.
 .directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
@@ -118,32 +84,32 @@ angular.module('ai.widget', [])
 
             defaults = angular.copy($widget('number'));
             _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
+
             function parseVal(val){
-                val = $helpers.tryParseFloat(val);  
-                if(val) 
+                val = $helpers.tryParseFloat(val);
+                if(val)
                     val = val.toFixed(options.places);
                 return val;
             }
-            
+
             // format and set value.
             function format(val) {
                 if(val !== undefined)  {
                     val = parseVal(val);
                     if(!val)
-                        val = parseVal(lastVal);                
+                        val = parseVal(lastVal);
                 }
                 if(val === undefined)
                     val = options.defaultValue !== undefined ? options.defaultValue : '';
-                element.val(val);           
+                element.val(val);
                 ngModel.$modelValue = val;
                 lastVal = val;
             }
 
             function init() {
-                
+
                 // bind event call apply
-                // format the value. 
+                // format the value.
                 // use simple event binding instead
                 // of adding watchers etc.
                 element.unbind(options.event);
@@ -152,7 +118,7 @@ angular.module('ai.widget', [])
                         format(e.target.value);
                     });
                 });
-                
+
                 // use timeout make sure dom is ready.
                 $timeout(function () {
                     var val = element.val();
@@ -160,128 +126,105 @@ angular.module('ai.widget', [])
                         if(options.defaultValue !== undefined)
                             val = options.defaultValue;
                     format(val);
-                }, 0);                
+                }, 0);
             }
-            
+
             options = attrs.aiNumber|| attrs.aiNumberOptions;
             options = angular.extend(defaults, _attrs, scope.$eval(options));
-            
+
             init();
         }
     };
 }])
 
-//// Angular wrapper for using Redactor.
-//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
-//    return {
-//        restrict: 'AC',
-//        scope: true,
-//        require: '?ngModel',
-//        link: function (scope, element, attrs) {
-//            var defaults, options, $directive, _attrs;
-//
-//            defaults = angular.copy($widget('redactor'));
-//
-//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-//
-//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
-//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
-//
-//            function init() {
-//                $directive = element.redactor(options);
-//            }
-//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
-//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
-//
-//            init();
-//        }
-//    };
-//}])
+.directive('aiCase', ['$timeout', '$widget', '$helpers', function($timeout, $widget, $helpers) {
 
-.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
+  return {
+    restrict: 'AC',
+    require: '?ngModel',
+    link: function(scope, element, attrs, ngModel) {
 
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function (scope, element, attrs, ngModel) {
+      var defaults, options, casing, _attrs;
 
-            var defaults, options, casing, _attrs;
+      defaults = angular.copy($widget('case'));
+      options = {};
+      _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
-            defaults = angular.copy($widget('case'));
-            options = {};
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+      function getCase(val) {
+        if (!val) return;
 
-            function getCase(val) {
-                if (!val) return;
+        if (casing === 'title')
+          return val.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+          });
+        else if (casing === 'first' || casing === 'captitalize')
+          return val.charAt(0).toUpperCase() + val.slice(1);
+        else if (casing === 'camel') {
+          return val.toLowerCase().replace(/-(.)/g, function(match, group1) {
+            return group1.toUpperCase();
+          });
+        } else if (casing === 'pascal')
+          return val.replace(/\w+/g, function(w) {
+            return w[0].toUpperCase() + w.slice(1).toLowerCase();
+          });
+        else if (casing === 'lower')
+          return val.toLowerCase();
+        else if (casing === 'upper')
+          return val.toUpperCase();
+        else return val;
+      }
 
-                if (casing === 'title')
-                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
-                else if (casing === 'first')
-                    return val.charAt(0).toUpperCase() + val.slice(1);
-                else if (casing === 'camel') {
-                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
-                        return group1.toUpperCase();
-                    });
-                }
-                else if (casing === 'pascal')
-                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
-                else if (casing === 'lower')
-                    return val.toLowerCase();
-                else if (casing === 'upper')
-                    return val.toUpperCase();
-                else return val;
-            }
+      function applyCase(e) {
 
-           function applyCase(e){
+        scope.$apply(function() {
+          var val = element.val(),
+            cased = getCase(val);
+          if (ngModel) {
+            ngModel.$setViewValue(cased);
+            element.val(cased);
+          } else {
+            element.val(getCase(val));
+          }
+        });
 
-               scope.$apply(function () {
-                   var val = element.val(),
-                       cased = getCase(val);
-                   if (ngModel) {
-                       ngModel.$modelValue = cased;
-                   } else {
-                       element.val(getCase(val));
-                   }
-               });
+      }
 
-            }
+      function init() {
 
-            function init() {
+        casing = options.casing;
 
-                casing = options.casing;
+        element.on(options.event, function(e) {
+          applyCase(e);
+        });
 
-                element.on(options.event, function (e) {
-                    applyCase(e);
-                });
+        element.on('keyup', function(e) {
+          var code = e.which || e.keyCode;
+          if (code === 13) {
+            /* prevent default or submit could happen
+            prior to apply case updates model */
+            e.preventDefault();
+            applyCase(e);
+          }
+        });
 
-                element.on('keyup', function (e) {
-                    var code = e.which || e.keyCode;
-                    if(code === 13){
-                        /* prevent default or submit could happen
-                        prior to apply case updates model */
-                        e.preventDefault();
-                        applyCase(e);
-                    }
-                });
+        $timeout(function() {
+          applyCase();
+        }, 100);
 
-                $timeout(function () {
-                    applyCase();
-                },100);
+      }
 
-            }
+      var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
+      if (angular.isString(tmpOpt))
+        options.casing = tmpOpt;
+      if (angular.isObject(tmpOpt))
+        options = scope.$eval(tmpOpt);
+      options = angular.extend(defaults, _attrs, options);
 
-            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
-            if(angular.isString(tmpOpt))
-                options.casing = tmpOpt;
-            if(angular.isObject(tmpOpt))
-                options = scope.$eval(tmpOpt);
-            options = angular.extend(defaults, _attrs, options);
+      init();
 
-            init();
+    }
 
-        }
-
-    };
+  };
 
 }])
 
@@ -417,7 +360,7 @@ angular.module('ai.widget', [])
 
         }
     };
-        
+
 }])
 
 .directive('aiPlaceholder', [ '$widget', function($widget) {
@@ -468,7 +411,7 @@ angular.module('ai.widget', [])
                     prev;
 
                 placeholder = capitalize(placeholder);
-                
+
                 if(!isNative && placeholder)
                     element.attr('placeholder', placeholder);
 

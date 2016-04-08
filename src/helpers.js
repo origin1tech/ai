@@ -6,7 +6,7 @@ angular.module('ai.helpers', [])
         try { return action(value); }
         catch(ex) { return undefined; }
     }
-        
+
     function tryParseInt(value) {
         if(/^\d+$/.test(value))
             return tryParse(parseInt, value);
@@ -18,7 +18,7 @@ angular.module('ai.helpers', [])
             return tryParse(parseFloat, value);
         return undefined;
     }
-        
+
     function tryParseBoolean(value){
         if(/^true$/i.test(value))
             return true;
@@ -26,12 +26,12 @@ angular.module('ai.helpers', [])
             return false;
         return undefined;
     }
-    
+
     function tryParseDate(value){
         try { var d = Date.parse(value); if(isNan(d)) d = undefined; return d; }
         catch(ex) { return undefined; }
     }
-    
+
     function tryParseRegex(value){
         if(!/^\//.test(value))
             return undefined;
@@ -40,11 +40,11 @@ angular.module('ai.helpers', [])
         try{ return new RegExp(value, options);}
         catch(ex) {return undefined;}
     }
-        
+
     function contains(obj, value){
-        return obj.indexOf(value) !== -1;        
+        return obj.indexOf(value) !== -1;
     }
-    
+
     function trim(str) {
         return str.replace(/^\s+|\s+$/gm,'');
     }
@@ -62,7 +62,7 @@ angular.module('ai.helpers', [])
         var ext = str.split('.').pop();
         return ext === 'html' || ext === 'tpl';
     }
-        
+
     function isUrl(str) {
         var regex = new RegExp('^(https?:\\/\\/)?'+ // protocol
         '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
@@ -72,7 +72,7 @@ angular.module('ai.helpers', [])
         '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
         return !!(angular.isString(str) && regex.test(str));
     }
-        
+
     function isRegex(value){
         return tryParseRegex(value);
     }
@@ -84,13 +84,14 @@ angular.module('ai.helpers', [])
         catch(ex){}
         return !(!json || !/^{/.test(json));
     }
-        
+
     function parseAttrs(keys, attrs){
         var result = {};
-        angular.forEach(keys, function (k) {       
+        attrs = attrs || {};
+        angular.forEach(keys, function (k) {
             // convert string attrs to types.
-            if(attrs[k] && angular.isString(attrs[k])){                
-                var orig = attrs[k],                               
+            if(attrs[k] && angular.isString(attrs[k])){
+                var orig = attrs[k],
                 value = tryParseRegex(orig);
                 if(value === undefined)
                     value = tryParseBoolean(orig);
@@ -117,7 +118,7 @@ angular.module('ai.helpers', [])
             return element[querySelector](q);
         return angular.element((element || document)[querySelector](q));
     }
-    
+
     function getPutTemplate(name, template) {
         $templateCache.get(name) || $templateCache.put(name, template);
     }
@@ -151,9 +152,9 @@ angular.module('ai.helpers', [])
         y = elem.style.overflowY || 'auto';
         return {x:x,y:y};
     }
-        
+
     function compile(scope, contents){
-       return $compile(contents)(scope);       
+       return $compile(contents)(scope);
     }
 
     function selfHtml(element) {
@@ -186,7 +187,7 @@ angular.module('ai.helpers', [])
         }
         return obj;
     }
-     
+
     return {
         isHtml: isHtml,
         isPath: isPath,
@@ -206,5 +207,5 @@ angular.module('ai.helpers', [])
         toObject: toPlainObject,
         findByNotation: findByNotation
     };
-        
+
 }]);

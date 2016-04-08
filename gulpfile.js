@@ -7,7 +7,7 @@ var gulp = require('gulp'),
     path = require('path'),
     url = require('url'),
     argv = process.argv,
-    major, 
+    major,
     minor,
     pkg,
     lic,
@@ -51,7 +51,7 @@ gulp.task('clean', function (cb) {
     del([
         './dist/**/*.*'
     ], cb);
-    
+
 });
 
 // build sass
@@ -76,7 +76,7 @@ gulp.task('build-sass', ['clean'], function () {
         .pipe(plugins.rename({suffix: '.min'}))
         .pipe(gulp.dest('./dist'));
     tasks.push(taskModules);
-    
+
     return es.concat.apply(null, tasks);
 });
 
@@ -118,9 +118,9 @@ gulp.task('jshint', ['clean'],  function() {
 
 // livereload.
 gulp.task('reload', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function reload () {
-    if(!watch) return;
-    gulp.src('./src/**/*.*')
-        .pipe(plugins.connect.reload());
+    if(!watch)
+      return;
+ //plugins.connect.reload();
 });
 
 // build the library.
@@ -135,15 +135,18 @@ gulp.task('build', ['clean', 'build-sass', 'build-lib', 'copy-lib'], function() 
 });
 
 // serve examples.
-gulp.task('serve', ['build'], function() {  
+gulp.task('serve', [], function() {
+    
     var conf = {
-        root: './dist',
+        root: './src',
         livereload: true,
-        fallback: 'dist/index.html',
+        fallback: 'src/index.html',
         host: '0.0.0.0',
         // quick hack for demo the loader.
-        middleware: function (conn, options){
+        middleware: function (conn, options) {
+
             return [ function (req, res, next) {
+
                 var isLoader = /\/api\/loader/i.test(req.url);
                 var isTree = /\/api\/tree/i.test(req.url);
                 var isPassport = /\/api\/passport/i.test(req.url);
@@ -178,7 +181,8 @@ gulp.task('serve', ['build'], function() {
                     user = {
                         firstName: 'Irwin',
                         lastName: 'Fletcher',
-                        email: 'fletchlives@gmail.com'
+                        email: 'fletchlives@gmail.com',
+                        roles: [3]
                     };
                     roles = {
                         0: '*',
@@ -193,23 +197,23 @@ gulp.task('serve', ['build'], function() {
                 else {
                     next();
                 }
+
             }];
+
         }
     };
 
     setTimeout(function () {
-        var app = plugins.connect.server(conf);        
+        var app = plugins.connect.server(conf);
     }, 0);
 
 });
 
 // bumps the version for package/bower.
 gulp.task('bump', function () {
- 
+
     gulp.src(['./package.json', './bower.json'])
         .pipe(plugins.bump())
         .pipe(gulp.dest('./'));
 
 });
-
-

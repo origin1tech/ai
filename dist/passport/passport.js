@@ -13,6 +13,7 @@ angular.module('ai.passport.factory', [])
 
   defaults = {
 
+    enabled: undefined,
     router: 'ngRoute', // the router being used uiRouter or ngRoute.
     // this is not the module name but the
     rootKey: '$passport', // the rootScope property key to set to instance.
@@ -28,6 +29,7 @@ angular.module('ai.passport.factory', [])
     userRolesKey: 'roles', // the key in the user object containing roles.
     defaultRole: 0, // the default role to be used for public access.
     extendKeys: undefined, // array of keys you wish to also track.
+    extendRemove: false, // when true extended keys are stripped from object.
 
     paranoid: undefined, // when NOT false, if security config missing go to login.
 
@@ -59,11 +61,6 @@ angular.module('ai.passport.factory', [])
     2: 'manager',
     3: 'admin',
     4: 'superadmin'
-      //'*': 0,
-      //'user': 1,
-      //'manager': 2,
-      //'admin': 3,
-      //'superadmin': 4
   };
 
   set = function set(key, value) {
@@ -72,7 +69,7 @@ angular.module('ai.passport.factory', [])
       obj = {};
       obj[key] = value;
     }
-    defaults = angular.extend({}, defaults, obj);
+    defaults = angular.extend(defaults, obj);
   };
 
   get = ['$rootScope', '$location', '$http', '$q', '$injector', '$log', '$timeout',
@@ -100,9 +97,10 @@ angular.module('ai.passport.factory', [])
         try {
           if (isNaN(val))
             return val;
-          return parseFloat(val);
-        } catch (ex) {
+          val = parseFloat(val);
           return val;
+        } catch (ex) {
+          return false;
         }
       }
 
@@ -118,7 +116,7 @@ angular.module('ai.passport.factory', [])
             roles = roles.replace(/\s/g, '').split(',');
 
         // If array iterate convert to object using index as key.
-        if (angular.isArray(roles)) {
+        else if (angular.isArray(roles)) {
 
           if (!roles.length)
             throw new Error('Fatal error normalizing passport roles, received empty array.');
@@ -140,12 +138,12 @@ angular.module('ai.passport.factory', [])
 
           // Detect if keys are strings or numbers.
           stringKeys = tryParseFloat(keys[0]);
-          stringKeys = typeof stringKeys === 'string';
+          stringKeys = (typeof stringKeys === 'string');
 
           obj = roles;
 
-          // Only need to normlize if string keys
-          // otherwise roles are alredy in correct format.
+          // Only need to normalize if string keys
+          // otherwise roles are already in correct format.
           if (stringKeys) {
 
             obj = {};
@@ -178,11 +176,13 @@ angular.module('ai.passport.factory', [])
 
               // Otherwise the parsed string to float is
               // the key and the key is the value.
-              obj[parsedVal] = val;
+              if (val)
+                obj[parsedVal] = val;
 
             });
 
           }
+
 
         }
 
@@ -192,7 +192,16 @@ angular.module('ai.passport.factory', [])
           throw new Error('Fatal error normalizing security roles, the format is invalid.');
 
         }
-        return obj;
+
+        // Create reverse map.
+        var objRev = {};
+        Object.keys(defaultRoles).map(function(k) {
+          var parsedKey = tryParseFloat(k);
+          if (parsedKey)
+            objRev[defaultRoles[k]] = parsedKey;
+        });
+
+        return { roles: obj, rolesRev: objRev };
 
       }
 
@@ -209,27 +218,19 @@ angular.module('ai.passport.factory', [])
           angular.forEach(keys, function(k) {
             if (obj[k])
               $module[k] = obj[k];
+            if ($module.options.extendRemove)
+              delete obj[k];
           });
         }
 
-        // Takes a string role and converts it to it's number key.
-        function stringToNumber(role) {
-          var result;
-          angular.forEach($module.roles, function(v, k) {
-            if (result !== undefined)
-              return;
-            if (role === v)
-              result = k;
-          });
-          return result;
-        }
+        function noop() {}
 
         // ensure the user proptery
         // is undefined when passport
         // class is initialized.
         $module.user = undefined;
 
-        // Indicates if the user provfile has yet to synchronize.
+        // Indicates if the user profile has yet to synchronize.
         $module.userSync = false;
 
         // Finds property by dot notation.
@@ -261,7 +262,7 @@ angular.module('ai.passport.factory', [])
         // set passport options.
         $module.set = function set(key, value) {
 
-          var options;
+          var options, normRoles;
 
           if (!key && !value) {
             options = {};
@@ -287,7 +288,9 @@ angular.module('ai.passport.factory', [])
           $module.options.roles = $module.options.roles || defaultRoles;
 
           // set levels and roles.
-          $module.roles = normalizeRoles($module.options.roles);
+          normRoles = normalizeRoles($module.options.roles);
+          $module.roles = normRoles.roles;
+          $module.rolesRev = normRoles.rolesRev;
 
           // define router change event name.
           if ($module.options.router === 'ngRoute') {
@@ -306,7 +309,7 @@ angular.module('ai.passport.factory', [])
         $module.login = function login(data, success, failed) {
 
           var url = urlToObject($module.options.loginAction),
-              roles;
+              roles, normRoles;
 
           success = success || $module.options.onLoginSuccess;
           failed = failed || $module.options.onLoginFailed;
@@ -329,8 +332,12 @@ angular.module('ai.passport.factory', [])
               if (!$module.user)
                 return onFailed(res);
 
-              if (roles)
-                $module.roles = normalizeRoles(roles);
+              if (roles) {
+                normRoles = normalizeRoles(roles);
+                $module.roles = normRoles.roles;
+                $module.rolesRev = normRoles.rolesRev;
+              }
+
 
               if ($module.options.extendKeys)
                 extendModule($module.options.extendKeys, res.data);
@@ -395,25 +402,47 @@ angular.module('ai.passport.factory', [])
             data = undefined;
           }
 
-          function done(obj) {
+          // Ensure a callback.
+          cb = cb || this.options.onSyncSuccess || noop;
 
-            if (obj) {
-              user = $module.findByNotation(obj, $module.options.userKey);
-              roles = $module.findByNotation(obj, $module.options.rolesKey);
-              if (user) {
-                $module.user = user;
-                $module.userSync = true;
-              }
-              else {
-                $module.userSync = false;
-              }
-              if (roles)
-                $module.roles = normalizeRoles(roles);
-              if ($module.options.extendKeys)
-                extendModule($module.options.extendKeys, obj);
-              if (cb)
-                cb();
+          // Node callback style provide err and user object.
+          function done(err, obj) {
+
+            var errMsg = err, normRoles;
+
+            if (err || !obj) {
+
+              errMsg = errMsg || 'passport failed to syncrhonize.';
+              $module.userSync = false;
+
+              $log.warn(errMsg);
+
+              return cb(errMsg);
+
             }
+
+            user = $module.findByNotation(obj, $module.options.userKey);
+            roles = $module.findByNotation(obj, $module.options.rolesKey);
+
+            // Set the user.
+            $module.user = user;
+
+            // Indicate that we have sync'd at least once.
+            $module.userSync = true;
+
+            // Set roles.
+            if (roles) {
+              normRoles = normalizeRoles(roles);
+              $module.roles = normRoles.roles;
+              $module.rolesRev = normRoles.rolesRev;
+            }
+
+
+            // Extend the passport module.
+            if ($module.options.extendKeys)
+              extendModule($module.options.extendKeys, obj);
+
+            cb(null, $module);
 
           }
 
@@ -423,8 +452,8 @@ angular.module('ai.passport.factory', [])
           // If is function call and set using returned result.
           if (angular.isFunction($module.options.syncAction)) {
 
-            obj = $module.options.syncAction.call($module);
-            done(obj);
+            // node callback style provide err, obj.
+            $module.options.syncAction.call($module, done);
 
           } else {
 
@@ -446,19 +475,11 @@ angular.module('ai.passport.factory', [])
 
               $http(conf).then(function(res) {
 
-                if (res) {
+                done(null, res.data);
 
-                  // Set roles and user.
-                  done(res.data);
-
-                  // check if on sync success is function.
-                  if (angular.isFunction($module.options.onSyncSuccess))
-                    return $module.options.onSyncSuccess
-                      .call($module, res, $module.user);
-                }
               }, function(res) {
 
-                  $log.warn(res.data);
+                  done(res.data || res.statusText || '$passport synchronization failed.');
 
               });
 
@@ -471,14 +492,25 @@ angular.module('ai.passport.factory', [])
         // expects string.
         $module.hasRole = function hasRole(role) {
 
-          var userRoles;
+          var userRoles, isName;
+
+          if (angular.isString(role))
+            role = role.replace(/(\s|,)/g, '');
+
+          // Indicates this is a named value such as:
+          // user, admin, manger etc.
+          isName = angular.isString(role) && role.length > 1 && role.indexOf('.') === -1;
+
+          // If a name lookup the value.
+          if (isName)
+            role = $module.rolesRev[role];
 
           // Get the users roles.
           userRoles = $module.userRoles();
 
           // If role is string need to convert to number.
           if (angular.isString(role))
-            role = stringToNumber(role);
+            role = tryParseFloat(role);
 
           // If we don't have a role return false;
           if (!role)
@@ -522,11 +554,17 @@ angular.module('ai.passport.factory', [])
         // check if meets the minimum roll required.
         $module.hasMinRole = function hasMinRole(role) {
 
-          var userRoles = $module.user[$module.options.userRolesKey] || [],
+          var userRoles = $module.userRoles(),
+              isName,
               maxRole;
 
+          // If a name lookup number in reverse map.
+          isName = angular.isString(role) && role.length > 1 && role.indexOf('.') === -1;
+          if (isName)
+            role = $module.rolesRev[role];
+
           if (angular.isString(role))
-            role = stringToNumber(role);
+            role = tryParseFloat(role);
 
           // get the passport's maximum role.
           maxRole = Math.max.apply(Math, userRoles);
@@ -538,11 +576,17 @@ angular.module('ai.passport.factory', [])
         // check if role is not greater than.
         $module.hasMaxRole = function hasMaxRole(role) {
 
-          var userRoles = $module.user[$module.options.userRolesKey] || [],
+          var userRoles = $module.userRoles(),
+              isName,
               maxRole;
 
+          // If a name lookup number in reverse map.
+          isName = angular.isString(role) && role.length > 1 && role.indexOf('.') === -1;
+          if (isName)
+            role = $module.rolesRev[role];
+
           if (angular.isString(role))
-            role = stringToNumber(role);
+            role = tryParseFloat(role);
 
           // get the passport's maximum role.
           maxRole = Math.max.apply(Math, userRoles);
@@ -550,6 +594,8 @@ angular.module('ai.passport.factory', [])
           return maxRole < role;
 
         };
+        
+        $module.hasLessThanRole = $module.hasMaxRole;
 
         // Unauthenticated redirect handler.
         $module.unauthenticated = function unauthenticated() {
@@ -601,7 +647,13 @@ angular.module('ai.passport.factory', [])
             if (found)
                 result.push(found);
           });
-
+          // try to find something to display.
+          if (!result.length) {
+            var tmpName = $module.user.firstName || $module.user.nickname || $module.user.username;
+            if (angular.isObject(tmpName)) {
+              tmpName = tmpName.first;
+            }
+          }
           return result.join(' ');
 
         };
@@ -610,62 +662,37 @@ angular.module('ai.passport.factory', [])
         $module.welcome = function welcome(prefix) {
           var result;
           prefix = prefix || $module.options.welcomeText;
-          result = prefix + ': ' + $module.displayName();
+          result = prefix + ': ' + $module.displayName() || 'Guest';
           return result.replace(/\s$/, '');
-        };
-
-        // Returns the event link for toggling log in and log out.
-        $module.link = function link() {
-
-          var logoutAction = $module.options.logoutAction,
-              loginAction = $module.options.loginAction;
-
-          // Normalizes return the proper link action.
-          function linkAction(action) {
-            if (angular.isFunction(action))
-              return function() {
-                action.apply($module, arguments);
-              };
-            else
-              return function() {
-                $location.path(action);
-              };
-          }
-
-          if ($module.user)
-            return linkAction(logoutAction);
-          else
-            return linkAction(loginAction);
-
         };
 
         // return roles array from user object.
         $module.userRoles = function userRoles() {
 
-          var userRoles = $module.user && $module.user[$module.options.userRolesKey];
+          var _userRoles = $module.user && $module.user[$module.options.userRolesKey];
 
           // Ensure that userRoles is an array.
-          if (userRoles && (angular.isString(userRoles) || angular.isNumber(userRoles)))
-            userRoles = [userRoles];
+          if (_userRoles && (angular.isString(_userRoles) || angular.isNumber(_userRoles)))
+            _userRoles = [_userRoles];
 
-          return userRoles || [$module.options.defaultRole || 0];
+          return _userRoles || [$module.options.defaultRole || 0];
 
         };
 
         // navigate to path.
         $module.goto = function goto(url, reload) {
 
-          $location.path(url);
-
-          if (reload) {
-            // Use timeout to ensure $rootScope variables trigger.
-            $timeout(function() {
-              if ($module.options.router === 'ngRoute')
+          if ($module.options.router === 'ngRoute') {
+            $location.path(url);
+            if (reload)
+              $timeout(function () {
                 $route.reload();
-              else
-                $route.go($route.current, {}, { reload: true });
-            });
+              });
           }
+          else {
+            $route.go(url || $route.current, {}, { reload: true });
+          }
+
 
         };
 
@@ -698,19 +725,31 @@ angular.module('ai.passport.factory', [])
 angular.module('ai.passport.interceptor', [])
 
 .factory('$passportInterceptor', ['$q', '$injector', function($q, $injector) {
+
     return {
+
       responseError: function(res) {
+
         //get passport here to prevent circ dependency.
-        var passport = $injector.get('$passport');
-        // handle unauthenticated response
-        if (res.status === 401 && passport.options['401'])
-          passport.unauthenticated();
-        // handle unauthorized.
-        if (res.status === 403 && passport.options['403'])
-          passport.unauthorized();
+        var $passport = $injector.get('$passport');
+
+        if ($passport.options.enabled !== false) {
+
+          // handle unauthenticated response
+          if (res.status === 401 && $passport.options['401'])
+            $passport.unauthenticated();
+
+          // handle unauthorized.
+          if (res.status === 403 && $passport.options['403'])
+            $passport.unauthorized();
+
+        }
+
         return $q.reject(res);
       }
+
     };
+
   }])
   .config(['$httpProvider', function($httpProvider) {
     $httpProvider.interceptors.push('$passportInterceptor');
@@ -738,87 +777,93 @@ angular.module('ai.passport.route', [])
 
     var args = Array.prototype.slice.call(arguments, 0),
       url = $location.path(),
-      area = {},
-      route = {},
       acl,
+      route,
       authorized,
-      next, prev, urlExp;
+      next, prev;
 
-    //url = url.replace(/^\//, '');
-    url = url.split('?')[0];
-    //urlExp = new RegExp('^' + $passport.options.loginUrl + '.+');
+    if ($passport.options.enabled !== false) {
 
-    next = args[1];
-    prev = args[2];
+      url = url.split('?')[0];
 
-    // for ui router the prev route
-    // is at diff arg position.
-    if (changeEvent === '$stateChangeStart')
-      prev = args[3];
+      next = args[1];
+      prev = args[2];
 
-    // Set the route to next object.
-    route = next;
+      // for ui router the prev route
+      // is at diff arg position.
+      if (changeEvent === '$stateChangeStart')
+        prev = args[3];
 
-    // If next.$$route using angular-route.
-    if (next && next.$$route)
-      route = next.$$route;
+      // Set the route to next object.
+      route = next;
 
-    acl = $passport.findByNotation(route, $passport.options.aclKey);
+      // If next.$$route using angular-route.
+      if (next && next.$$route)
+        route = next.$$route;
 
-    // when paranoid all routes must contain
-    // an access key containing roles otherwise
-    // direct to unauthorized.
-    if (acl === undefined && $passport.options.paranoid === true)
-      return $passport.unauthorized();
+      acl = $passport.findByNotation(route, $passport.options.aclKey);
 
-    // We've passed paranoid setting so safe to
-    // set default acl.
-    if (!acl)
-      acl = [$passport.options.defaultRole];
+      // when paranoid all routes must contain
+      // an access key containing roles otherwise
+      // direct to unauthorized.
+      if (acl === undefined && $passport.options.paranoid === true)
+        return $passport.unauthorized();
 
-   // If we already have a user.
-   if ($passport.user) {
+      // We've passed paranoid setting so safe to
+      // set default acl.
+      if (!acl)
+        acl = [$passport.options.defaultRole];
 
-     authorized = $passport.hasAnyRole(acl);
+      // If we already have a user.
+      if (!$passport.user && !$passport.userSync) {
 
-     if (!authorized) {
-       e.preventDefault();
-       $passport.unauthorized(e, next, prev);
-     }
-
-     // Check if default url is enabled and path is
-     // is the login url if true then redirect to
-     // the default url.
-    if ($passport.userSync && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
-      e.preventDefault();
-      $passport.goto($passport.options.defaultUrl, true);
-    }
-
-   }
-
-   // Otherwise ensure user before continuing.
-   else {
-
-     $passport.sync(function() {
-
-       authorized = $passport.hasAnyRole(acl);
-
-       if (!authorized) {
-         e.preventDefault();
-         $passport.unauthorized(e, next, prev);
-       }
-
-       // Check if default url is enabled and path is
-       // is the login url if true then redirect to
-       // the default url.
-      if ($passport.user && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
         e.preventDefault();
-        $passport.goto($passport.options.defaultUrl, true);
+
+        $passport.sync(function () {
+
+          authorized = $passport.hasAnyRole(acl);
+
+          if (!authorized)
+            $passport.unauthorized(e, next, prev);
+
+          // Check if default url is enabled and path is
+          // is the login url if true then redirect to
+          // the default url.
+          if ($passport.user && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
+            $passport.goto($passport.options.defaultUrl);
+          }
+          else {
+            if ($passport.options.router === 'ngRoute')
+              $passport.goto(url, true);
+            else
+              $passport.goto(next, true);
+          }
+
+        });
+
       }
 
-     });
+      // Otherwise ensure user before continuing.
+      else {
 
-   }
+        authorized = $passport.hasAnyRole(acl);
+
+        if (!authorized) {
+          e.preventDefault();
+          $passport.unauthorized(e, next, prev);
+        }
+
+        // Check if default url is enabled and path is
+        // is the login url if true then redirect to
+        // the default url.
+        if ($passport.userSync && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
+          e.preventDefault();
+          $passport.goto($passport.options.defaultUrl, true);
+        }
+
+
+      }
+    }
 
   });
 

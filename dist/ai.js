@@ -20,8 +20,7 @@ angular.module('ai', [
     'ai.step',
     'ai.storage',
     'ai.table',
-    'ai.widget',
-    'ai.validate'
+    'ai.widget'
 ]);
 angular.module('ai.helpers', [])
 
@@ -31,7 +30,7 @@ angular.module('ai.helpers', [])
         try { return action(value); }
         catch(ex) { return undefined; }
     }
-        
+
     function tryParseInt(value) {
         if(/^\d+$/.test(value))
             return tryParse(parseInt, value);
@@ -43,7 +42,7 @@ angular.module('ai.helpers', [])
             return tryParse(parseFloat, value);
         return undefined;
     }
-        
+
     function tryParseBoolean(value){
         if(/^true$/i.test(value))
             return true;
@@ -51,12 +50,12 @@ angular.module('ai.helpers', [])
             return false;
         return undefined;
     }
-    
+
     function tryParseDate(value){
         try { var d = Date.parse(value); if(isNan(d)) d = undefined; return d; }
         catch(ex) { return undefined; }
     }
-    
+
     function tryParseRegex(value){
         if(!/^\//.test(value))
             return undefined;
@@ -65,11 +64,11 @@ angular.module('ai.helpers', [])
         try{ return new RegExp(value, options);}
         catch(ex) {return undefined;}
     }
-        
+
     function contains(obj, value){
-        return obj.indexOf(value) !== -1;        
+        return obj.indexOf(value) !== -1;
     }
-    
+
     function trim(str) {
         return str.replace(/^\s+|\s+$/gm,'');
     }
@@ -87,7 +86,7 @@ angular.module('ai.helpers', [])
         var ext = str.split('.').pop();
         return ext === 'html' || ext === 'tpl';
     }
-        
+
     function isUrl(str) {
         var regex = new RegExp('^(https?:\\/\\/)?'+ // protocol
         '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
@@ -97,7 +96,7 @@ angular.module('ai.helpers', [])
         '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
         return !!(angular.isString(str) && regex.test(str));
     }
-        
+
     function isRegex(value){
         return tryParseRegex(value);
     }
@@ -109,13 +108,14 @@ angular.module('ai.helpers', [])
         catch(ex){}
         return !(!json || !/^{/.test(json));
     }
-        
+
     function parseAttrs(keys, attrs){
         var result = {};
-        angular.forEach(keys, function (k) {       
+        attrs = attrs || {};
+        angular.forEach(keys, function (k) {
             // convert string attrs to types.
-            if(attrs[k] && angular.isString(attrs[k])){                
-                var orig = attrs[k],                               
+            if(attrs[k] && angular.isString(attrs[k])){
+                var orig = attrs[k],
                 value = tryParseRegex(orig);
                 if(value === undefined)
                     value = tryParseBoolean(orig);
@@ -142,7 +142,7 @@ angular.module('ai.helpers', [])
             return element[querySelector](q);
         return angular.element((element || document)[querySelector](q));
     }
-    
+
     function getPutTemplate(name, template) {
         $templateCache.get(name) || $templateCache.put(name, template);
     }
@@ -176,9 +176,9 @@ angular.module('ai.helpers', [])
         y = elem.style.overflowY || 'auto';
         return {x:x,y:y};
     }
-        
+
     function compile(scope, contents){
-       return $compile(contents)(scope);       
+       return $compile(contents)(scope);
     }
 
     function selfHtml(element) {
@@ -211,7 +211,7 @@ angular.module('ai.helpers', [])
         }
         return obj;
     }
-     
+
     return {
         isHtml: isHtml,
         isPath: isPath,
@@ -231,8 +231,9 @@ angular.module('ai.helpers', [])
         toObject: toPlainObject,
         findByNotation: findByNotation
     };
-        
+
 }]);
+
 angular.module('ai.autoform', ['ai.helpers'  ])
 
 .provider('$autoform', function $autoform() {
@@ -1856,21 +1857,20 @@ angular.module('ai.list', ['ai.helpers'])
 angular.module('ai.loader.factory', ['ai.helpers'])
 
     .provider('$loader', function $loader() {
-        
+
         var defaults = {
-                name: 'page',                                       // the default page loader name.
                 intercept: undefined,                               // when false loader intercepts disabled.
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
                 message: 'Loading',                                 // text to display under loader if value.
-                delay: 600,                                         // the delay in ms before loader is shown.
+                delay: -1,                                         // the delay in ms before loader is shown.
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
                                                                     // default loader is set to hidden.
-                onLoading: undefined                                // callback on loader shown, true to show false 
+                onLoading: undefined                                // callback on loader shown, true to show false
                                                                     // to suppress. returns module and instances.
-            }, get, set;
-        
+            }, get, set, page;
+
         set = function set (key, value) {
             var obj = key;
             if(arguments.length > 1){
@@ -1881,25 +1881,25 @@ angular.module('ai.loader.factory', ['ai.helpers'])
         };
 
         get = [ '$q', '$rootScope', '$helpers',  function get($q, $rootScope, $helpers) {
-            
+
             var loaderTemplate, instances, loaderUri;
-            
+
             instances = {};
             loaderUri = 'data:image/gif;base64,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';
             loaderTemplate = '<div>' +
                                 '<img src="' + loaderUri + '" />' +
                                 '<div ng-bind="message" ng-show="message" class="ai-loader-message">test</div>' +
                             '</div>';
-            
+
             $helpers.getPutTemplate(defaults.template, loaderTemplate);
 
             function ModuleFactory(name, element, options, attrs) {
-                
+
                 var $module = {},
                     body,
                     overflows,
                     htmlContent,
-                    contentTemplate,              
+                    contentTemplate,
                     scope;
 
                 // set global name if not passed.
@@ -1909,42 +1909,50 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                     element = name;
                     name = undefined;
                 }
- 
-                // if no element can't create loader.             
+
+                // if no element can't create loader.
                 if(!element)
                     return console.error('Cannot configure loader with element of undefined.');
 
+                attrs = attrs || {};
                 attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
                 options = options || {};
                 scope = $module.scope = options.scope || $rootScope.$new();
-                options = $module.options = scope.options = angular.extend({}, defaults, attrs, options);
+                $module.options = scope.options = options = angular.extend({}, defaults, attrs, options);
                 $module.element = scope.element = element;
-                
+
+                options.name = options.name || name;
+
+                if (!options.name) {
+                  console.log('ai-loader could not initialize using name of undefined.');
+                  return {};
+                }
+
                 if(options.name === 'page')
                     options.overflow = $module.options.overflow = scope.options.overflow = 'hidden';
 
                 if(instances[options.name]){
                     $module = undefined;
                     return $module;
-                }                  
-       
+                }
+
                 body = $helpers.findElement('body');
                 overflows = $helpers.getOverflow();
-                htmlContent = element.html();           
-                contentTemplate = options.template;                
-                
+                htmlContent = element.html();
+                contentTemplate = options.template;
+
                 if(htmlContent && htmlContent.length){
                     contentTemplate = htmlContent;
                     // remove element contents
                     // we'll add it back later.
                     element.empty();
                 }
-                
+
                 // start the loader.
-                function start() {                
+                function start() {
                     if(!$module.loading && !$module.disabled){
-                        $module.loading = true;        
+                        $module.loading = true;
                         if(angular.isFunction(options.onLoading)){
                             $q.when(options.onLoading($module, instances)).then(function(res) {
                                 if(res){
@@ -1953,7 +1961,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                                         body.css({ overflow: 'hidden'});
                                     element.addClass('show');
                                 }
-                            });                            
+                            });
                         } else {
                             $module.loading = true;
                             if(options.overflow)
@@ -1962,32 +1970,32 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                         }
                     }
                 }
-                
+
                 // stop the loader.
-                function stop() {    
+                function stop() {
                     if(options.overflow)
                         body.css({ overflow: overflows.x, 'overflow-y': overflows.y });
                     if(element)
-                        element.removeClass('show'); 
+                        element.removeClass('show');
                     $module.loading = scope.loading = false;
                     $module.suppressed = scope.suppressed = false;
-                }  
-                
+                }
+
                 // suppresses once.
-                function suppress() {                    
+                function suppress() {
                     $module.suppressed = true;
                 }
-                
+
                 // disable the loader
                 function disable() {
-                    $module.disabled = true;    
+                    $module.disabled = true;
                 }
 
                 // enable the loader
                 function enable() {
                     $module.disabled = false;
                 }
-                
+
                 // set/update options.
                 // does not support live templates.
                 function setOptions(key, value) {
@@ -1996,25 +2004,25 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                         obj = {};
                         obj[key] = value;
                     }
-                    options = $module.options = scope.options = angular.extend(options, obj); 
+                    options = $module.options = scope.options = angular.extend(options, obj);
                     scope.message = options.message;
                 }
 
-                function destroy() {              
+                function destroy() {
                     delete instances[$module.options.name];
-                    scope.$destroy();                    
+                    scope.$destroy();
                 }
-                
+
                 function init() {
-                    
+
                     $module.start = scope.start = start;
                     $module.stop = scope.stop = stop;
                     $module.set = scope.set = setOptions;
                     $module.suppress = scope.suppress = suppress;
                     $module.enable = scope.enable = enable;
                     $module.disable = scope.disable = disable;
-                    scope.message = options.message;                   
-               
+                    scope.message = options.message;
+
                     $helpers.loadTemplate(contentTemplate).then(function (template) {
                         if(template) {
                             element.html(template);
@@ -2042,14 +2050,14 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                     scope.$on('destroy', function () {
                         $module.destroy();
                     });
-                    
+
                 }
-                
+
                 init();
-                
+
                 return $module;
             }
-            
+
             function getLoader(name, element, options) {
                 var instance;
                 if(!arguments.length)
@@ -2058,34 +2066,49 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                     return instances[name];
                 else
                     instance = ModuleFactory(name, element, options);
-                if(instance)
+                if(instance && instance.options)
                     instances[instance.options.name] = instance;
                 return instance;
-            }      
-            
+            }
+
+            // Add the default page loader.
+            if (!Object.keys(instances).length) {
+              var pageLoaderElem = angular.element('<ai-loader name="page">');
+              var body = angular.element(document).find('body');
+              getLoader(page, pageLoaderElem, { name: 'page' });
+              body.append(pageLoaderElem);
+            }
+
             return getLoader;
 
         }];
-        
-        return { 
+
+        // The default page loader
+        // set to false to disable.
+        page = 'page';
+
+        return {
             $get: get,
-            $set: set            
+            $set: set,
+            $page: page
         };
-        
+
     })
-    
+
     .directive('aiLoader', [ '$loader', function ($loader) {
-    
+
         return {
             restrict: 'EAC',
             link: function (scope, element, attrs) {
 
-                var $module, defaults, options, watchKey, validKeys;
+                var $module, defaults, options, watchKey, validKeys, instances;
+
+                instances = $loader();
 
                 defaults = {
                     scope: scope
                 };
-                
+
                 validKeys = ['name', 'template', 'intercept', 'message', 'delay', 'overflow', 'onLoading'];
 
                 // initialize the directive.
@@ -2095,7 +2118,12 @@ angular.module('ai.loader.factory', ['ai.helpers'])
 
                 options = scope.$eval(attrs.aiLoader) || scope.$eval(attrs.aiLoaderOptions);
                 options = angular.extend(defaults, options);
-                
+
+                // This is the default page
+                // loader or invalid config.
+                if (!options.name || options.name === 'page')
+                  return;
+
                 watchKey = attrs.aiLoader ? 'aiLoader' : 'aiLoaderOptions';
                 scope.$watch(attrs[watchKey], function (newVal, oldVal) {
                     if(newVal === oldVal) return;
@@ -2103,16 +2131,16 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 });
 
                 init();
-                
+
             }
-            
+
         };
-        
+
     }]);
 
 angular.module('ai.loader.interceptor', [])
     .factory('$loaderInterceptor', [ '$q', '$injector', '$timeout', function ($q, $injector, $timeout) {
-        
+
         function getLoaders() {
             return $injector.get('$loader')();
         }
@@ -2121,7 +2149,7 @@ angular.module('ai.loader.interceptor', [])
         // set options.delay.
         function delayLoader(_loader) {
             if(_loader.options.delay === 0 && !_loader.completed){
-                _loader.start();                
+                _loader.start();
             } else {
                 clearTimeout(_loader.timeoutId);
                 _loader.timeoutId = $timeout(function () {
@@ -2134,9 +2162,9 @@ angular.module('ai.loader.interceptor', [])
                 }, _loader.options.delay);
             }
         }
-        
+
         function startLoaders() {
-            var loaders = getLoaders();            
+            var loaders = getLoaders();
             angular.forEach(loaders, function (_loader) {
                 _loader.completed = false;
                 if(_loader.options.intercept !== false){
@@ -2144,9 +2172,9 @@ angular.module('ai.loader.interceptor', [])
                         delayLoader(_loader);
                     }
                 }
-            });                
+            });
         }
-        
+
         function stopLoaders(){
             var loaders = getLoaders();
             angular.forEach(loaders, function (_loader) {
@@ -2155,9 +2183,9 @@ angular.module('ai.loader.interceptor', [])
                 _loader.stop();
             });
         }
-        
+
         return {
-            request: function (req) {      
+            request: function (req) {
                 startLoaders();
                 return req || $q.when(req);
             },
@@ -2165,7 +2193,7 @@ angular.module('ai.loader.interceptor', [])
                 stopLoaders();
                 return res || $q.when(res);
             },
-            responseError: function (res){   
+            responseError: function (res){
                 stopLoaders();
                 return $q.reject(res);
             }
@@ -2180,9 +2208,6 @@ angular.module('ai.loader', [
     'ai.loader.factory',
     'ai.loader.interceptor'
 ]);
-
-   
-
 
 angular.module('ai.passport.factory', [])
 
@@ -2199,6 +2224,7 @@ angular.module('ai.passport.factory', [])
 
   defaults = {
 
+    enabled: undefined,
     router: 'ngRoute', // the router being used uiRouter or ngRoute.
     // this is not the module name but the
     rootKey: '$passport', // the rootScope property key to set to instance.
@@ -2214,6 +2240,7 @@ angular.module('ai.passport.factory', [])
     userRolesKey: 'roles', // the key in the user object containing roles.
     defaultRole: 0, // the default role to be used for public access.
     extendKeys: undefined, // array of keys you wish to also track.
+    extendRemove: false, // when true extended keys are stripped from object.
 
     paranoid: undefined, // when NOT false, if security config missing go to login.
 
@@ -2245,11 +2272,6 @@ angular.module('ai.passport.factory', [])
     2: 'manager',
     3: 'admin',
     4: 'superadmin'
-      //'*': 0,
-      //'user': 1,
-      //'manager': 2,
-      //'admin': 3,
-      //'superadmin': 4
   };
 
   set = function set(key, value) {
@@ -2258,7 +2280,7 @@ angular.module('ai.passport.factory', [])
       obj = {};
       obj[key] = value;
     }
-    defaults = angular.extend({}, defaults, obj);
+    defaults = angular.extend(defaults, obj);
   };
 
   get = ['$rootScope', '$location', '$http', '$q', '$injector', '$log', '$timeout',
@@ -2286,9 +2308,10 @@ angular.module('ai.passport.factory', [])
         try {
           if (isNaN(val))
             return val;
-          return parseFloat(val);
-        } catch (ex) {
+          val = parseFloat(val);
           return val;
+        } catch (ex) {
+          return false;
         }
       }
 
@@ -2304,7 +2327,7 @@ angular.module('ai.passport.factory', [])
             roles = roles.replace(/\s/g, '').split(',');
 
         // If array iterate convert to object using index as key.
-        if (angular.isArray(roles)) {
+        else if (angular.isArray(roles)) {
 
           if (!roles.length)
             throw new Error('Fatal error normalizing passport roles, received empty array.');
@@ -2326,12 +2349,12 @@ angular.module('ai.passport.factory', [])
 
           // Detect if keys are strings or numbers.
           stringKeys = tryParseFloat(keys[0]);
-          stringKeys = typeof stringKeys === 'string';
+          stringKeys = (typeof stringKeys === 'string');
 
           obj = roles;
 
-          // Only need to normlize if string keys
-          // otherwise roles are alredy in correct format.
+          // Only need to normalize if string keys
+          // otherwise roles are already in correct format.
           if (stringKeys) {
 
             obj = {};
@@ -2364,11 +2387,13 @@ angular.module('ai.passport.factory', [])
 
               // Otherwise the parsed string to float is
               // the key and the key is the value.
-              obj[parsedVal] = val;
+              if (val)
+                obj[parsedVal] = val;
 
             });
 
           }
+
 
         }
 
@@ -2378,7 +2403,16 @@ angular.module('ai.passport.factory', [])
           throw new Error('Fatal error normalizing security roles, the format is invalid.');
 
         }
-        return obj;
+
+        // Create reverse map.
+        var objRev = {};
+        Object.keys(defaultRoles).map(function(k) {
+          var parsedKey = tryParseFloat(k);
+          if (parsedKey)
+            objRev[defaultRoles[k]] = parsedKey;
+        });
+
+        return { roles: obj, rolesRev: objRev };
 
       }
 
@@ -2395,27 +2429,19 @@ angular.module('ai.passport.factory', [])
           angular.forEach(keys, function(k) {
             if (obj[k])
               $module[k] = obj[k];
+            if ($module.options.extendRemove)
+              delete obj[k];
           });
         }
 
-        // Takes a string role and converts it to it's number key.
-        function stringToNumber(role) {
-          var result;
-          angular.forEach($module.roles, function(v, k) {
-            if (result !== undefined)
-              return;
-            if (role === v)
-              result = k;
-          });
-          return result;
-        }
+        function noop() {}
 
         // ensure the user proptery
         // is undefined when passport
         // class is initialized.
         $module.user = undefined;
 
-        // Indicates if the user provfile has yet to synchronize.
+        // Indicates if the user profile has yet to synchronize.
         $module.userSync = false;
 
         // Finds property by dot notation.
@@ -2447,7 +2473,7 @@ angular.module('ai.passport.factory', [])
         // set passport options.
         $module.set = function set(key, value) {
 
-          var options;
+          var options, normRoles;
 
           if (!key && !value) {
             options = {};
@@ -2473,7 +2499,9 @@ angular.module('ai.passport.factory', [])
           $module.options.roles = $module.options.roles || defaultRoles;
 
           // set levels and roles.
-          $module.roles = normalizeRoles($module.options.roles);
+          normRoles = normalizeRoles($module.options.roles);
+          $module.roles = normRoles.roles;
+          $module.rolesRev = normRoles.rolesRev;
 
           // define router change event name.
           if ($module.options.router === 'ngRoute') {
@@ -2492,7 +2520,7 @@ angular.module('ai.passport.factory', [])
         $module.login = function login(data, success, failed) {
 
           var url = urlToObject($module.options.loginAction),
-              roles;
+              roles, normRoles;
 
           success = success || $module.options.onLoginSuccess;
           failed = failed || $module.options.onLoginFailed;
@@ -2515,8 +2543,12 @@ angular.module('ai.passport.factory', [])
               if (!$module.user)
                 return onFailed(res);
 
-              if (roles)
-                $module.roles = normalizeRoles(roles);
+              if (roles) {
+                normRoles = normalizeRoles(roles);
+                $module.roles = normRoles.roles;
+                $module.rolesRev = normRoles.rolesRev;
+              }
+
 
               if ($module.options.extendKeys)
                 extendModule($module.options.extendKeys, res.data);
@@ -2581,25 +2613,47 @@ angular.module('ai.passport.factory', [])
             data = undefined;
           }
 
-          function done(obj) {
+          // Ensure a callback.
+          cb = cb || this.options.onSyncSuccess || noop;
 
-            if (obj) {
-              user = $module.findByNotation(obj, $module.options.userKey);
-              roles = $module.findByNotation(obj, $module.options.rolesKey);
-              if (user) {
-                $module.user = user;
-                $module.userSync = true;
-              }
-              else {
-                $module.userSync = false;
-              }
-              if (roles)
-                $module.roles = normalizeRoles(roles);
-              if ($module.options.extendKeys)
-                extendModule($module.options.extendKeys, obj);
-              if (cb)
-                cb();
+          // Node callback style provide err and user object.
+          function done(err, obj) {
+
+            var errMsg = err, normRoles;
+
+            if (err || !obj) {
+
+              errMsg = errMsg || 'passport failed to syncrhonize.';
+              $module.userSync = false;
+
+              $log.warn(errMsg);
+
+              return cb(errMsg);
+
             }
+
+            user = $module.findByNotation(obj, $module.options.userKey);
+            roles = $module.findByNotation(obj, $module.options.rolesKey);
+
+            // Set the user.
+            $module.user = user;
+
+            // Indicate that we have sync'd at least once.
+            $module.userSync = true;
+
+            // Set roles.
+            if (roles) {
+              normRoles = normalizeRoles(roles);
+              $module.roles = normRoles.roles;
+              $module.rolesRev = normRoles.rolesRev;
+            }
+
+
+            // Extend the passport module.
+            if ($module.options.extendKeys)
+              extendModule($module.options.extendKeys, obj);
+
+            cb(null, $module);
 
           }
 
@@ -2609,8 +2663,8 @@ angular.module('ai.passport.factory', [])
           // If is function call and set using returned result.
           if (angular.isFunction($module.options.syncAction)) {
 
-            obj = $module.options.syncAction.call($module);
-            done(obj);
+            // node callback style provide err, obj.
+            $module.options.syncAction.call($module, done);
 
           } else {
 
@@ -2632,19 +2686,11 @@ angular.module('ai.passport.factory', [])
 
               $http(conf).then(function(res) {
 
-                if (res) {
+                done(null, res.data);
 
-                  // Set roles and user.
-                  done(res.data);
-
-                  // check if on sync success is function.
-                  if (angular.isFunction($module.options.onSyncSuccess))
-                    return $module.options.onSyncSuccess
-                      .call($module, res, $module.user);
-                }
               }, function(res) {
 
-                  $log.warn(res.data);
+                  done(res.data || res.statusText || '$passport synchronization failed.');
 
               });
 
@@ -2657,14 +2703,25 @@ angular.module('ai.passport.factory', [])
         // expects string.
         $module.hasRole = function hasRole(role) {
 
-          var userRoles;
+          var userRoles, isName;
+
+          if (angular.isString(role))
+            role = role.replace(/(\s|,)/g, '');
+
+          // Indicates this is a named value such as:
+          // user, admin, manger etc.
+          isName = angular.isString(role) && role.length > 1 && role.indexOf('.') === -1;
+
+          // If a name lookup the value.
+          if (isName)
+            role = $module.rolesRev[role];
 
           // Get the users roles.
           userRoles = $module.userRoles();
 
           // If role is string need to convert to number.
           if (angular.isString(role))
-            role = stringToNumber(role);
+            role = tryParseFloat(role);
 
           // If we don't have a role return false;
           if (!role)
@@ -2708,11 +2765,17 @@ angular.module('ai.passport.factory', [])
         // check if meets the minimum roll required.
         $module.hasMinRole = function hasMinRole(role) {
 
-          var userRoles = $module.user[$module.options.userRolesKey] || [],
+          var userRoles = $module.userRoles(),
+              isName,
               maxRole;
 
+          // If a name lookup number in reverse map.
+          isName = angular.isString(role) && role.length > 1 && role.indexOf('.') === -1;
+          if (isName)
+            role = $module.rolesRev[role];
+
           if (angular.isString(role))
-            role = stringToNumber(role);
+            role = tryParseFloat(role);
 
           // get the passport's maximum role.
           maxRole = Math.max.apply(Math, userRoles);
@@ -2724,11 +2787,17 @@ angular.module('ai.passport.factory', [])
         // check if role is not greater than.
         $module.hasMaxRole = function hasMaxRole(role) {
 
-          var userRoles = $module.user[$module.options.userRolesKey] || [],
+          var userRoles = $module.userRoles(),
+              isName,
               maxRole;
 
+          // If a name lookup number in reverse map.
+          isName = angular.isString(role) && role.length > 1 && role.indexOf('.') === -1;
+          if (isName)
+            role = $module.rolesRev[role];
+
           if (angular.isString(role))
-            role = stringToNumber(role);
+            role = tryParseFloat(role);
 
           // get the passport's maximum role.
           maxRole = Math.max.apply(Math, userRoles);
@@ -2736,6 +2805,8 @@ angular.module('ai.passport.factory', [])
           return maxRole < role;
 
         };
+        
+        $module.hasLessThanRole = $module.hasMaxRole;
 
         // Unauthenticated redirect handler.
         $module.unauthenticated = function unauthenticated() {
@@ -2787,7 +2858,13 @@ angular.module('ai.passport.factory', [])
             if (found)
                 result.push(found);
           });
-
+          // try to find something to display.
+          if (!result.length) {
+            var tmpName = $module.user.firstName || $module.user.nickname || $module.user.username;
+            if (angular.isObject(tmpName)) {
+              tmpName = tmpName.first;
+            }
+          }
           return result.join(' ');
 
         };
@@ -2796,62 +2873,37 @@ angular.module('ai.passport.factory', [])
         $module.welcome = function welcome(prefix) {
           var result;
           prefix = prefix || $module.options.welcomeText;
-          result = prefix + ': ' + $module.displayName();
+          result = prefix + ': ' + $module.displayName() || 'Guest';
           return result.replace(/\s$/, '');
-        };
-
-        // Returns the event link for toggling log in and log out.
-        $module.link = function link() {
-
-          var logoutAction = $module.options.logoutAction,
-              loginAction = $module.options.loginAction;
-
-          // Normalizes return the proper link action.
-          function linkAction(action) {
-            if (angular.isFunction(action))
-              return function() {
-                action.apply($module, arguments);
-              };
-            else
-              return function() {
-                $location.path(action);
-              };
-          }
-
-          if ($module.user)
-            return linkAction(logoutAction);
-          else
-            return linkAction(loginAction);
-
         };
 
         // return roles array from user object.
         $module.userRoles = function userRoles() {
 
-          var userRoles = $module.user && $module.user[$module.options.userRolesKey];
+          var _userRoles = $module.user && $module.user[$module.options.userRolesKey];
 
           // Ensure that userRoles is an array.
-          if (userRoles && (angular.isString(userRoles) || angular.isNumber(userRoles)))
-            userRoles = [userRoles];
+          if (_userRoles && (angular.isString(_userRoles) || angular.isNumber(_userRoles)))
+            _userRoles = [_userRoles];
 
-          return userRoles || [$module.options.defaultRole || 0];
+          return _userRoles || [$module.options.defaultRole || 0];
 
         };
 
         // navigate to path.
         $module.goto = function goto(url, reload) {
 
-          $location.path(url);
-
-          if (reload) {
-            // Use timeout to ensure $rootScope variables trigger.
-            $timeout(function() {
-              if ($module.options.router === 'ngRoute')
+          if ($module.options.router === 'ngRoute') {
+            $location.path(url);
+            if (reload)
+              $timeout(function () {
                 $route.reload();
-              else
-                $route.go($route.current, {}, { reload: true });
-            });
+              });
           }
+          else {
+            $route.go(url || $route.current, {}, { reload: true });
+          }
+
 
         };
 
@@ -2884,19 +2936,31 @@ angular.module('ai.passport.factory', [])
 angular.module('ai.passport.interceptor', [])
 
 .factory('$passportInterceptor', ['$q', '$injector', function($q, $injector) {
+
     return {
+
       responseError: function(res) {
+
         //get passport here to prevent circ dependency.
-        var passport = $injector.get('$passport');
-        // handle unauthenticated response
-        if (res.status === 401 && passport.options['401'])
-          passport.unauthenticated();
-        // handle unauthorized.
-        if (res.status === 403 && passport.options['403'])
-          passport.unauthorized();
+        var $passport = $injector.get('$passport');
+
+        if ($passport.options.enabled !== false) {
+
+          // handle unauthenticated response
+          if (res.status === 401 && $passport.options['401'])
+            $passport.unauthenticated();
+
+          // handle unauthorized.
+          if (res.status === 403 && $passport.options['403'])
+            $passport.unauthorized();
+
+        }
+
         return $q.reject(res);
       }
+
     };
+
   }])
   .config(['$httpProvider', function($httpProvider) {
     $httpProvider.interceptors.push('$passportInterceptor');
@@ -2924,87 +2988,93 @@ angular.module('ai.passport.route', [])
 
     var args = Array.prototype.slice.call(arguments, 0),
       url = $location.path(),
-      area = {},
-      route = {},
       acl,
+      route,
       authorized,
-      next, prev, urlExp;
+      next, prev;
 
-    //url = url.replace(/^\//, '');
-    url = url.split('?')[0];
-    //urlExp = new RegExp('^' + $passport.options.loginUrl + '.+');
+    if ($passport.options.enabled !== false) {
 
-    next = args[1];
-    prev = args[2];
+      url = url.split('?')[0];
 
-    // for ui router the prev route
-    // is at diff arg position.
-    if (changeEvent === '$stateChangeStart')
-      prev = args[3];
+      next = args[1];
+      prev = args[2];
 
-    // Set the route to next object.
-    route = next;
+      // for ui router the prev route
+      // is at diff arg position.
+      if (changeEvent === '$stateChangeStart')
+        prev = args[3];
 
-    // If next.$$route using angular-route.
-    if (next && next.$$route)
-      route = next.$$route;
+      // Set the route to next object.
+      route = next;
 
-    acl = $passport.findByNotation(route, $passport.options.aclKey);
+      // If next.$$route using angular-route.
+      if (next && next.$$route)
+        route = next.$$route;
 
-    // when paranoid all routes must contain
-    // an access key containing roles otherwise
-    // direct to unauthorized.
-    if (acl === undefined && $passport.options.paranoid === true)
-      return $passport.unauthorized();
+      acl = $passport.findByNotation(route, $passport.options.aclKey);
 
-    // We've passed paranoid setting so safe to
-    // set default acl.
-    if (!acl)
-      acl = [$passport.options.defaultRole];
+      // when paranoid all routes must contain
+      // an access key containing roles otherwise
+      // direct to unauthorized.
+      if (acl === undefined && $passport.options.paranoid === true)
+        return $passport.unauthorized();
 
-   // If we already have a user.
-   if ($passport.user) {
+      // We've passed paranoid setting so safe to
+      // set default acl.
+      if (!acl)
+        acl = [$passport.options.defaultRole];
 
-     authorized = $passport.hasAnyRole(acl);
+      // If we already have a user.
+      if (!$passport.user && !$passport.userSync) {
 
-     if (!authorized) {
-       e.preventDefault();
-       $passport.unauthorized(e, next, prev);
-     }
-
-     // Check if default url is enabled and path is
-     // is the login url if true then redirect to
-     // the default url.
-    if ($passport.userSync && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
-      e.preventDefault();
-      $passport.goto($passport.options.defaultUrl, true);
-    }
-
-   }
-
-   // Otherwise ensure user before continuing.
-   else {
-
-     $passport.sync(function() {
-
-       authorized = $passport.hasAnyRole(acl);
-
-       if (!authorized) {
-         e.preventDefault();
-         $passport.unauthorized(e, next, prev);
-       }
-
-       // Check if default url is enabled and path is
-       // is the login url if true then redirect to
-       // the default url.
-      if ($passport.user && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
         e.preventDefault();
-        $passport.goto($passport.options.defaultUrl, true);
+
+        $passport.sync(function () {
+
+          authorized = $passport.hasAnyRole(acl);
+
+          if (!authorized)
+            $passport.unauthorized(e, next, prev);
+
+          // Check if default url is enabled and path is
+          // is the login url if true then redirect to
+          // the default url.
+          if ($passport.user && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
+            $passport.goto($passport.options.defaultUrl);
+          }
+          else {
+            if ($passport.options.router === 'ngRoute')
+              $passport.goto(url, true);
+            else
+              $passport.goto(next, true);
+          }
+
+        });
+
       }
 
-     });
+      // Otherwise ensure user before continuing.
+      else {
 
-   }
+        authorized = $passport.hasAnyRole(acl);
+
+        if (!authorized) {
+          e.preventDefault();
+          $passport.unauthorized(e, next, prev);
+        }
+
+        // Check if default url is enabled and path is
+        // is the login url if true then redirect to
+        // the default url.
+        if ($passport.userSync && $passport.options.defaultUrl && $passport.options.loginUrl === url) {
+          e.preventDefault();
+          $passport.goto($passport.options.defaultUrl, true);
+        }
+
+
+      }
+    }
 
   });
 
@@ -6140,907 +6210,16 @@ angular.module('ai.tree', ['ai.helpers'])
         };
 
     }]);
-var form = angular.module('ai.validate', ['ai.helpers'])
-.provider('$validate', function $validate() {
-
-    var defaults = {
-            elements: ['input','textarea','select'],
-            exclude: [],                                                        // array of name attributes to exclude from mapping.
-            template: '<span class="ai-validate-message">{{message}}</span>',   // the template to use for ai-validation-message. can be html string,
-                                                                                // 'tooltip top' where "top" is the bootstrap position
-                                                                                // of the tooltip. positions ('top', 'right', 'bottom', 'left')
-            tooltipClass: 'animated fadeIn',                                    // the additional classes to add. if null no classes are added.
-            tooltipAdj: { top: -2.5, left: 0 },                                 // there are cases where a slight adjustment is needed when using tooltips. This adjusts the adjusted position offset.
-            tooltipFallback: 'top',                                             // when tooltip gets pushed off screen fallback to this position. if that doesn't work sorry - bout - ur - luck!
-                                                                                // default leverages animate.css see http://daneden.github.io/animate.css/
-
-            prefixes: ['ai'],                                                   // validation expressions for angular by default strip "ng" from the expression,
-                                                                                // hence if you have custom validators you may need this to be stripped as well.
-                                                                                // for example if you have a directive "myValidator" which in markup would be my-validator
-
-            validateOnDirty: false,                                             // validation is throw when message is dirty and has error.
-            validateOnTouched: undefined,                                       // validation is thrown when has error and has lost focus e.g. been touched.
-            validateOnSubmit: undefined,                                        // throw validation on form submission.
-            validateOnDirtyEmpty: undefined,                                    // when validate on dirty is true then dirty validation events fire even if model value is undefined/null.
-            pristineOnReset: undefined,                                         // when form is reset return to pristine state.
-
-            messageTitlecase: undefined,                                        // when validation messages are show convert to title case (useful when ng-model properties are lower case).
-            novalidate: true,                                                   // when true adds html5 novalidate tag.
-          
-            onReady: null,                                                       // callback called after the form is initialized returns the form object.
-
-            validators: {
-                'required': '{{name}} is required.',
-                'minlength': '{{name}} must be at least {{value}} characters in length.',
-                'maxlength': '{{name}} must not exceed {{value}} characters in length.',
-                'ng-required': '{{name}} is required.',
-                'ng-minlength': '{{name}} must be at least {{value}} characters in length.',
-                'ng-maxlength': '{{name}} must not exceed {{value}} characters in length.',
-                'min': '{{name}} must be at least {{value}}.',
-                'max': '{{name}} must must not exceed {{value}}.',
-                'ng-pattern': '{{name}} must match the pattern {{value}}.',
-                'email': '{{name}} must be a valid email address.',
-                'tel': '{{name}} must be a valid phone number.',
-                'url': '{{name}} must be a valid url web address.',
-                'date': '{{name}} must be a valid date.',
-                'time': '{{name}} must be a valid time.',
-                'datetime': '{{name}} must be a valid date/time value.',
-                'ai-compare': '{{name}} must be equal to {{value}} field.'
-            }
-        },
-        get, set;
-
-    set = function set(value) {
-        angular.extend(defaults, value);
-    };
-
-    get = [ '$helpers', function get($helpers) {
-
-
-        function ModuleFactory(options, attrs) {
-
-            var $module = {};
-            options = options || {};
-            // set user validators to alt property.
-            if(options && options.validators){
-                options._validators = options.validators;
-                delete options.validators;
-            }
-
-           attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
-            options._validators = options._validators || {};
-            $module.options = angular.extend({}, defaults, attrs, options);
-
-            return $module;
-        }
-
-        //return ModuleFactory;
-
-        return {
-            elements: defaults.elements,
-            factory: ModuleFactory
-        };
-
-    }];
-
-    return {
-        $get: get,
-        $set: set
-    };
-
-})
-
-.controller('AiValidateFormController', ['$scope', '$helpers', '$timeout', function ($scope, $helpers, $timeout) {
-
-    var form, defaultTemplate, tooltipTemplate, summaryTemplate,
-        resetting, submitting,  initializing;
-
-    summaryTemplate = '<div ai-validate-summary>' +
-                        '<ul class="ai-validate-summary" ng-show="{{form}}.summary">' +
-                        '<li ng-repeat="(expression,message) in {{form}}.validators">{{message}}</li>' +
-                        '</ul>' +
-                        '</div>';
-
-    tooltipTemplate = '<div class="tooltip">' +
-                        '<div class="tooltip-inner">{{message}}</div>' +
-                        '<div class="tooltip-arrow"></div>' +
-                        '</div>';
-
-    defaultTemplate = '<span class="ai-validate-message">{{message}}</span>';
-
-    initializing = false;
-
-    // Local Methods
-
-    // find summary in form if exists.
-    function findSummary() {
-
-        // tooltips cannot be used with summary
-        if(form.tooltipEnabled) return;
-
-        var summary, element;
-        element = $scope.formElement;
-        summary = element[0].querySelectorAll('ai-validate-summary');
-        if(!summary.length)
-            summary = element[0].querySelectorAll('[ai-validate-summary]');
-
-        summary = summary && summary.length ?
-            angular.element(summary) : undefined;
-
-        if(summary) {
-            summaryTemplate = $scope.options.summaryTemplate || summaryTemplate;
-            summaryTemplate = summaryTemplate.replace(/{{form}}/g, $scope.formName);
-            form.summaryElement = $helpers.compile($scope, summaryTemplate);
-            summary.replaceWith(form.summaryElement);
-        }
-
-    }
-
-    function findElement(q, element) {
-        var elements;
-        if(element.querySelectorAll)
-            elements = element.querySelectorAll(q);
-        else if(!elements || !elements.length && element[0].querySelectorAll)
-            elements = element[0].querySelectorAll(q);
-        else if(!elements || !elements.length && document)
-            elements = document.querySelectorAll(q);
-        else
-            elements = undefined;
-        if(elements)
-            return angular.element(elements);
-        else
-            return undefined;
-    }
-
-    function getScrollbarWidth() {
-        var div, width = getScrollbarWidth.width;
-        if (width === undefined) {
-            div = document.createElement('div');
-            div.innerHTML = '<div style="width:50px;height:50px;position:absolute;left:-50px;top:-50px;overflow:auto;"><div style="width:1px;height:100px;"></div></div>';
-            div = div.firstChild;
-            document.body.appendChild(div);
-            width = getScrollbarWidth.width = div.offsetWidth - div.clientWidth;
-            document.body.removeChild(div);
-        }
-        return width;
-    }
-
-    function positionTooltip(input, tooltip, pos) {
-
-        var tooltipAdj, tooltipFallback;
-
-        // add additional classes if specified
-        if($scope.options.tooltipClass)
-            tooltip.addClass($scope.options.tooltipClass);
-
-        // used for disabling error border on input
-        input.addClass('ai-validate-tooltip');
-
-        tooltipAdj = $scope.options.tooltipAdj || { top: -2.5, left: 0 };
-        tooltipFallback = $scope.options.tooltipFallback || null;
-
-        function calculatePosition(_pos) {
-
-             // need to look into better way of doing this
-             // can't use .is() in jqlite.
-            tooltip.removeClass('top');
-            tooltip.removeClass('right');
-            tooltip.removeClass('left');
-            tooltip.removeClass('bottom');
-            tooltip.css({ left: 0, top: 0 });
-            tooltip.addClass(_pos);
-
-            var position, tooltipSize, inputSize, inputOffset,
-                windowSize, offset, scrollbarWidth;
-
-            tooltipSize = { height: tooltip[0].clientHeight, width: tooltip[0].offsetWidth };
-            inputSize = { height: input[0].clientHeight, width: input[0].offsetWidth };
-            inputOffset = { top: input[0].offsetTop, left: input[0].offsetLeft };
-            scrollbarWidth = getScrollbarWidth();
-            windowSize = { width: window.innerWidth - scrollbarWidth, height: window.innerHeight };
-            offset = {};
-
-            position = {
-                top: function () {
-                    offset.top = inputOffset.top - tooltipSize.height;
-                    offset.left = (inputOffset.left + inputSize.width) - (tooltipSize.width /2 + inputSize.width / 2) + tooltipAdj.left;
-                },
-                right: function () {
-                    offset.top = (inputSize.height - tooltipSize.height) / 2 + (inputOffset.top + tooltipAdj.top);
-                    offset.left = (inputOffset.left + inputSize.width);
-                },
-                bottom: function () {
-                    offset.top = inputOffset.top + inputSize.height;
-                    offset.left = (inputOffset.left + inputSize.width) - (tooltipSize.width /2 + inputSize.width / 2) + tooltipAdj.left;
-                },
-                left: function () {
-                    offset.top = (inputSize.height - tooltipSize.height) / 2 + (inputOffset.top + tooltipAdj.top);
-                    offset.left = inputOffset.left - tooltipSize.width;
-                }
-            };
-
-            // assign the position and calculate offset
-            position[_pos]();
-
-            // check overflow
-            if(offset.left < 0)
-                if(tooltipFallback && tooltipFallback !== 'left')
-                    return calculatePosition(tooltipFallback);
-                else
-                    return { top: offset.top, left: offset.left + Math.abs(offset.left) };
-
-            if((offset.left + tooltipSize.width) > windowSize.width)
-                if(tooltipFallback && tooltipFallback !== 'right')
-                    return calculatePosition(tooltipFallback);
-                else
-                    return { top: offset.top, left: offset.left - Math.abs((offset.left + tooltipSize.width) - windowSize.width)};
-
-            if((offset.top + tooltipSize.height) > windowSize.height)
-                if(tooltipFallback && tooltipFallback !== 'bottom')
-                    return calculatePosition(tooltipFallback);
-                else
-                    return { top: offset.top - Math.abs(((offset.top + tooltipSize.height) - windowSize.height)), left: offset.left };
-
-            if((offset.top - tooltipSize.height) < 0)
-                if(tooltipFallback && tooltipFallback !== 'top')
-                    return calculatePosition(tooltipFallback);
-                else
-                    return { top: Math.abs(offset.top - tooltipSize.height), left: offset.left };
-
-
-            return { top: offset.top, left: offset.left };
-
-        }
-
-        // store some day for use in window resize
-        tooltip.data({input: input, pos: pos });
-
-        // add the caclulated position in form of offset to the tooltip
-        tooltip.css(calculatePosition(pos));
-
-    }
-
-    function attachEvents() {
-
-        // apply scope for form submission
-        if ($scope.options.validateOnSubmit !== false) {
-            $scope.formElement.on('submit', function () {
-                $scope.$apply(function () {
-                    $scope.submitForm();
-                });
-            });
-        }
-
-        if ($scope.options.pristineOnReset !== false) {
-            $scope.formElement.on('reset', function () {
-                $scope.$apply(function () {
-                    $scope.resetForm();
-                });
-            });
-        }
-
-    }
-
-    function hasValidator(attr) {
-        var validators = $scope.options.validators;
-        return validators[attr] || undefined;
-    }
-
-    function getTitlecase(str){
-        str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
-        str = str.replace(/\b([A-Z]+)([A-Z])([a-z])/, '$1 $2$3');
-        str = str.replace(/([A-Z]+)*([A-Z][a-z])/g, "$1 $2");
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    function onDirtyRequireValue (name) {
-
-        if(form.submitted) return;
-
-        var input = form[name] || null;
-        if(input.$modelValue === undefined){
-            input.$invalid = false;
-            input.$valid = true;
-            input.$setPristine(true);
-            return false;
-        }
-        return true;
-    }
-
-    function getValidator(name, attr, value) {
-
-        var valMsg, cust, def;
-
-        // lookup the validation message expression
-        // for custom validators lookup by name
-        cust = $scope.options._validators[name];
-
-        // for internal lookup by attr.
-        def = $scope.options.validators[attr];
-
-        // if custom we need to check for the attr
-        if(cust)
-            cust = cust[attr];
-
-        // default to the custom validator expression if present
-        valMsg = cust || def;
-
-        // check if title case is enabled
-        if($scope.options.messageTitlecase !== false)
-            name = getTitlecase(name);
-
-        // check if expression is a function
-        if(angular.isFunction(valMsg))
-            valMsg = valMsg({ attr: attr, value: value }, form);
-
-        // replace "name" with the normalized field name
-        if(/{{name}}/.test(valMsg))
-            valMsg = valMsg.replace(/{{name}}/g, name || '');
-
-        // replace attribute is passed
-        if(/{{attr}}/.test(valMsg))
-            valMsg = valMsg.replace(/{{attr}}/g, attr || '');
-
-        // if a value is passed replace it also
-        if(/{{value}}/.test(valMsg))
-            valMsg = valMsg.replace(/{{value}}/g, value || '');
-
-        return valMsg;
-
-    }
-
-    function getExpression(name, attr, valMsg, valTemplate) {
-
-        var valExp, valElem, watch, msgTemplate, prefixes, prefixRegex;
-
-        msgTemplate = $scope.options.template || defaultTemplate;
-
-        $scope.options.prefixes.push('ng');
-        prefixes = $scope.options.prefixes.join('|');
-        prefixRegex = new RegExp('(' + prefixes + ')\-', 'gi');
-
-        // check if tooltips are enabled
-        if(form.tooltipEnabled)
-            msgTemplate = tooltipTemplate;
-
-
-        watch = valTemplate ? false : true;
-
-        valTemplate = valTemplate || '{{form}}.{{name}}.$error.{{attr}}';
-
-        if ($scope.options.validateOnDirty) {
-
-            if($scope.options.validateOnDirtyEmpty === false)
-                valTemplate += ' && {{form}}.{{name}}.$dirty && {{form}}.requireValue("' + name + '")';
-            else
-                valTemplate += ' && {{form}}.{{name}}.$dirty';
-        }
-
-        if($scope.options.validateOnTouched !== false)
-            valTemplate += ' && {{form}}.{{name}}.$touched';
-
-        if ($scope.options.validateOnSubmit !== false)
-            valTemplate += ' || {{form}}.submitted && {{form}}.{{name}}.$error.{{attr}}';
-
-
-        //attr = attr.replace('ng-', '');
-        attr = attr.replace(prefixRegex, '');
-
-        // the validation expression used with by default ng-show
-        valExp = valTemplate.replace(/{{form}}/g, $scope.formName).replace(/{{name}}/g, name).replace(/{{attr}}/g, attr);
-
-        // replace the placeholder with the validation message
-        msgTemplate = msgTemplate.replace(/{{message}}/, valMsg);
-
-        // add the expression to the new element via template
-        valElem = angular.element(msgTemplate).attr('ng-show', valExp);
-
-        // just in case we for got to add the required class in the template
-        if(!valElem.hasClass('ai-validate-message'))
-            valElem.addClass('ai-validate-message');
-
-        // add watcher
-        if(watch)
-            $scope.watchExpression(valExp, valMsg);
-
-        return valElem;
-
-    }
-
-    function compileValidator(input, valElem, name) {
-
-        var inputGroup;
-
-         // need to check parent as bootstrap clobbers positioning be
-         // sure to append after input groups.
-         // to bad we can't use .is() here no joy in jqlite.
-
-        if(input.parent()){
-            var parent = input.parent();
-            inputGroup = parent.hasClass('input-group') ||
-            parent.hasClass('input-prepend') ||
-            parent.hasClass('input-append') ||
-            undefined;
-        }
-
-        // check if summary element exists
-        if (form.summaryElement)
-            valElem.addClass('ai-summary');
-
-        // check if generated class exists
-        if (!valElem.hasClass('ai-generated'))
-            valElem.addClass('ai-generated');
-
-        if(inputGroup)
-            input.parent().after(valElem);
-        else
-            input.after(valElem);
-
-        valElem = $helpers.compile($scope, valElem);
-
-        if(form.tooltipEnabled){
-            var pos = $scope.options.template.split(' ').pop() || 'top';
-            positionTooltip(angular.element(input), valElem, pos);
-            form.validationElements.push(valElem);
-        }
-
-    }
-
-    // Scope Methods
-
-    $scope.findElement = findElement;
-
-    $scope.buildExpression = getExpression;
-
-    $scope.init = function init(initForm) {
-
-        if(initializing) return;
-
-        initializing = true;
-
-        // this resets the form objects.
-        // pass true so we don't init twice
-        // from a modal etc.
-        $scope.reinitForm(true);
-
-        // save ref to form
-        form = form || initForm;
-
-        form.resetForm = $scope.resetForm;
-        form.submitForm = $scope.submitForm;
-        form.reinitForm = $scope.reinitForm;
-        form.validators = {};
-        form.inputElements = [];
-        form.validationElements = [];
-
-        // get the form inputs and any existing generated validation messages.
-        var inputElements = findElement($scope.options.elements, $scope.formElement);
-        form.inputElements = inputElements = inputElements && inputElements.length > 0 ? inputElements : [];
-
-        // check if tooltip is used
-        form.tooltipEnabled = $scope.options.template && $scope.options.template.indexOf('tooltip') !== -1;
-
-        // find and compile the summary
-        findSummary();
-
-        // add validation function to require value on dirty if enabled
-        if($scope.options.validateOnDirtyEmpty === false)
-            form.requireValue = onDirtyRequireValue;
-
-        // nothing to do if no inputs exists
-        if(!inputElements.length) {
-            initializing = false;
-            return;
-        }
-
-        // attach submit and reset event listeners
-        attachEvents();
-
-        // iterate inputElements and inspect attributes
-        angular.forEach(inputElements, function (input) {
-
-            // convert to ng/jqlite element
-            input = angular.element(input);
-
-            var name, attrs, model, type;
-
-            // get the input's attributes
-            attrs = input[0].attributes;
-            type = input[0].type;
-
-            // get name, model and type vars
-            name = attrs.name ? attrs.name.value : undefined;
-
-            // we must have a name to ref. if no element name or is excluded return
-            if(!name || $scope.options.exclude.indexOf(name) !== -1)
-                return;
-
-            if (!input.hasClass('ai-validate-input'))
-                input.addClass('ai-validate-input');
-
-            // iterate attributes inspect for validation
-            angular.forEach(attrs, function (attr) {
-
-
-                var attrName = attr.name || undefined,
-                    isType = false;
-
-                if(attrName === 'type')	{
-                    attrName = attr.value;
-                    isType = true;
-                }
-
-                if(attrName && hasValidator(attrName)) {
-
-                    // get the validator expression message for type
-                    var valMsg, valElem;
-
-                    if(isType)
-                        valMsg = getValidator(name, attrName, undefined);
-                    else
-                        valMsg = getValidator(name, attrName, attr.value);
-
-                    // get the validation element w/ built expression
-                    valElem = getExpression(name, attrName, valMsg);
-
-                    // compile the validation message/expression for the input
-                    compileValidator(input, valElem, name);
-
-                }
-
-            });
-
-        });
-
-
-        if($scope.options.onReady) $scope.options.onReady(form, $scope);
-
-        initializing = false;
-
-        if (form.tooltipEnabled) {
-
-            form.positionTooltips = function positionTooltips() {
-                angular.forEach(form.validationElements, function (elem) {
-                    var data = elem.data();
-                    positionTooltip(data.input, elem, data.pos);
-                });
-            };
-
-            angular.element(window).bind('resize', function () {
-                form.positionTooltips();
-            });
-        }
-
-    };
-
-    $scope.watchExpression = function watchExpression(exp, msg) {
-
-        $scope.$watch(
-            function () {
-                return $scope.$eval(exp);
-            },
-            function (newVal, oldVal) {
-
-                // check if the validation exists
-                var exists = form.validators.hasOwnProperty(exp);
-
-                // add message if doesn't exist
-                if (!exists && newVal)
-                    form.validators[exp] = msg;
-
-                // remmove messages no longer invalid
-                if (exists && !newVal)
-                    delete form.validators[exp];
-
-                if (Object.keys(form.validators).length === 0) {
-                    form.summary = false;
-                } else {
-                    if (form.submitted)
-                        $scope.set.dirty();
-                    if (form.summaryElement)
-                        form.summary = true;
-                }
-
-            });
-
-    };
-
-    $scope.set = {
-
-        pristine: function (defaults) {
-
-            // must have form and element
-            if (!form || !$scope.formElement || !form.inputElements.length) return;
-
-            form.summary = false;
-            form.submitted = false;
-
-            // iterate inputs and set to pristine
-            angular.forEach(form.inputElements, function (input) {
-
-                input = angular.element(input);
-
-                var name, formProp;
-
-                // just in case
-                if(!input[0].attributes || !input[0].attributes.name) return;
-
-                // get the name attr
-                name = input[0].attributes.name.value || undefined;
-                formProp = form[name] || undefined;
-
-                // should never hit this but just in case
-                if(!name || !formProp)
-                    throw new Error('Form property could not be found or has an invalid name attribute. Cannot set pristine.');
-
-                if(defaults) {
-                    if(angular.isObject(defaults)) {
-                        if(defaults[formProp.$name]) {
-                            var val = defaults[formProp.$name];
-                            formProp.$setViewValue(val);
-                            input.val(val);
-                        } else {
-                            formProp.$setViewValue(undefined);
-                            input.val(undefined);
-                        }
-                    } else {
-                        formProp.$setViewValue(undefined);
-                        input.val(undefined);
-                    }
-                }
-
-                formProp.$setPristine(true);
-                formProp.$setUntouched(true);
-                formProp.$dirty = false;
-                input.addClass('ng-pristine').removeClass('ng-dirty');
-
-
-            });
-
-            // timeout important to fix issue where
-            // form re-evals when setting form defaults
-            $timeout(function () {
-                form.$dirty = false;
-                form.$setPristine(true);
-                form.$setUntouched(true);
-                form.submitted = false;
-                resetting = false;
-            });
-
-        },
-
-        dirty: function () {
-
-            // must have form and element
-            if (!form || !$scope.formElement || !form.inputElements.length) return;
-
-            // iterate inputs and set to pristine
-            angular.forEach(form.inputElements, function (input) {
-
-                input = angular.element(input);
-
-                var name, formProp;
-
-                // just in case
-                if (!input[0].attributes || !input[0].attributes.name) return;
-
-                // get the name attr
-                name = input[0].attributes.name.value || undefined;
-                formProp = form[name] || undefined;
-
-                // should never hit this but just in case
-                if(!name || !formProp)
-                    throw new Error('Form property could not be found or has an invalid name attribute. Cannot set pristine.');
-
-
-                formProp.$setPristine(false);
-                formProp.$dirty = true;
-                input.removeClass('ng-pristine').addClass('ng-dirty');
-
-            });
-
-            form.$pristine = false;
-            form.$setUntouched(false);
-            form.$setDirty(true);
-            submitting = false;
-
-        }
-
-    };
-
-    // resets the form back to its pristine state
-    $scope.resetForm = function (defaults) {
-        defaults = defaults || false;
-        if(resetting) return;
-        resetting = true;
-        $scope.set.pristine(defaults);
-    };
-
-     // forces form to $dirty to trigger any invalid elements
-     // can pass true to also trigger the jquery event
-    $scope.submitForm = function submit(trigger) {
-        if(submitting) return;
-        submitting = true;
-        form.submitted = true;
-        if(trigger === true)
-            $scope.formElement.submitForm();
-        $scope.set.dirty();
-    };
-
-    // destroy all validation objects.
-    $scope.destroyForm = function destroyForm() {
-        $scope.removeValidations();
-        delete $scope.formName;
-        delete $scope.formElement;
-        delete form.validators;
-        delete form.inputElements;
-        delete form.validationElements;
-    };
-
-    // remove all generated messages.
-    $scope.removeValidations = function removeValidations(elements) {
-        elements = elements || findElement('.ai-validate-message.ai-generated', $scope.formElement[0]);
-        if(elements && elements.length)
-            elements.remove();
-    };
-
-    // destroy then reinit form.
-    $scope.reinitForm = function reinitForm(suppressInit) {
-        suppressInit = suppressInit || false;
-        $scope.removeValidations();
-        if(form){
-            form.validators = {};
-            form.inputElements = [];
-            form.validationElements = [];
-        }
-        if(!suppressInit)
-            $scope.init();
-    };
-
-}])
-
-.directive("aiValidateForm", ['$validate', function ($validate) {
-
-    var elements, factory;
-        elements = $validate.elements;
-        factory = $validate.factory;
-
-        if(angular.isArray(elements))
-            elements = elements.join(',');
-
-    return {
-        restrict: 'AC',
-        controller: 'AiValidateFormController',
-        compile: function (tElement) {
-
-            var inputs = tElement[0].querySelectorAll(elements);
-
-            if (inputs && inputs.length) {
-                angular.forEach(inputs, function (input) {
-                    input = angular.element(input);
-                    var attrs = input[0].attributes,
-                        name,
-                        model;
-                    if(!attrs.name){
-                        model = attrs['ng-model'] || attrs['data-ng-model'] || undefined;
-                        name = model ? model.value.split('.').pop() : null;
-                        if(name){
-                            input.attr('name', name);
-                        }
-                    }
-                });
-            }
-
-            return function (scope, element, attrs, ctrl) {
- 
-                var form, formName, options, $module;
-
-                formName = element.attr('name') || null;
-
-                // formName is required.
-                if(!formName)
-                    throw new Error('Form name is invalid or missing. Please use name="some_value" to name your form.');
-
-                // add form to scope.
-                form = scope[formName] || undefined;
-
-                if(!form)
-                    throw new Error('Scope does not contain the requested form.');
-
-                // save vars to scope.
-                scope.formElement = element;
-                scope.formName = formName;
-                scope.parentScope = scope.$parent;
-
-                // extend options.
-                options = attrs.aiValidateForm || attrs.aiValidateOptions || attrs.aiValidateFormOptions;
-                $module = factory(scope.$eval(options), attrs);
-                scope.options = $module.options;
-
-                // add the validation element types to scope options.
-                scope.options.elements = elements;
-
-                if(scope.options.novalidate)
-                    element.attr('novalidate', '');
-
-                // watch for option changes.
-                scope.$watch(
-                    function () {
-                        return attrs.aiValidateForm || attrs.aiValidateOptions || attrs.aiValidateFormOptions;
-                    },
-                    function (newVal, oldVal) {
-                        if(newVal === oldVal) return;
-                        scope.options = angular.extend(scope.options, newVal);
-                }, true);
-
-                // init the form.
-                scope.init(form);
-
-            };
-
-        }
-
-    };
-
-}])
-
-.directive("aiValidateMessage", [function () {
-
-    return {
-        restrict: "EAC",
-        require: '?aiValidateForm',
-        link: function (scope, element, attrs, ctrl) {
-
-            var input;
-
-            // ngShow requried to show/hide val msgs return if not present
-            if (!attrs.ngShow) return;
-
-            // if validate for find element and add class
-            if (attrs.aiValidateMessage) {
-                input = scope.findElement('[name="' + attrs.aiValidateMessage + '"]', document);
-                if (input)
-                    input.addClass('ai-validate-input');
-            }
-
-            // make sure the element has the ai-validate-message class
-            if (!element.hasClass('ai-validate-message'))
-                element.addClass('ai-validate-message');
-
-            // watch expression for summary
-            scope.watchExpression(attrs.ngShow, element.text());
-
-            // add watcher for manual validation errors so
-            // summary/local message are properly updated
-            scope.$watch(function () {
-                var form = scope[scope.formName];
-                return form.summaryElement;
-            }, function (newVal, oldVal) {
-                if (newVal)
-                    element.addClass('ai-summary');
-                else
-                    element.removeClass('ai-summary');
-            });
-
-        }
-
-    };
-
-}]);
-
-
-
 angular.module('ai.widget', [])
 
 .provider('$widget', function $widget() {
 
-    var defaults = {            
+    var defaults = {
             number: {
                 defaultValue: undefined,        // default value if initialized undefined.
                 places: 2,                      // default decimal places.
                 event: 'blur'                   // event that triggers formatting.
-            },            
+            },
             case: {
                 casing: 'first',
                 event: 'blur'
@@ -7057,13 +6236,6 @@ angular.module('ai.widget', [])
                 parent: 'head',                 // the parent element where the script should be insert into.
                 position: 'append'              // either append, prepend or integer to insert script at.
             }
-            //nicescroll: {
-            //    horizrailenabled: false         // disables horizontal scroll bar.
-            //},
-            //redactor: {
-            //    focus: true,
-            //    plugins: ['fullscreen']
-            //},
         },
         get, set;
 
@@ -7112,33 +6284,6 @@ angular.module('ai.widget', [])
         }
     };
 }])
-    
-//
-//.directive('aiNicescroll', ['$widget', '$timeout', function($widget, $timeout) {
-//
-//    return {
-//        restrict: 'AC',
-//        link: function(scope, element, attrs) {
-//
-//            var defaults, options, $module, _attrs;
-//
-//            console.assert(window.NiceScroll, 'ai-nicescroll requires the NiceScroll library ' +
-//                'see: http://areaaperta.com/nicescroll');
-//
-//            defaults = angular.copy($widget('nicescroll'));
-//
-//            function init() {
-//                $timeout(function () {
-//                    $module = element.niceScroll(options);
-//                },0);
-//            }
-//
-//            options = attrs.aiNicescroll || attrs.aiNicescrollOptions;
-//            options = angular.extend(defaults, _attrs, scope.$eval(options));
-//            init();
-//        }
-//    };
-//}])
 
 // ensures handling decimal values.
 .directive('aiNumber', [ '$widget', '$helpers', '$timeout', function($widget, $helpers, $timeout) {
@@ -7151,32 +6296,32 @@ angular.module('ai.widget', [])
 
             defaults = angular.copy($widget('number'));
             _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-            
+
             function parseVal(val){
-                val = $helpers.tryParseFloat(val);  
-                if(val) 
+                val = $helpers.tryParseFloat(val);
+                if(val)
                     val = val.toFixed(options.places);
                 return val;
             }
-            
+
             // format and set value.
             function format(val) {
                 if(val !== undefined)  {
                     val = parseVal(val);
                     if(!val)
-                        val = parseVal(lastVal);                
+                        val = parseVal(lastVal);
                 }
                 if(val === undefined)
                     val = options.defaultValue !== undefined ? options.defaultValue : '';
-                element.val(val);           
+                element.val(val);
                 ngModel.$modelValue = val;
                 lastVal = val;
             }
 
             function init() {
-                
+
                 // bind event call apply
-                // format the value. 
+                // format the value.
                 // use simple event binding instead
                 // of adding watchers etc.
                 element.unbind(options.event);
@@ -7185,7 +6330,7 @@ angular.module('ai.widget', [])
                         format(e.target.value);
                     });
                 });
-                
+
                 // use timeout make sure dom is ready.
                 $timeout(function () {
                     var val = element.val();
@@ -7193,128 +6338,105 @@ angular.module('ai.widget', [])
                         if(options.defaultValue !== undefined)
                             val = options.defaultValue;
                     format(val);
-                }, 0);                
+                }, 0);
             }
-            
+
             options = attrs.aiNumber|| attrs.aiNumberOptions;
             options = angular.extend(defaults, _attrs, scope.$eval(options));
-            
+
             init();
         }
     };
 }])
 
-//// Angular wrapper for using Redactor.
-//.directive('aiRedactor', [ '$widget', '$helpers', function ($widget, $helpers) {
-//    return {
-//        restrict: 'AC',
-//        scope: true,
-//        require: '?ngModel',
-//        link: function (scope, element, attrs) {
-//            var defaults, options, $directive, _attrs;
-//
-//            defaults = angular.copy($widget('redactor'));
-//
-//            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
-//
-//            console.assert(window.jQuery && (typeof ($.fn.redactor) !== 'undefined'), 'ai-redactor requires the ' +
-//                'jQuery redactor plugin. see: http://imperavi.com/redactor.');
-//
-//            function init() {
-//                $directive = element.redactor(options);
-//            }
-//            options = attrs.aiRedactor || attrs.aiRedactorOptions;
-//            options =  angular.extend(defaults, _attrs, scope.$eval(options));
-//
-//            init();
-//        }
-//    };
-//}])
+.directive('aiCase', ['$timeout', '$widget', '$helpers', function($timeout, $widget, $helpers) {
 
-.directive('aiCase', [ '$timeout', '$widget', '$helpers', function ($timeout, $widget, $helpers) {
+  return {
+    restrict: 'AC',
+    require: '?ngModel',
+    link: function(scope, element, attrs, ngModel) {
 
-    return {
-        restrict: 'AC',
-        require: '?ngModel',
-        link: function (scope, element, attrs, ngModel) {
+      var defaults, options, casing, _attrs;
 
-            var defaults, options, casing, _attrs;
+      defaults = angular.copy($widget('case'));
+      options = {};
+      _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
 
-            defaults = angular.copy($widget('case'));
-            options = {};
-            _attrs = $helpers.parseAttrs(Object.keys(defaults), attrs);
+      function getCase(val) {
+        if (!val) return;
 
-            function getCase(val) {
-                if (!val) return;
+        if (casing === 'title')
+          return val.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+          });
+        else if (casing === 'first' || casing === 'captitalize')
+          return val.charAt(0).toUpperCase() + val.slice(1);
+        else if (casing === 'camel') {
+          return val.toLowerCase().replace(/-(.)/g, function(match, group1) {
+            return group1.toUpperCase();
+          });
+        } else if (casing === 'pascal')
+          return val.replace(/\w+/g, function(w) {
+            return w[0].toUpperCase() + w.slice(1).toLowerCase();
+          });
+        else if (casing === 'lower')
+          return val.toLowerCase();
+        else if (casing === 'upper')
+          return val.toUpperCase();
+        else return val;
+      }
 
-                if (casing === 'title')
-                    return val.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
-                else if (casing === 'first')
-                    return val.charAt(0).toUpperCase() + val.slice(1);
-                else if (casing === 'camel') {
-                    return val.toLowerCase().replace(/-(.)/g, function (match, group1) {
-                        return group1.toUpperCase();
-                    });
-                }
-                else if (casing === 'pascal')
-                    return val.replace(/\w+/g, function (w) { return w[0].toUpperCase() + w.slice(1).toLowerCase(); });
-                else if (casing === 'lower')
-                    return val.toLowerCase();
-                else if (casing === 'upper')
-                    return val.toUpperCase();
-                else return val;
-            }
+      function applyCase(e) {
 
-           function applyCase(e){
+        scope.$apply(function() {
+          var val = element.val(),
+            cased = getCase(val);
+          if (ngModel) {
+            ngModel.$setViewValue(cased);
+            element.val(cased);
+          } else {
+            element.val(getCase(val));
+          }
+        });
 
-               scope.$apply(function () {
-                   var val = element.val(),
-                       cased = getCase(val);
-                   if (ngModel) {
-                       ngModel.$modelValue = cased;
-                   } else {
-                       element.val(getCase(val));
-                   }
-               });
+      }
 
-            }
+      function init() {
 
-            function init() {
+        casing = options.casing;
 
-                casing = options.casing;
+        element.on(options.event, function(e) {
+          applyCase(e);
+        });
 
-                element.on(options.event, function (e) {
-                    applyCase(e);
-                });
+        element.on('keyup', function(e) {
+          var code = e.which || e.keyCode;
+          if (code === 13) {
+            /* prevent default or submit could happen
+            prior to apply case updates model */
+            e.preventDefault();
+            applyCase(e);
+          }
+        });
 
-                element.on('keyup', function (e) {
-                    var code = e.which || e.keyCode;
-                    if(code === 13){
-                        /* prevent default or submit could happen
-                        prior to apply case updates model */
-                        e.preventDefault();
-                        applyCase(e);
-                    }
-                });
+        $timeout(function() {
+          applyCase();
+        }, 100);
 
-                $timeout(function () {
-                    applyCase();
-                },100);
+      }
 
-            }
+      var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
+      if (angular.isString(tmpOpt))
+        options.casing = tmpOpt;
+      if (angular.isObject(tmpOpt))
+        options = scope.$eval(tmpOpt);
+      options = angular.extend(defaults, _attrs, options);
 
-            var tmpOpt = attrs.aiCase || attrs.aiCaseOptions;
-            if(angular.isString(tmpOpt))
-                options.casing = tmpOpt;
-            if(angular.isObject(tmpOpt))
-                options = scope.$eval(tmpOpt);
-            options = angular.extend(defaults, _attrs, options);
+      init();
 
-            init();
+    }
 
-        }
-
-    };
+  };
 
 }])
 
@@ -7450,7 +6572,7 @@ angular.module('ai.widget', [])
 
         }
     };
-        
+
 }])
 
 .directive('aiPlaceholder', [ '$widget', function($widget) {
@@ -7501,7 +6623,7 @@ angular.module('ai.widget', [])
                     prev;
 
                 placeholder = capitalize(placeholder);
-                
+
                 if(!isNative && placeholder)
                     element.attr('placeholder', placeholder);
 

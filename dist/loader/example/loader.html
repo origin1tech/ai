@@ -6,13 +6,13 @@
     is processing as expected just taking a bit more time due to the long process. Requesting large datasets for example.
 </p>
 <p>
-    By default you need only to add the ai-loader element or attribute/class to div to use the loader module. This 
+    By default you need only to add the ai-loader element or attribute/class to div to use the loader module. This
     will create a loader using the default loader image. If you wish to specify text under the loader you can do
     so by setting the "message" property in the options.
 </p>
 <p>
-    You can also define your own content and loader will use it instead. To do so your first element below the 
-    outer loader element must be a div. You can then define anything inside that div that you wish for your loader. 
+    You can also define your own content and loader will use it instead. To do so your first element below the
+    outer loader element must be a div. You can then define anything inside that div that you wish for your loader.
     A template path can also be provided using options.template.
 </p>
 <p>
@@ -44,7 +44,7 @@
         </ai-loader>
     </div>
 </div>
-<ai-loader></ai-loader>
+
 <hr/>
 <div class="tabpanel">
 
@@ -59,10 +59,10 @@
             <pre>
 &lt;!-- Default loader --&gt;
 &lt;ai-loader&gt;&lt;/ai-loader&gt;
- 
+
 &lt;!-- Loader with message and name --&gt;
 &lt;ai-loader options=&quot;{name: 'myLoader', message: 'Loading'}&quot;&gt;&lt;/ai-loader&gt;
-                
+
 &lt;!-- You can also specify loaders using --&gt;
 &lt;ai-loader&gt;&lt;/ai-loader&gt; or &lt;div ai-loader&gt;&lt;/div&gt;
             </pre>
@@ -70,13 +70,13 @@
         <div ng-class="{ active: tabActive('loader:code') }" ng-show="tabActive('loader:code')">
             <pre>
 var loader, element, options;
-                
-element = angular.element('&lt;div class=&quot;ai-loader&quot;&gt;&lt;/div&gt;'); 
+
+element = angular.element('&lt;div class=&quot;ai-loader&quot;&gt;&lt;/div&gt;');
 
 // add the element to the body
 var body = angular.element(document.querySelector('body'));
 body.append(element);
-                
+
 // name must be unique, name can be specified in options.name also.
 // if name is not specified 'global' is used.
 loader = $loader(name, element, options);
@@ -85,7 +85,7 @@ loader = $loader(name, element, options);
 // this will allow you to start/stop loader manually.
 loader.start() // shows the loader.
 loader.stop()  // stops the loader.
-                
+
 // setting options
 // you can also pass a single object.
 loader.set('message', 'My new message');

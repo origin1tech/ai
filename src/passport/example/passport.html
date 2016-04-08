@@ -1,50 +1,180 @@
 <h3>{{title}}</h3>
 <hr/>
 <p class="alert alert-warning">
-    Passport module assists in securing routes and elements withing your application. This is done by calling an endpoint
-    on the server which returns the authenticated user, their roles and the global roles for the application. All api
-    endpoint routes along with their actions can be configured.
+  Passport module assists in securing routes and elements withing your application. This is done by calling an endpoint
+  on the server which returns the authenticated user, their roles and the global roles for the application. All api
+  endpoint routes along with their actions can be configured.
 </p>
 <p>
-    For example you may wish to have users directed to
-    another route instead of the default '/'. You may do this by specifying the onLoginSuccess handler. This handler
-    as well as all "on" handlers accept either a path withing the application or a function. A function can be used to
-    do some custom logic upon the login. Functions are good for when you want to say redirect the user on login to his
-    authenticated area or dashboard as oppossed to a catch all path.
+  For example you may wish to have users directed to
+  another route instead of the default '/'. You may do this by specifying the onLoginSuccess handler. This handler
+  as well as all "on" handlers accept either a path withing the application or a function. A function can be used to
+  do some custom logic upon the login. Functions are good for when you want to say redirect the user on login to his
+  authenticated area or dashboard as oppossed to a catch all path.
 </p>
 <h4>Passport Module</h4>
 <hr/>
 <div class="row">
-    <div class="col-md-3">
-     
+  <div class="col-md-4">
+    <p>
+      My Display Name: <strong>{{displayName}}</strong>
+    </p>
+    <p>
+      <code>displayName = $passport.displayName();</code>
+    </p>
+  </div>
+  <div class="col-md-4">
+
+      <label>
+        <input name="roleMethod" type="radio" value="hasRole" ng-model="roleMethod"/>
+        &nbsp;hasRole
+      </label>&nbsp;
+      <label>
+        <input name="roleMethod" type="radio" value="hasAnyRole" ng-model="roleMethod"/>
+        &nbsp;hasAnyRole
+      </label>
+
+    <div class="input-group">
+      <input type="text" ng-model="role" class="form-control" />
+      <span class="input-group-btn">
+         <button type="button" class="btn btn-primary" ng-click="checkRole(roleMethod, role)">Check Role</button>
+      </span>
     </div>
+    <p>Result: {{roleResult}}</p>
+    <p><code>$passport.hasRole(3) or '3' or 'user'</code></p>
+    <p><code>$passport.hasAnyRole('2,3,4') or ',2,4,3' or 'admin' or 'user, admin, manager'</code></p>
+  </div>
+  <div class="col-md-4">
+    <label>
+      <input name="roleMinMaxMethod" type="radio" value="hasMinRole" ng-model="roleMinMaxMethod"/>
+      &nbsp;hasMinRole
+    </label>&nbsp;
+    <label>
+      <input name="roleMinMaxMethod" type="radio" value="hasLessThanRole" ng-model="roleMinMaxMethod"/>
+      &nbsp;hasLessThanRole
+    </label>
+
+    <div class="input-group">
+      <input type="text" ng-model="roleMinMax" class="form-control" />
+      <span class="input-group-btn">
+         <button type="button" class="btn btn-primary" ng-click="checkMinMaxRole(roleMinMaxMethod, roleMinMax)">Check Role</button>
+      </span>
+    </div>
+    <p>Result: {{roleMinMaxResult}}</p>
+    <p><code>$passport.hasMinRole(2) or '2' or 'user'</code></p>
+    <p><code>$passport.hasLessThanRole(3) or '3' or 'admin'</code></p>
+    <p><i>hasLessThanRole has alias of "hasMaxRole"</i></p>
+  </div>
 </div>
 
 <hr/>
+
 <div class="tabpanel">
 
-    <ul class="nav nav-tabs">
-        <li ng-class="{ active: tabActive('passport:markup') }"><a ng-click="showTab('passport:markup')">Markup</a></li>
-        <li ng-class="{ active: tabActive('passport:code') }"><a ng-click="showTab('passport:code')">Code</a></li>
-        <li ng-class="{ active: tabActive('passport:options') }"><a ng-click="showTab('passport:options')">Options</a></li>
-    </ul>
+  <ul class="nav nav-tabs">
+    <li ng-class="{ active: tabActive('passport:markup') }"><a ng-click="showTab('passport:markup')">Markup</a></li>
+    <li ng-class="{ active: tabActive('passport:code') }"><a ng-click="showTab('passport:code')">Code</a></li>
+    <li ng-class="{ active: tabActive('passport:options') }"><a ng-click="showTab('passport:options')">Options</a></li>
+  </ul>
 
-    <div class="tab-content">
-        <div ng-class="{ active: tabActive('passport:markup') }" ng-show="tabActive('passport:markup')">
-            <pre>
-markup
-            </pre>
-        </div>
-        <div ng-class="{ active: tabActive('passport:code') }" ng-show="tabActive('passport:code')">
-            <pre>
-code
+  <div class="tab-content">
 
+    <div ng-class="{ active: tabActive('passport:markup') }" ng-show="tabActive('passport:markup')">
+            <pre>
+&lt;div ng-if=&quot;$passport.user&quot;&gt;
+  Some secure div that is not displayed
+  unless a user is logged in.
+&lt;/div&gt;
+
+&lt;div ng-if=&quot;$passport.hasRole('admin')&quot;&gt;
+  Some secure div that is not displayed
+  unless a user is logged in.
+&lt;/div&gt;
             </pre>
-        </div>
-        <div ng-class="{ active: tabActive('passport:options') }" ng-show="tabActive('passport:options')">
-           <pre>
-options
-           </pre>
-        </div>
     </div>
+
+    <div ng-class="{ active: tabActive('passport:code') }" ng-show="tabActive('passport:code')">
+<pre>
+function MySecureCtrl($scope, $passport) {
+
+  if ($passport.hasAnyRole([3,4)){
+    $scope.adminWidget = true; // if using controllerAs it would be this.adminWidget for ex.
+  }
+
+}
+</pre>
+    </div>
+
+    <div ng-class="{ active: tabActive('passport:options') }" ng-show="tabActive('passport:options')">
+<pre>
+// Options
+{
+    enabled: undefined,
+    router: 'ngRoute', // the router being used uiRouter or ngRoute.
+    // this is not the module name but the
+    rootKey: '$passport', // the rootScope property key to set to instance.
+    aclKey: 'acl', // the property within route object that contains acl levels.
+
+    401: true, // set to false to not handle 401 status codes.
+    403: true, // set to false to not handle 403 status codes.
+
+    rolesKey: 'roles', // the key which contains ALL roles.
+    userKey: 'user', // the object key which contains the user information
+    // returned in res.data of successful login.
+    // ex: res.data.user (see method $module.login)
+    userRolesKey: 'roles', // the key in the user object containing roles.
+    defaultRole: 0, // the default role to be used for public access.
+    extendKeys: undefined, // array of keys you wish to also track.
+    extendRemove: false, // when true extended keys are stripped from object.
+
+    paranoid: undefined, // when NOT false, if security config missing go to login.
+
+    defaultUrl: '/', // the default path or home page.
+    loginUrl: '/passport/login', // path to login form.
+    loginAction: 'post /api/passport/login', // endpoint/func used for authentication.
+    logoutAction: 'get /api/passport/logout', // endpoint/func used to logout.
+    profileAction: 'passport/profile', // enpoint/funct for navigating to profile.
+    syncAction: 'get /api/passport/sync', // syncs app roles and user profile.
+
+    onLoginSuccess: '/', // path or func on success.
+    onLoginFailed: '/passport/login', // path or func when login fails.
+    onLogoutSuccess: '/passport/login', // path or func on logout success.
+    onLogoutFailed: '/passport/login', // path or func on logout failed.
+
+    onUnauthenticated: '/passport/login', // path or func when unauthenticated.
+    onUnauthorized: '/passport/login', // path or func when unauthorized.
+    onSyncSuccess: undefined, // func called when successfully synchronized w/ server.
+
+    guestText: 'Guest', // The text displayed when no user is logged in.
+    welcomeText: 'Welcome', // prefix string to identity.
+    welcomeParams: ['firstName'] // array of user properties. Each property provided will be separated by a space.
+}
+
+// Methods & Properties.
+
+  $passport.userSync - a property containing a boolean as to whether the user/session has been synd'd at least once.
+
+  $passport.login(data, success, error); - accepts object containing login data along with success/error callbacks.
+
+  $passport.logout(success, error); - accepts success/error callbacks.
+
+  $passport.hasRole(role) - accepts string or number returns boolean if user has role. strings that can, will be parsed as float as you may be passing from the view.
+
+  $passport.hasAnyRole(roles) - accepts csv string or array of strings or numbers.
+
+  $passport.hasMinRole(role) - accepts same as hasRole. tests if user has at least the role supplied.
+
+  $passport.hasMaxRole(role) - accepts same as hasRole. tests if has a maximum role of provided. In other words isn't beyond or is less than the role you supplied. (alias hasLessThanRole).
+
+  $passport.userRoles() - returns the user's roles.
+
+  $passport.unauthorized() - built in handler to send user to login page automatically.
+
+  $passport.displayName(arr) - returns the display name of the user by mapping to the welcomeParams in the user object. you can also pass in a custom array to override the default.
+
+</pre>
+    </div>
+
+  </div>
+
 </div>

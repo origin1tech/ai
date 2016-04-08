@@ -26,3 +26,7 @@ label.empty:before { content: 'b'; color: transparent; }
 .main { padding-bottom: 32px; }
 
 ul.nav-tabs { margin-bottom: 20px; }
+
+.row div {
+    margin-bottom: 12px;
+}
