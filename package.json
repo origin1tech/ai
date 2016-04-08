@@ -31,7 +31,8 @@
   "files": [
     "dist/",
     "README.md",
-    "LICENSE.md"
+    "LICENSE.md",
+    "package.json"
   ],
   "devDependencies": {
     "gulp-cached": "^1.1.0",
