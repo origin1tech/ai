@@ -7,7 +7,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
                 template: 'ai-loader.html',                         // the default loader content template. only used
                                                                     // if content is not detected in the element.
                 message: 'Loading',                                 // text to display under loader if value.
-                delay: -1,                                         // the delay in ms before loader is shown.
+                delay: 600,                                         // the delay in ms before loader is shown.
                 overflow: undefined,                                // hidden or auto when hidden overflow is hidden,
                                                                     // then toggled back to original body overflow.
                                                                     // default loader is set to hidden.
@@ -216,10 +216,10 @@ angular.module('ai.loader.factory', ['ai.helpers'])
             }
 
             // Add the default page loader.
-            if (!Object.keys(instances).length) {
+            if (!Object.keys(instances).length && page !== false) {
               var pageLoaderElem = angular.element('<ai-loader name="page">');
               var body = angular.element(document).find('body');
-              getLoader(page, pageLoaderElem, { name: 'page' });
+              getLoader('page', pageLoaderElem);
               body.append(pageLoaderElem);
             }
 
@@ -229,7 +229,7 @@ angular.module('ai.loader.factory', ['ai.helpers'])
 
         // The default page loader
         // set to false to disable.
-        page = 'page';
+        page = undefined;
 
         return {
             $get: get,
@@ -247,7 +247,9 @@ angular.module('ai.loader.factory', ['ai.helpers'])
 
                 var $module, defaults, options, watchKey, validKeys, instances;
 
-                instances = $loader();
+                // Do not process page loader.
+                if (attrs && attrs.name && attrs.name === 'page')
+                  return;
 
                 defaults = {
                     scope: scope

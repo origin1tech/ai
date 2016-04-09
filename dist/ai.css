@@ -59,11 +59,13 @@
     opacity: 0; }
   100% {
     opacity: 1; } }
+
 @keyframes table-loader-fadeIn {
   0% {
     opacity: 0; }
   100% {
     opacity: 1; } }
+
 table {
   width: 100%; }
 
@@ -74,12 +76,15 @@ table {
   margin: 0 6px;
   font-weight: normal;
   padding-top: 5px; }
+
 .ai-table-actions-options input.goto {
   max-width: 60px;
   margin-right: -3px; }
+
 .ai-table-actions-options button {
   margin-left: 8px;
   margin-top: -1px; }
+
 .ai-table-actions-options a {
   margin-top: -1px; }
 
@@ -116,6 +121,7 @@ table {
 
 .ai-table-pager ul {
   margin-top: 0px; }
+
 .ai-table-pager ul li {
   cursor: pointer; }
   .ai-table-pager ul li.disabled {
@@ -365,7 +371,7 @@ table {
     .ai-list .ai-list-items > div h5 {
       padding: 3px 10px; }
 
-.select-none, .ai-loader.ai-loader-page > div, .ai-loader.ai-loader-page p, .ai-loader.ai-loader-page svg, ai-loader.ai-loader-page > div, ai-loader.ai-loader-page p, ai-loader.ai-loader-page svg, [ai-loader].ai-loader-page > div, [ai-loader].ai-loader-page p, [ai-loader].ai-loader-page svg {
+.select-none, .ai-loader.ai-loader-page > div, .ai-loader.ai-loader-page p, .ai-loader.ai-loader-page svg, ai-loader.ai-loader-page > div, ai-loader.ai-loader-page p, ai-loader.ai-loader-page svg {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -khtml-user-select: none;
@@ -445,5 +451,3 @@ table {
     vertical-align: middle; }
   .ai-tree .ai-tree-label, [ai-tree] .ai-tree-label, ai-tree .ai-tree-label {
     display: inline-block; }
-
-/*# sourceMappingURL=ai.css.map */
