@@ -122,20 +122,25 @@ require([
             }
 
             if (area === 'table') {
+
                 var tblSrc = [
-                    {name: 'Jim Thomas', email: 'jthomas@gmail.com'},
-                    {name: 'Bob Blair', email: 'bblair@aol.com'},
-                    {name: 'Randy Quick', email: 'randy.quick@yahoo.com'},
-                    {name: 'Bob Smith', email: 'bobsmith@msn.com'},
-                    {name: 'Susan Jones', email: 'susan.jones@hotmail.com'},
-                    {name: 'Larry Anderson', email: 'anderson.larry@mail.com'},
-                    {name: 'Harry Ellis', email: 'ellis@gmail.com'},
-                    {name: 'Rory Boscoe', email: 'rory@aol.com'},
-                    {name: 'Simon Green', email: 'sgreen@yahoo.com'},
-                    {name: 'Quentin Rose', email: 'qrose@msn.com'},
-                    {name: 'Micah Barry', email: 'barry4u@hotmail.com'},
-                    {name: 'Alex Angle', email: 'alex.angle@mail.com'}
+                    {name: 'Jim Thomas', email: 'jthomas@gmail.com', date: '1/22/2016' },
+                    {name: 'Bob Blair', email: 'bblair@aol.com', date: '2/2/2016' },
+                    {name: 'Randy Quick', email: 'randy.quick@yahoo.com', date: '2/23/2016' },
+                    {name: 'Bob Smith', email: 'bobsmith@msn.com', date: '3/17/2016' },
+                    {name: 'Susan Jones', email: 'susan.jones@hotmail.com', date: '3/18/2016' },
+                    {name: 'Larry Anderson', email: 'anderson.larry@mail.com', date: '3/20/2016' },
+                    {name: 'Harry Ellis', email: 'ellis@gmail.com', date: '4/1/2016' ,
+                    {name: 'Rory Boscoe', email: 'rory@aol.com', date: '4/3/2016' },
+                    {name: 'Simon Green', email: 'sgreen@yahoo.com', date: '4/8/2016' },
+                    {name: 'Quentin Rose', email: 'qrose@msn.com', date: '4/11/2016' },
+                    {name: 'Micah Barry', email: 'barry4u@hotmail.com', date: '4/12/2016' },
+                    {name: 'Alex Angle', email: 'alex.angle@mail.com', date: '4/13/2016' }
                 ];
+
+                function filterRows() {
+
+                }
 
                 $scope.tbl = {
                     source: angular.copy(tblSrc),
@@ -154,11 +159,17 @@ require([
                     display: 10,
                     hover: true,
                     goto: false,
-                    onBind: function (scope) {
+                    onReady: function (scope) {
+
                         scope.options.source = tblSrc;
                         scope.init();
+
+                        console.log(scope.tblAdv);
+
                     }
+
                 };
+
             }
 
             // if (area === 'validate') {
@@ -414,9 +425,9 @@ require([
             }
 
             if (area === 'passport') {
-              
+
                 $scope.displayName = $passport.displayName();
-              
+
                 $scope.roleMethod = 'hasRole';
                 $scope.role = 3;
                 $scope.roleResult = '';
@@ -425,7 +436,7 @@ require([
                     $scope.roleResult = $passport[method](role);
                   }
                 };
-              
+
                 $scope.roleMinMaxMethod = 'hasMinRole';
                 $scope.roleMinMax = 3;
                 $scope.roleMinMaxResult = '';
@@ -434,8 +445,9 @@ require([
                     $scope.roleMinMaxResult = $passport[method](role);
                   }
                 };
-              
+
             }
+
         }
     ];
 

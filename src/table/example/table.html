@@ -8,9 +8,10 @@
 <hr/>
 <div ai-table="tbl"></div>
 
-<!--<h4>Loading Rows Manually <small> (see onReady)</small></h4>-->
-<!--<hr/>-->
-<!--<div ai-table="tblAdv"></div>-->
+<h4>Loading Rows Manually <small> (see onReady)</small></h4>
+<hr/>
+
+<div ai-table="tblAdv"></div>
 
 <div class="tabpanel">
 
@@ -54,7 +55,7 @@ tbl = {
        // do something before filter must return filtered results.
     }
 }
-    
+
 tblAdv = {
     orderBy: [ '-name' ],
     selectable: true,
@@ -62,17 +63,17 @@ tblAdv = {
     hover: true,
     goto: false,
     onReady: function (scope){
-    
+
         // this is entire $module context.
-    
+
         scope.options.source = [ // get your source from ajax call or other. ];
         scope.init(); // reinitialize the table.
-    
+
         // NOTE: if you have already loaded data/templates (your options.source had valid object),
         //       then you need only call scope.bind() to rebind the data.
         //       this is because the templates have already loaded.
         //       you can also call scope.bind(your_callback_if_desired, true) with a callback
-        //       and optionally pass "true" as a second argument. this will append the 
+        //       and optionally pass "true" as a second argument. this will append the
         //       additional items to the existing source.rows. this is used internally
         //       when batch loading large datasets from the server.
     }
@@ -82,9 +83,9 @@ tblAdv = {
 
         <div ng-class="{ active: tabActive('table:options') }" ng-show="tabActive('table:options')">
 <pre>
-    
+
 Column Options:
-    
+
 /* COLUMN OPTIONS
  * map: property to map to.
  * sortable: enables column sorting default: true.
@@ -125,8 +126,8 @@ Column Options:
  *  hover: boolean uses ai-table-hover class when true on <table> element default: false.
  *  condensed: boolean uses ai-table-condensed when true on <table> element default: false.
  */
-    
-    
+
+
 defaults = {
 
     // DATA & CONFIGURATION

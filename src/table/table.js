@@ -208,7 +208,6 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     '</div>' +
                     '</div>';
 
-
                 tableTemplate =
                     '<table class="ai-table-table table table-bordered table-striped table-hover table-condensed" ng-class="{ \'ai-table-selectable\': selectable }">' +
                     '<thead>' +
@@ -638,8 +637,8 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                     }
 
                     // FILTERING
-                    function filter() {
-                        applyFilter();
+                    function filter(q, c) {
+                        applyFilter(q, c);
                     }
 
                     // filters records
@@ -670,11 +669,10 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
 
                             var filtered;
 
-
                             // check if user filter is used
                             if(angular.isFunction(options.beforeFilter)){
 
-                                $q.when(options.beforeFilter(scope.source.rows, q))
+                                $q.when(options.beforeFilter(scope.source.rows, q, c))
                                     .then(function (resp) {
 
                                         if(angular.isArray(resp)){
@@ -693,7 +691,7 @@ angular.module('ai.table', ['ngSanitize', 'ai.helpers'])
                             } else if(!options.serverFilter){
 
                                 scope.filtered = $filter('filter')($filter('orderBy')
-                                (scope.source.rows, orderBy), q);
+                                (scope.source.rows, orderBy), q, c);
 
                                 // when queried we need to reset the pager
                                 scope.page = 1;

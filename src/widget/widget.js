@@ -22,7 +22,8 @@ angular.module('ai.widget', [])
             lazyload: {
                 src: undefined,                 // placeholder option.
                 parent: 'head',                 // the parent element where the script should be insert into.
-                position: 'append'              // either append, prepend or integer to insert script at.
+                position: 'append',              // either append, prepend or integer to insert script at.
+                validAttrs: ['src', 'charset', 'defer', 'async', 'type']                  // valid attributes.
             }
         },
         get, set;
@@ -481,11 +482,25 @@ angular.module('ai.widget', [])
 
             // check if inline or
             // is external file.
-            if(undefined === options.src){
+            if(undefined === options.src)
                 script.text = elem.text();
-            } else {
-                script.src = options.src;
-            }
+            // } else {
+            //     script.src = options.src;
+            // }
+
+            // Extend with attributes.
+            Object.keys(attrs).forEach(function (k) {
+
+              if (options.validAttrs.indexOf(k) == -1)
+                return;
+
+              script.setAttribute(k, attrs[k] || '');
+
+            });
+
+            // add lazy script type.
+            if (!attrs.src)
+              script.setAttribute('type', 'text/javascript-lazy');
 
             // add the script to parent.
             if(childElem)
